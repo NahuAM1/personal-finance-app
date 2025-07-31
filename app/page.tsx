@@ -29,6 +29,7 @@ import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
 import type { Transaction, SavingsGoal, ExpensePlan } from '@/types/database';
+import { UserProfile } from '@/components/user-profile';
 
 function FinanceAppContent() {
   const { user } = useAuth();
@@ -203,39 +204,42 @@ function FinanceAppContent() {
   return (
     <div className='min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800'>
       <div className='container mx-auto p-4 max-w-7xl'>
-        <div className='mb-6'>
-          <h1 className='text-3xl font-bold text-gray-900 dark:text-white mb-2'>
+        <div className='flex items-center justify-between py-3 px-6 mb-6 bg-white rounded-full shadow-md'>
+          <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>
             Finanzas Personales
           </h1>
-          <p className='text-gray-600 dark:text-gray-300'>
-            Gestiona tus ingresos, gastos y ahorros de manera inteligente
-          </p>
+          <UserProfile />
         </div>
 
         <Tabs defaultValue='dashboard' className='space-y-6'>
-          <TabsList className='grid w-full grid-cols-6 lg:w-fit lg:grid-cols-6'>
-            <TabsTrigger value='dashboard' className='flex items-center gap-2'>
-              <BarChart3 className='h-4 w-4' />
-              <span className='hidden sm:inline'>Dashboard</span>
-            </TabsTrigger>
+          <div className='flex items-center justify-center'>
+            <TabsList className='w-full justify-around'>
+              <TabsTrigger
+                value='dashboard'
+                className='flex items-center gap-2'
+              >
+                <BarChart3 className='h-4 w-4' />
+                <span className='hidden sm:inline'>Dashboard</span>
+              </TabsTrigger>
 
-            <TabsTrigger value='expenses' className='flex items-center gap-2'>
-              <PlusCircle className='h-4 w-4' />
-              <span className='hidden sm:inline'>Gastos</span>
-            </TabsTrigger>
-            <TabsTrigger value='credit' className='flex items-center gap-2'>
-              <CreditCard className='h-4 w-4' />
-              <span className='hidden sm:inline'>Tarjetas</span>
-            </TabsTrigger>
-            <TabsTrigger value='savings' className='flex items-center gap-2'>
-              <PiggyBank className='h-4 w-4' />
-              <span className='hidden sm:inline'>Ahorros</span>
-            </TabsTrigger>
-            <TabsTrigger value='plans' className='flex items-center gap-2'>
-              <MapPin className='h-4 w-4' />
-              <span className='hidden sm:inline'>Planes</span>
-            </TabsTrigger>
-          </TabsList>
+              <TabsTrigger value='expenses' className='flex items-center gap-2'>
+                <PlusCircle className='h-4 w-4' />
+                <span className='hidden sm:inline'>Gastos</span>
+              </TabsTrigger>
+              <TabsTrigger value='credit' className='flex items-center gap-2'>
+                <CreditCard className='h-4 w-4' />
+                <span className='hidden sm:inline'>Tarjetas</span>
+              </TabsTrigger>
+              <TabsTrigger value='savings' className='flex items-center gap-2'>
+                <PiggyBank className='h-4 w-4' />
+                <span className='hidden sm:inline'>Ahorros</span>
+              </TabsTrigger>
+              <TabsTrigger value='plans' className='flex items-center gap-2'>
+                <MapPin className='h-4 w-4' />
+                <span className='hidden sm:inline'>Planes</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value='dashboard'>
             <Dashboard
