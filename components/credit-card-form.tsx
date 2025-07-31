@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import type { Transaction } from "@/app/page"
+import type { Transaction } from "@/types/database"
 
 interface CreditCardFormProps {
-  onSubmit: (transaction: Omit<Transaction, "id">) => void
+  onSubmit: (transaction: Omit<Transaction, "id" | "user_id" | "created_at" | "updated_at">) => void
 }
 
 const creditCategories = ["Tecnología", "Electrodomésticos", "Muebles", "Ropa", "Viajes", "Educación", "Salud", "Otros"]
@@ -37,9 +37,9 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
       category,
       description: `${description} - Cuota 1/${installments}`,
       date: new Date().toISOString().split("T")[0],
-      isRecurring: true,
+      is_recurring: true,
       installments: Number.parseInt(installments),
-      currentInstallment: 1,
+      current_installment: 1,
     })
 
     // Reset form

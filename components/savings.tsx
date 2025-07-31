@@ -18,11 +18,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { PlusCircle, Target, Calendar, DollarSign } from "lucide-react"
-import type { SavingsGoal } from "@/app/page"
+import type { SavingsGoal } from "@/types/database"
 
 interface SavingsProps {
   savingsGoals: SavingsGoal[]
-  onAddGoal: (goal: Omit<SavingsGoal, "id">) => void
+  onAddGoal: (goal: Omit<SavingsGoal, "id" | "user_id" | "created_at" | "updated_at">) => void
   onUpdateGoal: (id: string, amount: number) => void
 }
 
@@ -42,8 +42,8 @@ export function Savings({ savingsGoals, onAddGoal, onUpdateGoal }: SavingsProps)
 
     onAddGoal({
       name: newGoal.name,
-      targetAmount: Number.parseFloat(newGoal.targetAmount),
-      currentAmount: 0,
+      target_amount: Number.parseFloat(newGoal.targetAmount),
+      current_amount: 0,
       deadline: newGoal.deadline,
     })
 
@@ -59,8 +59,8 @@ export function Savings({ savingsGoals, onAddGoal, onUpdateGoal }: SavingsProps)
     }
   }
 
-  const totalSaved = savingsGoals.reduce((sum, goal) => sum + goal.currentAmount, 0)
-  const totalTarget = savingsGoals.reduce((sum, goal) => sum + goal.targetAmount, 0)
+  const totalSaved = savingsGoals.reduce((sum, goal) => sum + goal.current_amount, 0)
+  const totalTarget = savingsGoals.reduce((sum, goal) => sum + goal.target_amount, 0)
   const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0
 
   return (
@@ -152,8 +152,8 @@ export function Savings({ savingsGoals, onAddGoal, onUpdateGoal }: SavingsProps)
       {/* Lista de metas */}
       <div className="grid gap-4 md:grid-cols-2">
         {savingsGoals.map((goal) => {
-          const progress = (goal.currentAmount / goal.targetAmount) * 100
-          const remaining = goal.targetAmount - goal.currentAmount
+          const progress = (goal.current_amount / goal.target_amount) * 100
+          const remaining = goal.target_amount - goal.current_amount
           const daysLeft = Math.ceil((new Date(goal.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
 
           return (
@@ -173,8 +173,8 @@ export function Savings({ savingsGoals, onAddGoal, onUpdateGoal }: SavingsProps)
               <CardContent className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span>${goal.currentAmount.toLocaleString()}</span>
-                    <span>${goal.targetAmount.toLocaleString()}</span>
+                    <span>${goal.current_amount.toLocaleString()}</span>
+                    <span>${goal.target_amount.toLocaleString()}</span>
                   </div>
                   <Progress value={progress} className="h-2" />
                   <div className="text-sm text-gray-600 mt-1">Faltan ${remaining.toLocaleString()}</div>

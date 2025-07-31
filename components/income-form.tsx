@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Transaction } from "@/app/page"
+import type { Transaction } from "@/types/database"
 
 interface IncomeFormProps {
-  onSubmit: (transaction: Omit<Transaction, "id">) => void
+  onSubmit: (transaction: Omit<Transaction, "id" | "user_id" | "created_at" | "updated_at">) => void
 }
 
 const incomeCategories = ["Salario", "Freelance", "Inversiones", "Alquiler", "Venta", "Bono", "Regalo", "Otros"]

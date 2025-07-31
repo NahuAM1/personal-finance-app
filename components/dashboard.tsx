@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { TrendingUp, TrendingDown, DollarSign, CreditCard, PiggyBank } from "lucide-react"
-import type { Transaction, SavingsGoal, ExpensePlan } from "@/app/page"
+import type { Transaction, SavingsGoal, ExpensePlan } from "@/types/database"
 
 interface DashboardProps {
   transactions: Transaction[]
@@ -56,11 +56,11 @@ export function Dashboard({ transactions, savingsGoals, expensePlans }: Dashboar
 
   // Próximos pagos de tarjeta
   const creditCardPayments = transactions
-    .filter((t) => t.type === "credit" && t.isRecurring && t.currentInstallment && t.installments)
-    .filter((t) => t.currentInstallment! < t.installments!)
+    .filter((t) => t.type === "credit" && t.is_recurring && t.current_installment && t.installments)
+    .filter((t) => t.current_installment! < t.installments!)
 
   // Total de ahorros
-  const totalSavings = savingsGoals.reduce((sum, goal) => sum + goal.currentAmount, 0)
+  const totalSavings = savingsGoals.reduce((sum, goal) => sum + goal.current_amount, 0)
 
   return (
     <div className="space-y-6">
@@ -168,13 +168,13 @@ export function Dashboard({ transactions, savingsGoals, expensePlans }: Dashboar
           </CardHeader>
           <CardContent className="space-y-4">
             {savingsGoals.map((goal) => {
-              const progress = (goal.currentAmount / goal.targetAmount) * 100
+              const progress = (goal.current_amount / goal.target_amount) * 100
               return (
                 <div key={goal.id} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="font-medium">{goal.name}</span>
                     <Badge variant="outline">
-                      ${goal.currentAmount.toLocaleString()} / ${goal.targetAmount.toLocaleString()}
+                      ${goal.current_amount.toLocaleString()} / ${goal.target_amount.toLocaleString()}
                     </Badge>
                   </div>
                   <Progress value={progress} className="h-2" />
@@ -204,7 +204,7 @@ export function Dashboard({ transactions, savingsGoals, expensePlans }: Dashboar
                       <div>
                         <div className="font-medium">{payment.description}</div>
                         <div className="text-sm text-gray-600">
-                          Cuota {payment.currentInstallment! + 1} de {payment.installments}
+                          Cuota {payment.current_installment! + 1} de {payment.installments}
                         </div>
                       </div>
                     </div>

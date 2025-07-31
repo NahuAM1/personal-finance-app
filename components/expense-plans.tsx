@@ -19,11 +19,11 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PlusCircle, MapPin, Calendar, Plane, Car, Home, GraduationCap } from "lucide-react"
-import type { ExpensePlan } from "@/app/page"
+import type { ExpensePlan } from "@/types/database"
 
 interface ExpensePlansProps {
   expensePlans: ExpensePlan[]
-  onAddPlan: (plan: Omit<ExpensePlan, "id">) => void
+  onAddPlan: (plan: Omit<ExpensePlan, "id" | "user_id" | "created_at" | "updated_at">) => void
 }
 
 const planCategories = [
@@ -50,8 +50,8 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
 
     onAddPlan({
       name: newPlan.name,
-      targetAmount: Number.parseFloat(newPlan.targetAmount),
-      currentAmount: 0,
+      target_amount: Number.parseFloat(newPlan.targetAmount),
+      current_amount: 0,
       deadline: newPlan.deadline,
       category: newPlan.category,
     })
@@ -145,8 +145,8 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
       {/* Lista de planes */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {expensePlans.map((plan) => {
-          const progress = (plan.currentAmount / plan.targetAmount) * 100
-          const remaining = plan.targetAmount - plan.currentAmount
+          const progress = (plan.current_amount / plan.target_amount) * 100
+          const remaining = plan.target_amount - plan.current_amount
           const daysLeft = Math.ceil((new Date(plan.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
           const categoryInfo = planCategories.find((cat) => cat.value === plan.category) || planCategories[4]
           const CategoryIcon = categoryInfo.icon
@@ -170,8 +170,8 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
               <CardContent className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="font-medium">${plan.currentAmount.toLocaleString()}</span>
-                    <span className="text-gray-600">${plan.targetAmount.toLocaleString()}</span>
+                    <span className="font-medium">${plan.current_amount.toLocaleString()}</span>
+                    <span className="text-gray-600">${plan.target_amount.toLocaleString()}</span>
                   </div>
                   <Progress value={progress} className="h-2" />
                   <div className="flex justify-between text-sm mt-2 text-gray-600">

@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Transaction } from "@/app/page"
+import type { Transaction } from "@/types/database"
 
 interface ExpenseFormProps {
-  onSubmit: (transaction: Omit<Transaction, "id">) => void
+  onSubmit: (transaction: Omit<Transaction, "id" | "user_id" | "created_at" | "updated_at">) => void
 }
 
 const expenseCategories = [
@@ -34,16 +34,24 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('ExpenseForm handleSubmit called')
+    console.log('Form values:', { amount, category, description })
 
-    if (!amount || !category || !description) return
+    if (!amount || !category || !description) {
+      console.log('Missing required fields')
+      return
+    }
 
-    onSubmit({
-      type: "expense",
+    const transaction = {
+      type: "expense" as const,
       amount: Number.parseFloat(amount),
       category,
       description,
       date: new Date().toISOString().split("T")[0],
-    })
+    }
+    
+    console.log('Calling onSubmit with:', transaction)
+    onSubmit(transaction)
 
     // Reset form
     setAmount("")

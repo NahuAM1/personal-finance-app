@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dashboard } from "@/components/dashboard"
@@ -11,125 +11,164 @@ import { CreditCardForm } from "@/components/credit-card-form"
 import { Savings } from "@/components/savings"
 import { ExpensePlans } from "@/components/expense-plans"
 import { BarChart3, Home, PlusCircle, CreditCard, PiggyBank, MapPin } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { AuthGuard } from "@/components/auth-guard"
+import * as api from "@/lib/database-api"
+import { useToast } from "@/hooks/use-toast"
+import { TestSupabase } from "@/components/test-supabase"
 
-export interface Transaction {
-  id: string
-  type: "income" | "expense" | "credit"
-  amount: number
-  category: string
-  description: string
-  date: string
-  isRecurring?: boolean
-  installments?: number
-  currentInstallment?: number
-}
+import type { Transaction, SavingsGoal, ExpensePlan } from "@/types/database"
 
-export interface SavingsGoal {
-  id: string
-  name: string
-  targetAmount: number
-  currentAmount: number
-  deadline: string
-}
-
-export interface ExpensePlan {
-  id: string
-  name: string
-  targetAmount: number
-  currentAmount: number
-  deadline: string
-  category: string
-}
-
-export default function FinanceApp() {
+function FinanceAppContent() {
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
   const [transactions, setTransactions] = useState<Transaction[]>([
-    {
-      id: "1",
-      type: "income",
-      amount: 150000,
-      category: "Salario",
-      description: "Salario mensual",
-      date: "2024-01-01",
-    },
-    {
-      id: "2",
-      type: "expense",
-      amount: 25000,
-      category: "Alimentación",
-      description: "Supermercado",
-      date: "2024-01-02",
-    },
-    {
-      id: "3",
-      type: "credit",
-      amount: 12000,
-      category: "Tecnología",
-      description: "Notebook - Cuota 3/12",
-      date: "2024-01-03",
-      isRecurring: true,
-      installments: 12,
-      currentInstallment: 3,
-    },
   ])
-
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([
-    {
-      id: "1",
-      name: "Viaje a Europa",
-      targetAmount: 200000,
-      currentAmount: 85000,
-      deadline: "2024-12-31",
-    },
-    {
-      id: "2",
-      name: "Fondo de emergencia",
-      targetAmount: 100000,
-      currentAmount: 45000,
-      deadline: "2024-06-30",
-    },
   ])
-
   const [expensePlans, setExpensePlans] = useState<ExpensePlan[]>([
-    {
-      id: "1",
-      name: "Vacaciones en Bariloche",
-      targetAmount: 80000,
-      currentAmount: 32000,
-      deadline: "2024-07-15",
-      category: "Viajes",
-    },
   ])
 
-  const addTransaction = (transaction: Omit<Transaction, "id">) => {
-    const newTransaction = {
-      ...transaction,
-      id: Date.now().toString(),
+  // Load initial data from Supabase
+  useEffect(() => {
+    if (!user) return
+
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const [transactionsData, savingsData, plansData] = await Promise.all([
+          api.getTransactions(user.id),
+          api.getSavingsGoals(user.id),
+          api.getExpensePlans(user.id),
+        ])
+
+        setTransactions(transactionsData || [])
+        setSavingsGoals(savingsData || [])
+        setExpensePlans(plansData || [])
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
     }
-    setTransactions((prev) => [...prev, newTransaction])
+
+    loadData()
+  }, [user, toast])
+
+  const addTransaction = async (transaction: Omit<Transaction, "id" | "user_id" | "created_at" | "updated_at">) => {
+    console.log('addTransaction called with:', transaction)
+    console.log('Current user:', user)
+    
+    if (!user) {
+      console.log('No user found, returning')
+      return
+    }
+
+    try {
+      const newTransaction = await api.addTransaction({
+        ...transaction,
+        user_id: user.id,
+        is_recurring: transaction.is_recurring || null,
+        installments: transaction.installments || null,
+        current_installment: transaction.current_installment || null,
+      })
+      console.log('Transaction created:', newTransaction)
+      setTransactions((prev) => [newTransaction, ...prev])
+      toast({
+        title: "Éxito",
+        description: "Transacción agregada correctamente",
+      })
+    } catch (error) {
+      console.error('Error in addTransaction:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo agregar la transacción",
+        variant: "destructive",
+      })
+    }
   }
 
-  const addSavingsGoal = (goal: Omit<SavingsGoal, "id">) => {
-    const newGoal = {
-      ...goal,
-      id: Date.now().toString(),
+  const addSavingsGoal = async (goal: Omit<SavingsGoal, "id" | "user_id" | "created_at" | "updated_at">) => {
+    if (!user) return
+
+    try {
+      const newGoal = await api.addSavingsGoal({
+        ...goal,
+        user_id: user.id,
+        current_amount: goal.current_amount || 0,
+      })
+      setSavingsGoals((prev) => [...prev, newGoal])
+      toast({
+        title: "Éxito",
+        description: "Meta de ahorro agregada correctamente",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo agregar la meta de ahorro",
+        variant: "destructive",
+      })
     }
-    setSavingsGoals((prev) => [...prev, newGoal])
   }
 
-  const updateSavingsGoal = (id: string, amount: number) => {
-    setSavingsGoals((prev) =>
-      prev.map((goal) =>
-        goal.id === id ? { ...goal, currentAmount: Math.min(goal.currentAmount + amount, goal.targetAmount) } : goal,
-      ),
+  const updateSavingsGoal = async (id: string, amount: number) => {
+    const goal = savingsGoals.find((g) => g.id === id)
+    if (!goal) return
+
+    try {
+      const newAmount = Math.min(goal.current_amount + amount, goal.target_amount)
+      const updatedGoal = await api.updateSavingsGoal(id, { current_amount: newAmount })
+      setSavingsGoals((prev) => prev.map((g) => (g.id === id ? updatedGoal : g)))
+      toast({
+        title: "Éxito",
+        description: "Meta de ahorro actualizada correctamente",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la meta de ahorro",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const addExpensePlan = async (plan: Omit<ExpensePlan, "id" | "user_id" | "created_at" | "updated_at">) => {
+    if (!user) return
+
+    try {
+      const newPlan = await api.addExpensePlan({
+        ...plan,
+        user_id: user.id,
+        current_amount: plan.current_amount || 0,
+      })
+      setExpensePlans((prev) => [...prev, newPlan])
+      toast({
+        title: "Éxito",
+        description: "Plan de gasto agregado correctamente",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo agregar el plan de gasto",
+        variant: "destructive",
+      })
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando datos...</p>
+        </div>
+      </div>
     )
-  }
-
-  const addExpensePlan = (plan: Omit<ExpensePlan, "id">) => {
-    const newPlan = {
-      ...plan,
-      id: Date.now().toString(),
-    }
-    setExpensePlans((prev) => [...prev, newPlan])
   }
 
   return (
@@ -140,6 +179,11 @@ export default function FinanceApp() {
           <p className="text-gray-600 dark:text-gray-300">
             Gestiona tus ingresos, gastos y ahorros de manera inteligente
           </p>
+        </div>
+        
+        {/* Temporary test component */}
+        <div className="mb-6">
+          <TestSupabase />
         </div>
 
         <Tabs defaultValue="dashboard" className="space-y-6">
@@ -224,5 +268,13 @@ export default function FinanceApp() {
         </Tabs>
       </div>
     </div>
+  )
+}
+
+export default function FinanceApp() {
+  return (
+    <AuthGuard>
+      <FinanceAppContent />
+    </AuthGuard>
   )
 }
