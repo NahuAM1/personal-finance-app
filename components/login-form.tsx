@@ -9,16 +9,16 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+} from '@/ui/card';
+import { Button } from '@/ui/button';
+import { Input } from '@/ui/input';
+import { Label } from '@/ui/label';
+import { Separator } from '@/ui/separator';
+import { Alert, AlertDescription } from '@/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs';
 import { LogIn, Shield, Mail, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2 } from 'lucide-react'; // Import Loader2 here
+import { Loader2 } from 'lucide-react';
 
 export function LoginForm() {
   const { signIn, signUp, signInWithGoogle } = useAuth();
@@ -222,28 +222,6 @@ export function LoginForm() {
               </TabsContent>
             </Tabs>
 
-            {/* <div className='relative'>
-              <div className='absolute inset-0 flex items-center'>
-                <Separator className='w-full' />
-              </div>
-              <div className='relative flex justify-center text-xs uppercase'>
-                <span className='bg-background px-2 text-muted-foreground'>
-                  O continúa con
-                </span>
-              </div>
-            </div>
-
-            <Button
-              variant='outline'
-              onClick={handleGoogleSignIn}
-              className='w-full bg-transparent'
-              disabled={loading}
-            >
-              <Mail className='h-4 w-4 mr-2' />
-              Google
-            </Button> */}
-
-            {/* Security Notice */}
             <div className='bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800'>
               <div className='flex items-start gap-2'>
                 <Shield className='h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0' />

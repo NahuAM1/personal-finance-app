@@ -13,7 +13,6 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true
 
-    // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -23,7 +22,6 @@ export function useAuth() {
           setLoading(false)
         }
       } catch (error) {
-        console.error('Error getting session:', error)
         if (mounted) {
           setLoading(false)
         }
@@ -32,15 +30,12 @@ export function useAuth() {
 
     getInitialSession()
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (mounted) {
         setUser(session?.user ?? null)
         setLoading(false)
-        
-        // Refresh the router on auth state change to update the UI
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
           router.refresh()
         }
