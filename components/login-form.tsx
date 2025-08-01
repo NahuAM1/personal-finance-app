@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs';
 import { LogIn, Shield, Mail, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import SingleLogo from '../assets/images/single-logo.png';
 
 export function LoginForm() {
   const { signIn, signUp, signInWithGoogle } = useAuth();
@@ -77,12 +79,10 @@ export function LoginForm() {
       <div className='w-full max-w-md space-y-6'>
         <div className='text-center space-y-2'>
           <div className='flex justify-center'>
-            <div className='p-3 bg-blue-600 rounded-full'>
-              <Shield className='h-8 w-8 text-white' />
-            </div>
+            <Image src={SingleLogo} width={60} alt='Personal Wallet logo' />
           </div>
           <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>
-            Finanzas Personales
+            Personal Wallet
           </h1>
           <p className='text-gray-600 dark:text-gray-300'>
             Gestiona tus finanzas de manera segura
