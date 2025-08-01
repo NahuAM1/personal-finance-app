@@ -47,7 +47,6 @@ export class ExpensePlanService {
   }
 
   static async addMoney(id: string, amount: number, userId: string) {
-    // Get current amount first
     const { data: currentPlan, error: fetchError } = await supabase
       .from("expense_plans")
       .select("current_amount, target_amount")

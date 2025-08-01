@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '@/ui/card';
 import { Dashboard } from '@/components/dashboard';
-import { QuickActions } from '@/components/quick-actions';
 import { ExpenseForm } from '@/components/expense-form';
 import { IncomeForm } from '@/components/income-form';
 import { CreditCardForm } from '@/components/credit-card-form';
@@ -30,6 +29,8 @@ import { useToast } from '@/hooks/use-toast';
 
 import type { Transaction, SavingsGoal, ExpensePlan } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
+import Image from 'next/image';
+import SingleLogo from '../assets/images/single-logo.png';
 
 function FinanceAppContent() {
   const { user } = useAuth();
@@ -39,7 +40,6 @@ function FinanceAppContent() {
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [expensePlans, setExpensePlans] = useState<ExpensePlan[]>([]);
 
-  // Load initial data from Supabase
   useEffect(() => {
     if (!user) return;
 
@@ -75,11 +75,7 @@ function FinanceAppContent() {
       'id' | 'user_id' | 'created_at' | 'updated_at'
     >
   ) => {
-    console.log('addTransaction called with:', transaction);
-    console.log('Current user:', user);
-
     if (!user) {
-      console.log('No user found, returning');
       return;
     }
 
@@ -91,14 +87,12 @@ function FinanceAppContent() {
         installments: transaction.installments || null,
         current_installment: transaction.current_installment || null,
       });
-      console.log('Transaction created:', newTransaction);
       setTransactions((prev) => [newTransaction, ...prev]);
       toast({
         title: 'Éxito',
         description: 'Transacción agregada correctamente',
       });
     } catch (error) {
-      console.error('Error in addTransaction:', error);
       toast({
         title: 'Error',
         description:
@@ -205,9 +199,12 @@ function FinanceAppContent() {
     <div className='min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800'>
       <div className='container mx-auto p-4 max-w-7xl'>
         <div className='flex items-center justify-between py-3 px-6 mb-6 bg-white rounded-full shadow-md'>
-          <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>
-            Finanzas Personales
-          </h1>
+          <div className='flex items-center justify-center gap-2'>
+            <Image src={SingleLogo} width={50} alt='Personal Wallet logo' />
+            <h1 className='text-xl lg:text-3xl font-bold text-[#0F365D] dark:text-white'>
+              Personal Wallet
+            </h1>
+          </div>
           <UserProfile />
         </div>
 

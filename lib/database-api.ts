@@ -1,7 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import type { Transaction, SavingsGoal, ExpensePlan } from "@/types/database"
 
-// Transactions API
 export async function getTransactions(userId: string) {
   const { data, error } = await supabase
     .from("transactions")
@@ -14,24 +13,16 @@ export async function getTransactions(userId: string) {
 }
 
 export async function addTransaction(transaction: Omit<Transaction, "id" | "created_at" | "updated_at">) {
-  console.log('Adding transaction:', transaction)
-  
   const { data, error } = await supabase
     .from("transactions")
     .insert([transaction])
     .select()
     .single()
 
-  if (error) {
-    console.error('Error adding transaction:', error)
-    throw error
-  }
-  
-  console.log('Transaction added successfully:', data)
+  if (error) throw error
   return data
 }
 
-// Savings Goals API
 export async function getSavingsGoals(userId: string) {
   const { data, error } = await supabase
     .from("savings_goals")
@@ -66,7 +57,6 @@ export async function updateSavingsGoal(id: string, updates: Partial<SavingsGoal
   return data
 }
 
-// Expense Plans API
 export async function getExpensePlans(userId: string) {
   const { data, error } = await supabase
     .from("expense_plans")

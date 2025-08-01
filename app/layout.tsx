@@ -6,9 +6,11 @@ import { Toaster } from 'sonner';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Finanzas Personales',
+  title: 'Personal Wallet',
   description: 'Gestiona tus finanzas de manera inteligente',
-  generator: 'v0.dev',
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
