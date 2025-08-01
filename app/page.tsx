@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/ui/card';
+} from '@/components/ui/card';
 import { Dashboard } from '@/components/dashboard';
 import { ExpenseForm } from '@/components/expense-form';
 import { IncomeForm } from '@/components/income-form';

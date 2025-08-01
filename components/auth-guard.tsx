@@ -3,7 +3,7 @@
 import type React from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { LoginForm } from './login-form';
-import { Card, CardContent } from '@/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 
 interface AuthGuardProps {

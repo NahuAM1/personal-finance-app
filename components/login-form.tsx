@@ -9,13 +9,13 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/ui/card';
-import { Button } from '@/ui/button';
-import { Input } from '@/ui/input';
-import { Label } from '@/ui/label';
-import { Separator } from '@/ui/separator';
-import { Alert, AlertDescription } from '@/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs';
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogIn, Shield, Mail, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
