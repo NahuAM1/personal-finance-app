@@ -15,12 +15,14 @@ import { IncomeForm } from '@/components/income-form';
 import { CreditCardForm } from '@/components/credit-card-form';
 import { Savings } from '@/components/savings';
 import { ExpensePlans } from '@/components/expense-plans';
+import { History } from '@/components/history';
 import {
   BarChart3,
   PlusCircle,
   CreditCard,
   PiggyBank,
   MapPin,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthGuard } from '@/components/auth-guard';
@@ -218,10 +220,9 @@ function FinanceAppContent() {
                 <BarChart3 className='h-4 w-4' />
                 <span className='hidden sm:inline'>Dashboard</span>
               </TabsTrigger>
-
               <TabsTrigger value='expenses' className='flex items-center gap-2'>
                 <PlusCircle className='h-4 w-4' />
-                <span className='hidden sm:inline'>Gastos</span>
+                <span className='hidden sm:inline'>Transacciones</span>
               </TabsTrigger>
               <TabsTrigger value='credit' className='flex items-center gap-2'>
                 <CreditCard className='h-4 w-4' />
@@ -234,6 +235,11 @@ function FinanceAppContent() {
               <TabsTrigger value='plans' className='flex items-center gap-2'>
                 <MapPin className='h-4 w-4' />
                 <span className='hidden sm:inline'>Planes</span>
+              </TabsTrigger>
+
+              <TabsTrigger value='history' className='flex items-center gap-2'>
+                <ClipboardList className='h-4 w-4' />
+                <span className='hidden sm:inline'>Historial</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -302,6 +308,10 @@ function FinanceAppContent() {
               expensePlans={expensePlans}
               onAddPlan={addExpensePlan}
             />
+          </TabsContent>
+
+          <TabsContent value='history'>
+            <History />
           </TabsContent>
         </Tabs>
       </div>
