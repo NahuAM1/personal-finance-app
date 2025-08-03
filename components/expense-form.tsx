@@ -27,14 +27,17 @@ interface ExpenseFormProps {
 }
 
 const expenseCategories = [
-  'Alimentación',
-  'Transporte',
+  'Compras',
   'Servicios',
+  'Salidas',
+  'Delivery',
+  'Auto',
+  'Transporte',
   'Entretenimiento',
   'Salud',
-  'Educación',
   'Ropa',
   'Tecnología',
+  'Educación',
   'Hogar',
   'Otros',
 ];
