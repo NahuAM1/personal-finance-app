@@ -101,8 +101,6 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
     setError(null);
 
     const message: string = replaceTranscriptionPlaceholder(text);
-    console.log('message: ', message);
-    console.log('text: ', text);
 
     try {
       const response = await fetch('/api/openAI', {
