@@ -33,6 +33,8 @@ import type { Transaction, SavingsGoal, ExpensePlan } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
 import SingleLogo from '../assets/images/single-logo.png';
+import VoiceChat from '@/components/voice-chat';
+import { useFormContext } from '@/contexts/form-context';
 
 function FinanceAppContent() {
   const { user } = useAuth();
@@ -41,6 +43,15 @@ function FinanceAppContent() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [expensePlans, setExpensePlans] = useState<ExpensePlan[]>([]);
+
+  const {
+    setIncomeAmount,
+    setIncomeCategory,
+    setIncomeDescription,
+    setExpenseAmount,
+    setExpenseCategory,
+    setExpenseDescription,
+  } = useFormContext();
 
   useEffect(() => {
     if (!user) return;
@@ -184,6 +195,46 @@ function FinanceAppContent() {
     }
   };
 
+  const transcriptionHandler = (rawResponse: any) => {
+    const jsonMatch =
+      rawResponse.match?.(/```json([\s\S]*?)```/) ||
+      rawResponse.match?.(/```([\s\S]*?)```/);
+    const cleanJson = jsonMatch ? jsonMatch[1].trim() : rawResponse;
+
+    let response: {
+      type: 'income' | 'expense';
+      amount: number;
+      category: string;
+      description: string;
+    };
+
+    try {
+      response =
+        typeof cleanJson === 'string' ? JSON.parse(cleanJson) : cleanJson;
+    } catch (error) {
+      console.error('Error al parsear la respuesta:', error);
+      return;
+    }
+
+    const { type, amount, category, description } = response;
+
+    if (type === 'income') {
+      setIncomeAmount(amount.toString());
+      setIncomeCategory(category);
+      setIncomeDescription(description);
+    } else if (type === 'expense') {
+      setExpenseAmount(amount.toString());
+      setExpenseCategory(category);
+      setExpenseDescription(description);
+    }
+
+    toast({
+      title: 'Éxito',
+      description:
+        'Transacción generada con IA exitosamente. Ya puede registrarla.',
+    });
+  };
+
   if (loading) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800'>
@@ -253,6 +304,9 @@ function FinanceAppContent() {
           </TabsContent>
 
           <TabsContent value='expenses'>
+            <div>
+              <VoiceChat onResponse={(data) => transcriptionHandler(data)} />
+            </div>
             <div className='grid gap-6 md:grid-cols-2'>
               <Card>
                 <CardHeader>
