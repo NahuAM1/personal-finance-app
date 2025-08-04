@@ -304,9 +304,6 @@ function FinanceAppContent() {
           </TabsContent>
 
           <TabsContent value='expenses'>
-            <div>
-              //<VoiceChat onResponse={(data) => transcriptionHandler(data)} />
-            </div>
             <div className='grid gap-6 md:grid-cols-2'>
               <Card>
                 <CardHeader>
