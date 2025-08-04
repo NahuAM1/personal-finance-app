@@ -2,7 +2,6 @@
 
 import type React from 'react';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +15,9 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import type { Transaction } from '@/types/database';
+import { expenseCategories } from '@/public/constants';
+import { TransactionsTypes } from '@/public/enums';
+import { useFormContext } from '@/contexts/form-context';
 
 interface ExpenseFormProps {
   onSubmit: (
@@ -26,47 +28,37 @@ interface ExpenseFormProps {
   ) => void;
 }
 
-const expenseCategories = [
-  'Compras',
-  'Servicios',
-  'Salidas',
-  'Delivery',
-  'Auto',
-  'Transporte',
-  'Entretenimiento',
-  'Salud',
-  'Ropa',
-  'Tecnología',
-  'Educación',
-  'Hogar',
-  'Otros',
-];
-
 export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
-  const [description, setDescription] = useState('');
+  const {
+    expenseForm,
+    setExpenseAmount,
+    setExpenseCategory,
+    setExpenseDescription,
+    resetExpenseForm,
+  } = useFormContext();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!amount || !category || !description) {
+    if (
+      !expenseForm.amount ||
+      !expenseForm.category ||
+      !expenseForm.description
+    ) {
       return;
     }
 
     const transaction = {
-      type: 'expense' as const,
-      amount: Number.parseFloat(amount),
-      category,
-      description,
+      type: TransactionsTypes.EXPENSE,
+      amount: Number.parseFloat(expenseForm.amount),
+      category: expenseForm.category,
+      description: expenseForm.description,
       date: format(new Date(), 'yyyy-MM-dd'),
     };
 
     onSubmit(transaction);
 
-    setAmount('');
-    setCategory('');
-    setDescription('');
+    resetExpenseForm();
   };
 
   return (
@@ -77,15 +69,19 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
           id='amount'
           type='number'
           placeholder='0.00'
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          value={expenseForm.amount}
+          onChange={(e) => setExpenseAmount(e.target.value)}
           required
         />
       </div>
 
       <div className='space-y-2'>
         <Label htmlFor='category'>Categoría</Label>
-        <Select value={category} onValueChange={setCategory} required>
+        <Select
+          value={expenseForm.category}
+          onValueChange={setExpenseCategory}
+          required
+        >
           <SelectTrigger>
             <SelectValue placeholder='Selecciona una categoría' />
           </SelectTrigger>
@@ -104,8 +100,8 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         <Textarea
           id='description'
           placeholder='Describe el gasto...'
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={expenseForm.description}
+          onChange={(e) => setExpenseDescription(e.target.value)}
           required
         />
       </div>

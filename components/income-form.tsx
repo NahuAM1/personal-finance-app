@@ -2,7 +2,6 @@
 
 import type React from 'react';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +15,9 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import type { Transaction } from '@/types/database';
+import { incomeCategories } from '@/public/constants';
+import { TransactionsTypes } from '@/public/enums';
+import { useFormContext } from '@/contexts/form-context';
 
 interface IncomeFormProps {
   onSubmit: (
@@ -26,38 +28,30 @@ interface IncomeFormProps {
   ) => void;
 }
 
-const incomeCategories = [
-  'Salario',
-  'Freelance',
-  'Inversiones',
-  'Alquiler',
-  'Venta',
-  'Bono',
-  'Regalo',
-  'Otros',
-];
-
 export function IncomeForm({ onSubmit }: IncomeFormProps) {
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
-  const [description, setDescription] = useState('');
+  const {
+    incomeForm,
+    setIncomeAmount,
+    setIncomeCategory,
+    setIncomeDescription,
+    resetIncomeForm,
+  } = useFormContext();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!amount || !category || !description) return;
+    if (!incomeForm.amount || !incomeForm.category || !incomeForm.description)
+      return;
 
     onSubmit({
-      type: 'income',
-      amount: Number.parseFloat(amount),
-      category,
-      description,
+      type: TransactionsTypes.INCOME,
+      amount: Number.parseFloat(incomeForm.amount),
+      category: incomeForm.category,
+      description: incomeForm.description,
       date: format(new Date(), 'yyyy-MM-dd'),
     });
 
-    setAmount('');
-    setCategory('');
-    setDescription('');
+    resetIncomeForm();
   };
 
   return (
@@ -68,15 +62,19 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
           id='income-amount'
           type='number'
           placeholder='0.00'
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          value={incomeForm.amount}
+          onChange={(e) => setIncomeAmount(e.target.value)}
           required
         />
       </div>
 
       <div className='space-y-2'>
         <Label htmlFor='income-category'>Categoría</Label>
-        <Select value={category} onValueChange={setCategory} required>
+        <Select
+          value={incomeForm.category}
+          onValueChange={setIncomeCategory}
+          required
+        >
           <SelectTrigger>
             <SelectValue placeholder='Selecciona una categoría' />
           </SelectTrigger>
@@ -95,8 +93,8 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
         <Textarea
           id='income-description'
           placeholder='Describe el ingreso...'
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={incomeForm.description}
+          onChange={(e) => setIncomeDescription(e.target.value)}
           required
         />
       </div>
