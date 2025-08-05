@@ -33,8 +33,8 @@ import type { Transaction, SavingsGoal, ExpensePlan } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
 import SingleLogo from '../assets/images/single-logo.png';
-import VoiceChat from '@/components/voice-chat';
 import { useFormContext } from '@/contexts/form-context';
+import VoiceChat from '@/components/voice-chat';
 
 function FinanceAppContent() {
   const { user } = useAuth();
@@ -305,6 +305,7 @@ function FinanceAppContent() {
 
           <TabsContent value='expenses'>
             <div className='grid gap-6 md:grid-cols-2'>
+              <VoiceChat onResponse={(data) => transcriptionHandler(data)} />
               <Card>
                 <CardHeader>
                   <CardTitle>Registrar Gasto</CardTitle>
