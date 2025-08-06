@@ -1,6 +1,8 @@
 'use client';
 
+import { X } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
+import { Button } from './ui/button';
 
 declare global {
   interface Window {
@@ -11,11 +13,15 @@ declare global {
 interface MicrophoneComponentProps {
   transcript: string;
   setTranscript: (transcript: string) => void;
+  setHidden: (hidden: boolean) => void;
+  setTranscriptDone: (transcriptDone: boolean) => void;
 }
 
 export function MicrophoneComponent({
   transcript,
   setTranscript,
+  setHidden,
+  setTranscriptDone,
 }: MicrophoneComponentProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingComplete, setRecordingComplete] = useState(false);
@@ -31,7 +37,6 @@ export function MicrophoneComponent({
     recognitionRef.current.onresult = (event: any) => {
       const { transcript } = event.results[event.results.length - 1][0];
 
-      console.log(event.results);
       setTranscript(transcript);
     };
 
@@ -50,6 +55,9 @@ export function MicrophoneComponent({
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       setRecordingComplete(true);
+      handleHidden();
+      setHidden(true);
+      setTranscriptDone(true);
     }
   };
 
@@ -62,11 +70,23 @@ export function MicrophoneComponent({
     }
   };
 
+  const handleHidden = () => {
+    if (!isRecording) {
+      setHidden(true);
+      setTranscript('');
+    }
+  };
+
   return (
-    <div className='flex items-center justify-center h-screen w-full'>
+    <div className='flex items-center justify-center h-screen w-full relative'>
+      <div onClick={() => handleHidden()} className='absolute top-0 right-0'>
+        <Button variant='ghost' size='icon'>
+          <X className='w-4 h-4' />
+        </Button>
+      </div>
       <div className='w-full'>
         {(isRecording || transcript) && (
-          <div className='w-1/4 m-auto rounded-md border p-4 bg-white'>
+          <div className='w-[200px] m-auto rounded-md border p-4 bg-white'>
             <div className='flex-1 flex w-full justify-between'>
               <div className='space-y-1'>
                 <p className='text-sm font-medium leading-none'>
@@ -95,10 +115,10 @@ export function MicrophoneComponent({
           {isRecording ? (
             <button
               onClick={handleToggleRecording}
-              className='mt-10 m-auto flex items-center justify-center bg-red-400 hover:bg-red-500 rounded-full w-20 h-20 focus:outline-none'
+              className='mt-10 m-auto flex items-center justify-center bg-red-400 hover:bg-red-500 rounded-full w-10 h-10 md:w-14 md:h-14 focus:outline-none'
             >
               <svg
-                className='h-12 w-12 '
+                className='h-6 w-6 md:h-12 md:w-12 '
                 viewBox='0 0 24 24'
                 xmlns='http://www.w3.org/2000/svg'
               >
@@ -108,12 +128,12 @@ export function MicrophoneComponent({
           ) : (
             <button
               onClick={handleToggleRecording}
-              className='mt-10 m-auto flex items-center justify-center bg-blue-400 hover:bg-blue-500 rounded-full w-20 h-20 focus:outline-none'
+              className='mt-10 m-auto flex items-center justify-center bg-blue-400 hover:bg-blue-500 rounded-full w-10 h-10 md:w-14 md:h-14 focus:outline-none'
             >
               <svg
                 viewBox='0 0 256 256'
                 xmlns='http://www.w3.org/2000/svg'
-                className='w-12 h-12 text-white'
+                className='w-6 h-6 md:w-10 md:h-10 text-white'
               >
                 <path
                   fill='currentColor'
