@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { replaceTranscriptionPlaceholder } from '@/public/utils/transcriptionUtils';
 import { MicrophoneComponent } from '@/components/microphone-component';
 import { Button } from './ui/button';
+import CircularProgress from '@mui/material/CircularProgress';
+import { useToast } from '@/hooks/use-toast';
 
 interface VoiceChatProps {
   onResponse?: (response: any) => void;
@@ -13,11 +15,20 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
   const [transcript, setTranscript] = useState('');
   const [transcriptDone, setTranscriptDone] = useState(false);
   const [hidden, setHidden] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const sendToOpenAI = async (text: string) => {
+    setLoading(true);
     const message: string = replaceTranscriptionPlaceholder(text);
 
     try {
+      toast({
+        title: 'Procesando',
+        description:
+          'La transacción se esta procesando, por favor aguarde un instante',
+        variant: 'info',
+      });
       const response = await fetch('/api/openAI', {
         method: 'POST',
         headers: {
@@ -39,6 +50,16 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
       }
     } catch (err) {
       console.error('[VoiceChat] Error sending to OpenAI:', err);
+      toast({
+        title: 'Limite de creditos de IA',
+        description:
+          'Se alcanzaron los limites de creditos diarios de la IA, lamentamos la molestia.',
+        variant: 'destructive',
+      });
+    } finally {
+      setTranscriptDone(false);
+      setLoading(false);
+      setTranscript('');
     }
   };
 
@@ -58,12 +79,18 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
           hidden ? 'flex md:flex-row-reverse' : 'hidden'
         } h-full w-full`}
       >
-        <Button
-          onClick={() => setHidden(false)}
-          className='w-full md:w-1/4 bg-blue-500 hover:bg-blue-600 m-4 md:mx-0'
-        >
-          Generar con IA
-        </Button>
+        {loading ? (
+          <div className='flex w-full items-center justify-center m-10'>
+            <CircularProgress />
+          </div>
+        ) : (
+          <Button
+            onClick={() => setHidden(false)}
+            className='w-full md:w-1/4 bg-blue-500 hover:bg-blue-600 m-4 md:mx-0'
+          >
+            Generar con IA
+          </Button>
+        )}
       </div>
       <div className={`${hidden ? 'hidden' : 'flex'} h-full w-full`}>
         <MicrophoneComponent
