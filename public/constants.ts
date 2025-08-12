@@ -5,6 +5,7 @@ export const expenseCategories = [
   'Delivery',
   'Auto',
   'Transporte',
+  'Deporte',
   'Entretenimiento',
   'Salud',
   'Ropa',
