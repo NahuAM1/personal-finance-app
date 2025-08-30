@@ -1,8 +1,7 @@
 'use client';
 
 import type React from 'react';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -13,14 +12,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogIn, Shield, Mail, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Shield, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import SingleLogo from '../assets/images/single-logo.png';
+import { useToast } from '@/hooks/use-toast';
 
 export function LoginForm() {
   const { signIn, signUp, signInWithGoogle } = useAuth();
@@ -28,18 +26,32 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (cooldown > 0) {
+      timer = setInterval(() => {
+        setCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     const { error } = await signIn(email, password);
 
     if (error) {
-      setError(error.message);
+      toast({
+        title: 'Error',
+        description:
+          'No se pudo realizar el inicio de sesion del usuario. Intente mas tarde.',
+        variant: 'destructive',
+      });
     }
 
     setLoading(false);
@@ -47,15 +59,25 @@ export function LoginForm() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (cooldown > 0) return;
+
     setLoading(true);
-    setError(null);
 
     const { error } = await signUp(email, password);
 
     if (error) {
-      setError(error.message);
+      toast({
+        title: 'Error',
+        description: 'No se pudo realizar el registro del usuario.',
+        variant: 'destructive',
+      });
     } else {
-      setMessage('¡Cuenta creada! Revisa tu email para confirmar tu cuenta.');
+      toast({
+        title: 'Éxito',
+        description:
+          '¡Cuenta creada! Revisa tu email para confirmar tu cuenta.',
+      });
+      setCooldown(60);
     }
 
     setLoading(false);
@@ -63,12 +85,16 @@ export function LoginForm() {
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
-    setError(null);
 
     const { error } = await signInWithGoogle();
 
     if (error) {
-      setError(error.message);
+      toast({
+        title: 'Error',
+        description:
+          'No se pudo realizar el inicio de sesion del usuario. Intente mas tarde.',
+        variant: 'destructive',
+      });
     }
 
     setLoading(false);
@@ -97,18 +123,6 @@ export function LoginForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className='space-y-4'>
-            {error && (
-              <Alert variant='destructive'>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {message && (
-              <Alert>
-                <AlertDescription>{message}</AlertDescription>
-              </Alert>
-            )}
-
             <Tabs defaultValue='signin' className='w-full'>
               <TabsList className='w-full'>
                 <TabsTrigger value='signin'>Iniciar Sesión</TabsTrigger>
@@ -210,13 +224,17 @@ export function LoginForm() {
                       </p>
                     )}
                   </div>
-                  <Button type='submit' className='w-full' disabled={loading}>
+                  <Button
+                    type='submit'
+                    className='w-full'
+                    disabled={loading || cooldown > 0}
+                  >
                     {loading ? (
                       <Loader2 className='h-4 w-4 animate-spin mr-2' />
                     ) : (
                       <LogIn className='h-4 w-4 mr-2' />
                     )}
-                    Crear Cuenta
+                    {cooldown > 0 ? `Espera ${cooldown}s...` : 'Crear Cuenta'}
                   </Button>
                 </form>
               </TabsContent>
