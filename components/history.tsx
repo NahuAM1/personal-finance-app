@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTransactions } from '@/hooks/use-transactions';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,8 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -31,6 +31,29 @@ export function History() {
   const { transactions, loading, error, deleteTransaction } = useTransactions();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const groupedTransactions = useMemo(() => {
+    const groups: Record<string, typeof transactions> = {};
+    
+    transactions
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .forEach((transaction) => {
+        const date = format(parseISO(transaction.date), 'yyyy-MM-dd');
+        if (!groups[date]) {
+          groups[date] = [];
+        }
+        groups[date].push(transaction);
+      });
+    
+    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+  }, [transactions]);
+
+  const totalPages = Math.ceil(groupedTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedGroups = groupedTransactions.slice(startIndex, endIndex);
 
   const handleDelete = async () => {
     if (!transactionToDelete) return;
@@ -118,64 +141,105 @@ export function History() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className='space-y-4'>
-            {transactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className='flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50'
-              >
-                <div className='flex-1'>
-                  <div className='flex items-center gap-2'>
-                    <span
-                      className={`font-semibold ${getTypeColor(
-                        transaction.type
-                      )}`}
-                    >
-                      {getTypeLabel(transaction.type)}
-                    </span>
-                    <span className='text-gray-500'>|</span>
-                    <span className='text-sm text-gray-600'>
-                      {transaction.category}
-                    </span>
-                  </div>
-                  <p className='text-sm text-gray-700 mt-1'>
-                    {transaction.description}
-                  </p>
-                  <p className='text-xs text-gray-500 mt-1'>
-                    {format(
-                      new Date(transaction.date),
-                      "dd 'de' MMMM 'de' yyyy",
-                      { locale: es }
-                    )}
-                  </p>
-                  {transaction.installments && (
-                    <p className='text-xs text-gray-500'>
-                      Cuota {transaction.current_installment} de{' '}
-                      {transaction.installments}
-                    </p>
-                  )}
-                </div>
+          <div className='space-y-6'>
+            {paginatedGroups.map(([dateKey, dayTransactions]) => (
+              <div key={dateKey} className='space-y-3'>
                 <div className='flex items-center gap-4'>
-                  <span
-                    className={`font-bold text-lg ${getTypeColor(
-                      transaction.type
-                    )}`}
-                  >
-                    {transaction.type === 'expense' ? '-' : '+'} $
-                    {transaction.amount.toFixed(2)}
-                  </span>
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    onClick={() => openDeleteDialog(transaction.id)}
-                    className='text-red-600 hover:text-red-700 hover:bg-red-50'
-                  >
-                    <Trash2 className='h-4 w-4' />
-                  </Button>
+                  <div className='h-px bg-gray-200 flex-1'></div>
+                  <h3 className='font-semibold text-gray-700 px-4 py-2 bg-gray-50 rounded-lg'>
+                    {format(parseISO(dateKey), "d 'de' MMMM 'de' yyyy", { locale: es })}
+                  </h3>
+                  <div className='h-px bg-gray-200 flex-1'></div>
+                </div>
+                
+                <div className='space-y-2'>
+                  {dayTransactions.map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className='flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50'
+                    >
+                      <div className='flex-1'>
+                        <div className='flex items-center gap-2'>
+                          <span
+                            className={`font-semibold ${getTypeColor(
+                              transaction.type
+                            )}`}
+                          >
+                            {getTypeLabel(transaction.type)}
+                          </span>
+                          <span className='text-gray-500'>|</span>
+                          <span className='text-sm text-gray-600'>
+                            {transaction.category}
+                          </span>
+                        </div>
+                        <p className='text-sm text-gray-700 mt-1'>
+                          {transaction.description}
+                        </p>
+                        {transaction.installments && (
+                          <p className='text-xs text-gray-500 mt-1'>
+                            Cuota {transaction.current_installment} de{' '}
+                            {transaction.installments}
+                          </p>
+                        )}
+                      </div>
+                      <div className='flex items-center gap-4'>
+                        <span
+                          className={`font-bold text-lg ${getTypeColor(
+                            transaction.type
+                          )}`}
+                        >
+                          {transaction.type === 'expense' || transaction.type === 'credit' ? '-' : '+'} $
+                          {transaction.amount.toLocaleString()}
+                        </span>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          onClick={() => openDeleteDialog(transaction.id)}
+                          className='text-red-600 hover:text-red-700 hover:bg-red-50'
+                        >
+                          <Trash2 className='h-4 w-4' />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
+            
+            {groupedTransactions.length === 0 && (
+              <div className='text-center text-gray-500 py-8'>
+                No hay transacciones registradas
+              </div>
+            )}
           </div>
+          
+          {totalPages > 1 && (
+            <div className='flex items-center justify-between mt-6 pt-4 border-t'>
+              <div className='text-sm text-gray-600'>
+                Página {currentPage} de {totalPages}
+              </div>
+              <div className='flex items-center gap-2'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className='h-4 w-4 mr-1' />
+                  Anterior
+                </Button>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                  <ChevronRight className='h-4 w-4 ml-1' />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
       

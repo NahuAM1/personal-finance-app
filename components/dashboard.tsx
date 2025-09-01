@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -9,6 +10,13 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   BarChart,
   Bar,
@@ -29,6 +37,7 @@ import {
   PiggyBank,
   ArrowUpCircle,
   ArrowDownCircle,
+  Calendar,
 } from 'lucide-react';
 import { getMonth, getYear, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -55,14 +64,31 @@ export function Dashboard({
   expensePlans,
 }: DashboardProps) {
   const currentDate = new Date();
-  const currentMonth = getMonth(currentDate);
-  const currentYear = getYear(currentDate);
+  const [selectedMonth, setSelectedMonth] = useState(getMonth(currentDate));
+  const [selectedYear, setSelectedYear] = useState(getYear(currentDate));
+
+  const months = [
+    { value: 0, label: 'Enero' },
+    { value: 1, label: 'Febrero' },
+    { value: 2, label: 'Marzo' },
+    { value: 3, label: 'Abril' },
+    { value: 4, label: 'Mayo' },
+    { value: 5, label: 'Junio' },
+    { value: 6, label: 'Julio' },
+    { value: 7, label: 'Agosto' },
+    { value: 8, label: 'Septiembre' },
+    { value: 9, label: 'Octubre' },
+    { value: 10, label: 'Noviembre' },
+    { value: 11, label: 'Diciembre' },
+  ];
+
+  const years = Array.from({ length: 10 }, (_, i) => getYear(currentDate) - 5 + i);
 
   const currentMonthTransactions = transactions.filter((t) => {
     const transactionDate = parseISO(t.date);
     return (
-      getMonth(transactionDate) === currentMonth &&
-      getYear(transactionDate) === currentYear
+      getMonth(transactionDate) === selectedMonth &&
+      getYear(transactionDate) === selectedYear
     );
   });
 
@@ -74,7 +100,15 @@ export function Dashboard({
     .filter((t) => t.type === 'expense' || t.type === 'credit')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const balance = totalIncome - totalExpenses;
+  const cumulativeIncome = transactions
+    .filter((t) => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const cumulativeExpenses = transactions
+    .filter((t) => t.type === 'expense' || t.type === 'credit')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const balance = cumulativeIncome - cumulativeExpenses;
 
   const expensesByCategory = currentMonthTransactions
     .filter((t) => t.type === 'expense' || t.type === 'credit')
@@ -114,11 +148,63 @@ export function Dashboard({
 
   return (
     <div className='space-y-6'>
+      <Card>
+        <CardHeader>
+          <CardTitle className='flex items-center gap-2'>
+            <Calendar className='h-5 w-5' />
+            Filtrar por Período
+          </CardTitle>
+          <CardDescription>
+            Selecciona el mes y año para ver los datos específicos
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className='flex gap-4'>
+            <div className='flex-1'>
+              <label className='text-sm font-medium mb-2 block'>Mes</label>
+              <Select
+                value={selectedMonth.toString()}
+                onValueChange={(value) => setSelectedMonth(parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map((month) => (
+                    <SelectItem key={month.value} value={month.value.toString()}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className='flex-1'>
+              <label className='text-sm font-medium mb-2 block'>Año</label>
+              <Select
+                value={selectedYear.toString()}
+                onValueChange={(value) => setSelectedYear(parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
         <Card>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
             <CardTitle className='text-sm font-medium'>
-              Ingresos del Mes
+              Ingresos de {months[selectedMonth].label} {selectedYear}
             </CardTitle>
             <TrendingUp className='h-4 w-4 text-green-600' />
           </CardHeader>
@@ -132,7 +218,7 @@ export function Dashboard({
         <Card>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
             <CardTitle className='text-sm font-medium'>
-              Gastos del Mes
+              Gastos de {months[selectedMonth].label} {selectedYear}
             </CardTitle>
             <TrendingDown className='h-4 w-4 text-red-600' />
           </CardHeader>
@@ -145,7 +231,7 @@ export function Dashboard({
 
         <Card>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>Balance</CardTitle>
+            <CardTitle className='text-sm font-medium'>Balance Total</CardTitle>
             <DollarSign
               className={`h-4 w-4 ${
                 balance >= 0 ? 'text-green-600' : 'text-red-600'
@@ -181,7 +267,7 @@ export function Dashboard({
           <CardHeader>
             <CardTitle>Gastos por Categoría</CardTitle>
             <CardDescription>
-              Distribución de gastos del mes actual
+              Distribución de gastos de {months[selectedMonth].label} {selectedYear}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -205,7 +291,7 @@ export function Dashboard({
         <Card>
           <CardHeader>
             <CardTitle>Distribución de Gastos</CardTitle>
-            <CardDescription>Porcentaje por categoría</CardDescription>
+            <CardDescription>Porcentaje por categoría - {months[selectedMonth].label} {selectedYear}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width='100%' height={300}>
