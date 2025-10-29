@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import type { Database } from "@/types/database"
+import { deleteCreditTransaction } from "@/lib/database-api"
 
 type TransactionInsert = Database["public"]["Tables"]["transactions"]["Insert"]
 type TransactionUpdate = Database["public"]["Tables"]["transactions"]["Update"]
@@ -41,9 +42,8 @@ export class TransactionService {
   }
 
   static async delete(id: string, userId: string) {
-    const { error } = await supabase.from("transactions").delete().eq("id", id).eq("user_id", userId)
-
-    if (error) throw error
+    // Use the special function that also resets credit installments
+    await deleteCreditTransaction(id, userId)
   }
 
   static async getByDateRange(userId: string, startDate: string, endDate: string) {
