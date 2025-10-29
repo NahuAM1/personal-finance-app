@@ -13,6 +13,8 @@ import { Dashboard } from '@/components/dashboard';
 import { ExpenseForm } from '@/components/expense-form';
 import { IncomeForm } from '@/components/income-form';
 import { CreditCardForm } from '@/components/credit-card-form';
+import { CreditPaymentFormNew } from '@/components/credit-payment-form-new';
+import { CreditCardOverviewNew } from '@/components/credit-card-overview-new';
 import { Savings } from '@/components/savings';
 import { ExpensePlans } from '@/components/expense-plans';
 import { History } from '@/components/history';
@@ -29,7 +31,7 @@ import { AuthGuard } from '@/components/auth-guard';
 import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
-import type { Transaction, SavingsGoal, ExpensePlan } from '@/types/database';
+import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
 import SingleLogo from '../assets/images/single-logo.png';
@@ -43,6 +45,8 @@ function FinanceAppContent() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [expensePlans, setExpensePlans] = useState<ExpensePlan[]>([]);
+  const [creditPurchases, setCreditPurchases] = useState<CreditPurchase[]>([]);
+  const [creditInstallments, setCreditInstallments] = useState<CreditInstallment[]>([]);
 
   const {
     setIncomeAmount,
@@ -53,34 +57,38 @@ function FinanceAppContent() {
     setExpenseDescription,
   } = useFormContext();
 
-  useEffect(() => {
+  const loadData = async () => {
     if (!user) return;
 
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [transactionsData, savingsData, plansData] = await Promise.all([
-          api.getTransactions(user.id),
-          api.getSavingsGoals(user.id),
-          api.getExpensePlans(user.id),
-        ]);
+    try {
+      setLoading(true);
+      const [transactionsData, savingsData, plansData, purchasesData, installmentsData] = await Promise.all([
+        api.getTransactions(user.id),
+        api.getSavingsGoals(user.id),
+        api.getExpensePlans(user.id),
+        api.getCreditPurchases(user.id),
+        api.getAllCreditInstallments(user.id), // ✅ Changed to load ALL installments (paid and unpaid)
+      ]);
 
-        setTransactions(transactionsData || []);
-        setSavingsGoals(savingsData || []);
-        setExpensePlans(plansData || []);
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'No se pudieron cargar los datos',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+      setTransactions(transactionsData || []);
+      setSavingsGoals(savingsData || []);
+      setExpensePlans(plansData || []);
+      setCreditPurchases(purchasesData || []);
+      setCreditInstallments(installmentsData || []);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los datos',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadData();
-  }, [user, toast]);
+  }, [user]);
 
   const addTransaction = async (
     transaction: Omit<
@@ -99,6 +107,9 @@ function FinanceAppContent() {
         is_recurring: transaction.is_recurring || null,
         installments: transaction.installments || null,
         current_installment: transaction.current_installment || null,
+        paid: transaction.paid || null,
+        parent_transaction_id: transaction.parent_transaction_id || null,
+        due_date: transaction.due_date || null,
       });
       setTransactions((prev) => [newTransaction, ...prev]);
       toast({
@@ -112,6 +123,67 @@ function FinanceAppContent() {
           error instanceof Error
             ? error.message
             : 'No se pudo agregar la transacción',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const addCreditPurchase = async (data: {
+    purchase: Omit<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+    installments: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
+  }) => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      const purchaseWithUser = {
+        ...data.purchase,
+        user_id: user.id,
+      };
+
+      const result = await api.createCreditPurchase(purchaseWithUser, data.installments);
+
+      setCreditPurchases((prev) => [result.purchase, ...prev]);
+      setCreditInstallments((prev) => [...result.installments, ...prev]);
+
+      toast({
+        title: 'Éxito',
+        description: `Compra en ${data.installments.length} cuotas registrada correctamente`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo registrar la compra',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const payCreditInstallment = async (installmentId: string) => {
+    if (!user) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      await api.payCreditInstallment(installmentId, user.id, today);
+
+      toast({
+        title: 'Éxito',
+        description: 'Cuota pagada y transacción creada correctamente',
+      });
+
+      // Reload all data to update dashboard and balance
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo pagar la cuota',
         variant: 'destructive',
       });
     }
@@ -300,6 +372,8 @@ function FinanceAppContent() {
               transactions={transactions}
               savingsGoals={savingsGoals}
               expensePlans={expensePlans}
+              creditPurchases={creditPurchases}
+              creditInstallments={creditInstallments}
             />
           </TabsContent>
 
@@ -333,18 +407,58 @@ function FinanceAppContent() {
           </TabsContent>
 
           <TabsContent value='credit'>
-            <Card>
-              <CardHeader>
-                <CardTitle>Gastos con Tarjeta de Crédito</CardTitle>
-                <CardDescription>
-                  Registra compras en cuotas que se cargarán automáticamente
-                  cada mes
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CreditCardForm onSubmit={addTransaction} />
-              </CardContent>
-            </Card>
+            <Tabs defaultValue='nueva' className='space-y-4'>
+              <div className='flex items-center justify-center'>
+                <TabsList >
+                  <TabsTrigger value='nueva'>Nueva Compra</TabsTrigger>
+                  <TabsTrigger value='pagar'>Pagar Cuota</TabsTrigger>
+                  <TabsTrigger value='ver'>Ver Compras</TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value='nueva'>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Nueva Compra con Tarjeta</CardTitle>
+                    <CardDescription>
+                      Registra una nueva compra en cuotas
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <CreditCardForm onSubmit={addCreditPurchase} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value='pagar'>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Pagar Cuota Manualmente</CardTitle>
+                    <CardDescription>
+                      Selecciona y registra el pago de cuotas pendientes
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <CreditPaymentFormNew
+                      installments={creditInstallments
+                        .filter(inst => !inst.paid) // ✅ Only show unpaid installments
+                        .map(inst => {
+                          const purchase = creditPurchases.find(p => p.id === inst.credit_purchase_id);
+                          return purchase ? { ...inst, credit_purchase: purchase } : null;
+                        }).filter(Boolean) as any}
+                      onPayInstallment={payCreditInstallment}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value='ver'>
+                <CreditCardOverviewNew
+                  purchases={creditPurchases}
+                  installments={creditInstallments}
+                />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value='savings'>
@@ -363,7 +477,7 @@ function FinanceAppContent() {
           </TabsContent>
 
           <TabsContent value='history'>
-            <History />
+            <History onTransactionDeleted={loadData} />
           </TabsContent>
         </Tabs>
       </div>

@@ -41,12 +41,14 @@ import {
 } from 'lucide-react';
 import { getMonth, getYear, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Transaction, SavingsGoal, ExpensePlan } from '@/types/database';
+import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment } from '@/types/database';
 
 interface DashboardProps {
   transactions: Transaction[];
   savingsGoals: SavingsGoal[];
   expensePlans: ExpensePlan[];
+  creditPurchases: CreditPurchase[];
+  creditInstallments: CreditInstallment[];
 }
 
 const COLORS = [
@@ -62,6 +64,8 @@ export function Dashboard({
   transactions,
   savingsGoals,
   expensePlans,
+  creditPurchases,
+  creditInstallments,
 }: DashboardProps) {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(getMonth(currentDate));
@@ -97,7 +101,7 @@ export function Dashboard({
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpenses = currentMonthTransactions
-    .filter((t) => t.type === 'expense' || t.type === 'credit')
+    .filter((t) => t.type === 'expense' || t.type === 'credit') 
     .reduce((sum, t) => sum + t.amount, 0);
 
   const cumulativeIncome = transactions
@@ -105,13 +109,13 @@ export function Dashboard({
     .reduce((sum, t) => sum + t.amount, 0);
 
   const cumulativeExpenses = transactions
-    .filter((t) => t.type === 'expense' || t.type === 'credit')
+    .filter((t) => t.type === 'expense' || t.type === 'credit') 
     .reduce((sum, t) => sum + t.amount, 0);
 
   const balance = cumulativeIncome - cumulativeExpenses;
 
   const expensesByCategory = currentMonthTransactions
-    .filter((t) => t.type === 'expense' || t.type === 'credit')
+    .filter((t) => t.type === 'expense' || t.type === 'credit') 
     .reduce((acc, t) => {
       acc[t.category] = (acc[t.category] || 0) + t.amount;
       return acc;
@@ -131,15 +135,19 @@ export function Dashboard({
     })
   );
 
-  const creditCardPayments = transactions
-    .filter(
-      (t) =>
-        t.type === 'credit' &&
-        t.is_recurring &&
-        t.current_installment &&
-        t.installments
-    )
-    .filter((t) => t.current_installment! < t.installments!);
+  // Get next 5 unpaid installments ordered by due date
+  const upcomingInstallments = creditInstallments
+    .filter((inst) => !inst.paid)
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+    .slice(0, 5)
+    .map((inst) => {
+      const purchase = creditPurchases.find((p) => p.id === inst.credit_purchase_id);
+      return {
+        ...inst,
+        purchase,
+      };
+    })
+    .filter((inst) => inst.purchase); // Only include if purchase exists
 
   const totalSavings = savingsGoals.reduce(
     (sum, goal) => sum + goal.current_amount,
@@ -358,34 +366,46 @@ export function Dashboard({
         <Card>
           <CardHeader>
             <CardTitle>Próximos Pagos de Tarjeta</CardTitle>
-            <CardDescription>Cuotas pendientes</CardDescription>
+            <CardDescription>Próximas 5 cuotas por vencer</CardDescription>
           </CardHeader>
           <CardContent>
             <div className='space-y-3'>
-              {creditCardPayments.length > 0 ? (
-                creditCardPayments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg'
-                  >
-                    <div className='flex items-center gap-3'>
-                      <CreditCard className='h-4 w-4 text-blue-600' />
-                      <div>
-                        <div className='font-medium'>{payment.description}</div>
-                        <div className='text-sm text-gray-600'>
-                          Cuota {payment.current_installment! + 1} de{' '}
-                          {payment.installments}
+              {upcomingInstallments.length > 0 ? (
+                upcomingInstallments.map((installment) => {
+                  const isOverdue = new Date(installment.due_date) < new Date();
+
+                  return (
+                    <div
+                      key={installment.id}
+                      className={`flex items-center justify-between p-3 rounded-lg ${
+                        isOverdue
+                          ? 'bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800'
+                          : 'bg-gray-50 dark:bg-gray-800'
+                      }`}
+                    >
+                      <div className='flex items-center gap-3'>
+                        <CreditCard className={`h-4 w-4 ${isOverdue ? 'text-red-600' : 'text-blue-600'}`} />
+                        <div>
+                          <div className='font-medium'>{installment.purchase!.description}</div>
+                          <div className='text-sm text-gray-600'>
+                            Cuota {installment.installment_number} de{' '}
+                            {installment.purchase!.installments}
+                          </div>
+                        </div>
+                      </div>
+                      <div className='text-right'>
+                        <div className='font-medium'>
+                          ${installment.amount.toLocaleString()}
+                        </div>
+                        <div className={`text-sm flex items-center gap-1 ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
+                          <Calendar className='h-3 w-3' />
+                          {format(parseISO(installment.due_date), 'dd/MM/yyyy')}
+                          {isOverdue && ' ⚠️'}
                         </div>
                       </div>
                     </div>
-                    <div className='text-right'>
-                      <div className='font-medium'>
-                        ${payment.amount.toLocaleString()}
-                      </div>
-                      <div className='text-sm text-gray-600'>Próximo mes</div>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className='text-center text-gray-500 py-4'>
                   No hay pagos pendientes

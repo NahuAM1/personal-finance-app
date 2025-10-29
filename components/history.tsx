@@ -26,7 +26,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-export function History() {
+interface HistoryProps {
+  onTransactionDeleted?: () => void;
+}
+
+export function History({ onTransactionDeleted }: HistoryProps = {}) {
   const { toast } = useToast();
   const { transactions, loading, error, deleteTransaction } = useTransactions();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -57,7 +61,7 @@ export function History() {
 
   const handleDelete = async () => {
     if (!transactionToDelete) return;
-    
+
     try {
       await deleteTransaction(transactionToDelete);
       toast({
@@ -66,6 +70,11 @@ export function History() {
       });
       setDeleteDialogOpen(false);
       setTransactionToDelete(null);
+
+      // Call the callback to reload credit installments data
+      if (onTransactionDeleted) {
+        onTransactionDeleted();
+      }
     } catch (err) {
       toast({
         title: 'Error',
