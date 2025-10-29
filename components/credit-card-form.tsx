@@ -21,16 +21,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { format } from 'date-fns';
-import type { Transaction } from '@/types/database';
+import { format, addMonths } from 'date-fns';
+import type { CreditPurchase, CreditInstallment } from '@/types/database';
 
 interface CreditCardFormProps {
-  onSubmit: (
-    transaction: Omit<
-      Transaction,
-      'id' | 'user_id' | 'created_at' | 'updated_at'
-    >
-  ) => void;
+  onSubmit: (data: {
+    purchase: Omit<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+    installments: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
+  }) => void;
 }
 
 const creditCategories = [
@@ -62,16 +60,40 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
 
     if (!totalAmount || !installments || !category || !description) return;
 
-    onSubmit({
-      type: 'credit',
-      amount: Number.parseFloat(monthlyAmount),
+    const numInstallments = Number.parseInt(installments);
+    const totalAmountValue = Number.parseFloat(totalAmount);
+    const monthlyAmountValue = Number.parseFloat(monthlyAmount);
+    const today = new Date();
+
+    // Create the purchase object
+    const purchase: Omit<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
+      description,
       category,
-      description: `${description} - Cuota 1/${installments}`,
-      date: format(new Date(), 'yyyy-MM-dd'),
-      is_recurring: true,
-      installments: Number.parseInt(installments),
-      current_installment: 1,
-    });
+      total_amount: totalAmountValue,
+      installments: numInstallments,
+      monthly_amount: monthlyAmountValue,
+      start_date: format(today, 'yyyy-MM-dd'),
+    };
+
+    // Create array of installments
+    const installmentsData: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = Array.from(
+      { length: numInstallments },
+      (_, index) => {
+        const installmentNumber = index + 1;
+        const dueDate = addMonths(today, index);
+
+        return {
+          installment_number: installmentNumber,
+          due_date: format(dueDate, 'yyyy-MM-dd'),
+          amount: monthlyAmountValue,
+          paid: false,
+          paid_date: null,
+          transaction_id: null,
+        };
+      }
+    );
+
+    onSubmit({ purchase, installments: installmentsData });
 
     setTotalAmount('');
     setInstallments('');
@@ -87,9 +109,8 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
             ¿Cómo funciona?
           </CardTitle>
           <CardDescription>
-            Los gastos con tarjeta de crédito se registran como cuotas mensuales
-            que se cargarán automáticamente cada mes hasta completar el total de
-            cuotas.
+            Registra una compra en cuotas y se crearán automáticamente todas las cuotas futuras.
+            Luego podrás marcar manualmente cada cuota como pagada desde la pestaña "Pagar Cuota".
           </CardDescription>
         </CardHeader>
       </Card>

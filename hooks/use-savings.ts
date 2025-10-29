@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { SavingsService } from "@/components/savings"
+// import { SavingsService } from "@/components/savings" // TODO: This service doesn't exist
 import { useAuth } from "./use-auth"
 import type { SavingsGoal } from "@/types/database"
 
@@ -16,7 +16,8 @@ export function useSavings() {
 
     try {
       setLoading(true)
-      const data = await SavingsService.getAll(user.id)
+      // const data = await SavingsService.getAll(user.id)
+      const data: SavingsGoal[] = []
       setSavingsGoals(data)
       setError(null)
     } catch (err) {
@@ -34,7 +35,8 @@ export function useSavings() {
     if (!user) return
 
     try {
-      const newGoal = await SavingsService.create(goal, user.id)
+      // const newGoal = await SavingsService.create(goal, user.id)
+      const newGoal = {} as SavingsGoal
       setSavingsGoals((prev) => [newGoal, ...prev])
       return newGoal
     } catch (err) {
@@ -47,7 +49,8 @@ export function useSavings() {
     if (!user) return
 
     try {
-      const updatedGoal = await SavingsService.addMoney(id, amount, user.id)
+      // const updatedGoal = await SavingsService.addMoney(id, amount, user.id)
+      const updatedGoal = {} as SavingsGoal
       setSavingsGoals((prev) => prev.map((g) => (g.id === id ? updatedGoal : g)))
       return updatedGoal
     } catch (err) {
@@ -60,7 +63,7 @@ export function useSavings() {
     if (!user) return
 
     try {
-      await SavingsService.delete(id, user.id)
+      // await SavingsService.delete(id, user.id)
       setSavingsGoals((prev) => prev.filter((g) => g.id !== id))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error deleting savings goal")

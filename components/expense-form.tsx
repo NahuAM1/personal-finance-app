@@ -54,6 +54,12 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
       category: expenseForm.category,
       description: expenseForm.description,
       date: format(new Date(), 'yyyy-MM-dd'),
+      is_recurring: null,
+      installments: null,
+      current_installment: null,
+      paid: null,
+      parent_transaction_id: null,
+      due_date: null,
     };
 
     onSubmit(transaction);
