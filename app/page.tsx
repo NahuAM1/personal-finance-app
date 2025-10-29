@@ -15,6 +15,9 @@ import { IncomeForm } from '@/components/income-form';
 import { CreditCardForm } from '@/components/credit-card-form';
 import { CreditPaymentFormNew } from '@/components/credit-payment-form-new';
 import { CreditCardOverviewNew } from '@/components/credit-card-overview-new';
+import { InvestmentForm } from '@/components/investment-form';
+import { InvestmentLiquidateForm } from '@/components/investment-liquidate-form';
+import { InvestmentsOverview } from '@/components/investments-overview';
 import { Savings } from '@/components/savings';
 import { ExpensePlans } from '@/components/expense-plans';
 import { History } from '@/components/history';
@@ -22,16 +25,16 @@ import {
   BarChart3,
   PlusCircle,
   CreditCard,
-  PiggyBank,
   MapPin,
   ClipboardList,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthGuard } from '@/components/auth-guard';
 import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
-import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment } from '@/types/database';
+import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
 import SingleLogo from '../assets/images/single-logo.png';
@@ -47,6 +50,7 @@ function FinanceAppContent() {
   const [expensePlans, setExpensePlans] = useState<ExpensePlan[]>([]);
   const [creditPurchases, setCreditPurchases] = useState<CreditPurchase[]>([]);
   const [creditInstallments, setCreditInstallments] = useState<CreditInstallment[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
 
   const {
     setIncomeAmount,
@@ -62,12 +66,13 @@ function FinanceAppContent() {
 
     try {
       setLoading(true);
-      const [transactionsData, savingsData, plansData, purchasesData, installmentsData] = await Promise.all([
+      const [transactionsData, savingsData, plansData, purchasesData, installmentsData, investmentsData] = await Promise.all([
         api.getTransactions(user.id),
         api.getSavingsGoals(user.id),
         api.getExpensePlans(user.id),
         api.getCreditPurchases(user.id),
-        api.getAllCreditInstallments(user.id), // ✅ Changed to load ALL installments (paid and unpaid)
+        api.getAllCreditInstallments(user.id),
+        api.getInvestments(user.id),
       ]);
 
       setTransactions(transactionsData || []);
@@ -75,6 +80,7 @@ function FinanceAppContent() {
       setExpensePlans(plansData || []);
       setCreditPurchases(purchasesData || []);
       setCreditInstallments(installmentsData || []);
+      setInvestments(investmentsData || []);
     } catch (error) {
       toast({
         title: 'Error',
@@ -184,6 +190,164 @@ function FinanceAppContent() {
           error instanceof Error
             ? error.message
             : 'No se pudo pagar la cuota',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const addInvestment = async (
+    investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+  ) => {
+    if (!user) return;
+
+    try {
+      const investmentWithUser = {
+        ...investment,
+        user_id: user.id,
+      };
+
+      const newInvestment = await api.createInvestment(investmentWithUser);
+      setInvestments((prev) => [newInvestment, ...prev]);
+
+      toast({
+        title: 'Éxito',
+        description: 'Inversión registrada correctamente',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo registrar la inversión',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const liquidateInvestment = async (investmentId: string, actualReturn: number) => {
+    if (!user) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      await api.liquidateInvestment(investmentId, user.id, today, actualReturn);
+
+      toast({
+        title: 'Éxito',
+        description: 'Inversión liquidada e ingreso creado correctamente',
+      });
+
+      // Reload all data to update dashboard and balance
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo liquidar la inversión',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateInvestment = async (investmentId: string, updates: Partial<Investment>) => {
+    if (!user) return;
+
+    try {
+      const updatedInvestment = await api.updateInvestment(investmentId, user.id, updates);
+      setInvestments((prev) =>
+        prev.map((inv) => (inv.id === investmentId ? updatedInvestment : inv))
+      );
+
+      toast({
+        title: 'Éxito',
+        description: 'Inversión actualizada correctamente',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo actualizar la inversión',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const deleteInvestment = async (investmentId: string) => {
+    if (!user) return;
+
+    try {
+      await api.deleteInvestment(investmentId, user.id);
+      setInvestments((prev) => prev.filter((inv) => inv.id !== investmentId));
+
+      toast({
+        title: 'Éxito',
+        description: 'Inversión eliminada correctamente',
+      });
+
+      // Reload data to update balance if a liquidated investment was deleted
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo eliminar la inversión',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateCreditPurchase = async (purchaseId: string, updates: Partial<CreditPurchase>) => {
+    if (!user) return;
+
+    try {
+      const updatedPurchase = await api.updateCreditPurchase(purchaseId, user.id, updates);
+      setCreditPurchases((prev) =>
+        prev.map((p) => (p.id === purchaseId ? updatedPurchase : p))
+      );
+
+      toast({
+        title: 'Éxito',
+        description: 'Compra actualizada correctamente',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo actualizar la compra',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const deleteCreditPurchase = async (purchaseId: string) => {
+    if (!user) return;
+
+    try {
+      await api.deleteCreditPurchase(purchaseId, user.id);
+      setCreditPurchases((prev) => prev.filter((p) => p.id !== purchaseId));
+
+      toast({
+        title: 'Éxito',
+        description: 'Compra eliminada correctamente',
+      });
+
+      // Reload data to update balance and installments
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo eliminar la compra',
         variant: 'destructive',
       });
     }
@@ -351,9 +515,9 @@ function FinanceAppContent() {
                 <CreditCard className='h-4 w-4' />
                 <span className='hidden sm:inline'>Tarjetas</span>
               </TabsTrigger>
-              <TabsTrigger value='savings' className='flex items-center gap-2'>
-                <PiggyBank className='h-4 w-4' />
-                <span className='hidden sm:inline'>Ahorros</span>
+              <TabsTrigger value='investments' className='flex items-center gap-2'>
+                <TrendingUp className='h-4 w-4' />
+                <span className='hidden sm:inline'>Inversiones</span>
               </TabsTrigger>
               <TabsTrigger value='plans' className='flex items-center gap-2'>
                 <MapPin className='h-4 w-4' />
@@ -374,6 +538,7 @@ function FinanceAppContent() {
               expensePlans={expensePlans}
               creditPurchases={creditPurchases}
               creditInstallments={creditInstallments}
+              investments={investments}
             />
           </TabsContent>
 
@@ -456,6 +621,8 @@ function FinanceAppContent() {
                 <CreditCardOverviewNew
                   purchases={creditPurchases}
                   installments={creditInstallments}
+                  onDelete={deleteCreditPurchase}
+                  onUpdate={updateCreditPurchase}
                 />
               </TabsContent>
             </Tabs>
@@ -467,6 +634,57 @@ function FinanceAppContent() {
               onAddGoal={addSavingsGoal}
               onUpdateGoal={updateSavingsGoal}
             />
+          </TabsContent>
+
+          <TabsContent value='investments'>
+            <Tabs defaultValue='nueva' className='space-y-4'>
+              <div className='flex items-center justify-center'>
+                <TabsList>
+                  <TabsTrigger value='nueva'>Nueva Inversión</TabsTrigger>
+                  <TabsTrigger value='liquidar'>Liquidar</TabsTrigger>
+                  <TabsTrigger value='ver'>Ver Inversiones</TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value='nueva'>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registrar Nueva Inversión</CardTitle>
+                    <CardDescription>
+                      El dinero quedará congelado hasta que liquides la inversión
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <InvestmentForm onSubmit={addInvestment} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value='liquidar'>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Liquidar Inversión</CardTitle>
+                    <CardDescription>
+                      Registra la liquidación y crea el ingreso automáticamente
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <InvestmentLiquidateForm
+                      investments={investments}
+                      onLiquidate={liquidateInvestment}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value='ver'>
+                <InvestmentsOverview
+                  investments={investments}
+                  onDelete={deleteInvestment}
+                  onUpdate={updateInvestment}
+                />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value='plans'>

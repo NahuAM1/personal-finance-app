@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -9,9 +10,30 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { format, isPast, isToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CheckCircle2, Clock, AlertCircle, CreditCard, Calendar } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, CreditCard, Calendar, Trash2, Edit2 } from 'lucide-react';
 
 interface CreditPurchaseData {
   id: string;
@@ -47,9 +69,57 @@ interface PurchaseWithInstallments {
 interface CreditCardOverviewNewProps {
   purchases: CreditPurchaseData[];
   installments: CreditInstallmentData[];
+  onDelete: (purchaseId: string) => void;
+  onUpdate: (purchaseId: string, updates: Partial<CreditPurchaseData>) => void;
 }
 
-export function CreditCardOverviewNew({ purchases, installments }: CreditCardOverviewNewProps) {
+export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpdate }: CreditCardOverviewNewProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [purchaseToDelete, setPurchaseToDelete] = useState<string | null>(null);
+  const [purchaseToEdit, setPurchaseToEdit] = useState<CreditPurchaseData | null>(null);
+
+  // Edit form state
+  const [editDescription, setEditDescription] = useState('');
+  const [editTotalAmount, setEditTotalAmount] = useState('');
+
+  const handleDeleteClick = (purchase: CreditPurchaseData) => {
+    setPurchaseToDelete(purchase.id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleEditClick = (purchase: CreditPurchaseData) => {
+    setPurchaseToEdit(purchase);
+    setEditDescription(purchase.description);
+    setEditTotalAmount(purchase.total_amount.toString());
+    setEditDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (purchaseToDelete) {
+      onDelete(purchaseToDelete);
+      setDeleteDialogOpen(false);
+      setPurchaseToDelete(null);
+    }
+  };
+
+  const confirmEdit = () => {
+    if (!purchaseToEdit) return;
+
+    const newTotalAmount = Number.parseFloat(editTotalAmount);
+    const newMonthlyAmount = newTotalAmount / purchaseToEdit.installments;
+
+    const updates: Partial<CreditPurchaseData> = {
+      description: editDescription,
+      total_amount: newTotalAmount,
+      monthly_amount: newMonthlyAmount,
+    };
+
+    onUpdate(purchaseToEdit.id, updates);
+    setEditDialogOpen(false);
+    setPurchaseToEdit(null);
+  };
+
   // Group installments by purchase
   const purchasesWithInstallments: PurchaseWithInstallments[] = purchases.map(purchase => ({
     purchase,
@@ -139,7 +209,7 @@ export function CreditCardOverviewNew({ purchases, installments }: CreditCardOve
               }`}
             >
               <CardHeader>
-                <div className='flex items-start justify-between'>
+                <div className='flex items-start justify-between gap-2'>
                   <div className='flex-1'>
                     <CardTitle className='text-lg mb-1'>
                       {data.purchase.description}
@@ -148,22 +218,44 @@ export function CreditCardOverviewNew({ purchases, installments }: CreditCardOve
                       <span>{data.purchase.category}</span>
                     </CardDescription>
                   </div>
-                  {data.isCompleted ? (
-                    <Badge className='bg-green-600 hover:bg-green-700'>
-                      <CheckCircle2 className='h-3 w-3 mr-1' />
-                      Completado
-                    </Badge>
-                  ) : data.hasOverdue ? (
-                    <Badge variant='destructive'>
-                      <AlertCircle className='h-3 w-3 mr-1' />
-                      Vencida
-                    </Badge>
-                  ) : (
-                    <Badge variant='secondary'>
-                      <Clock className='h-3 w-3 mr-1' />
-                      En progreso
-                    </Badge>
-                  )}
+                  <div className='flex items-center gap-2'>
+                    {data.isCompleted ? (
+                      <Badge className='bg-green-600 hover:bg-green-700'>
+                        <CheckCircle2 className='h-3 w-3 mr-1' />
+                        Completado
+                      </Badge>
+                    ) : data.hasOverdue ? (
+                      <Badge variant='destructive'>
+                        <AlertCircle className='h-3 w-3 mr-1' />
+                        Vencida
+                      </Badge>
+                    ) : (
+                      <Badge variant='secondary'>
+                        <Clock className='h-3 w-3 mr-1' />
+                        En progreso
+                      </Badge>
+                    )}
+                    {!data.isCompleted && (
+                      <>
+                        {data.paidCount === 0 && (
+                          <Button
+                            variant='ghost'
+                            size='sm'
+                            onClick={() => handleEditClick(data.purchase)}
+                          >
+                            <Edit2 className='h-4 w-4' />
+                          </Button>
+                        )}
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => handleDeleteClick(data.purchase)}
+                        >
+                          <Trash2 className='h-4 w-4 text-red-600' />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
 
@@ -278,6 +370,85 @@ export function CreditCardOverviewNew({ purchases, installments }: CreditCardOve
           );
         })}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. La compra y todas sus cuotas serán eliminadas permanentemente.
+              {purchaseToDelete && (() => {
+                const purchase = purchases.find(p => p.id === purchaseToDelete);
+                const relatedInstallments = installments.filter(i => i.credit_purchase_id === purchaseToDelete);
+                const paidCount = relatedInstallments.filter(i => i.paid).length;
+                return paidCount > 0 ? ` Las ${paidCount} transacciones pagadas también serán eliminadas.` : '';
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className='bg-red-600 hover:bg-red-700'
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className='sm:max-w-[500px]'>
+          <DialogHeader>
+            <DialogTitle>Editar Compra</DialogTitle>
+            <DialogDescription>
+              Modifica los detalles de la compra. El monto mensual se recalculará automáticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className='space-y-4 py-4'>
+            <div className='space-y-2'>
+              <Label htmlFor='edit-description'>Descripción</Label>
+              <Input
+                id='edit-description'
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+              />
+            </div>
+
+            <div className='space-y-2'>
+              <Label htmlFor='edit-total'>Monto Total</Label>
+              <Input
+                id='edit-total'
+                type='number'
+                step='0.01'
+                value={editTotalAmount}
+                onChange={(e) => setEditTotalAmount(e.target.value)}
+              />
+              {purchaseToEdit && editTotalAmount && (
+                <p className='text-xs text-gray-500'>
+                  Cuota mensual: ${(Number.parseFloat(editTotalAmount) / purchaseToEdit.installments).toFixed(2)}
+                </p>
+              )}
+            </div>
+
+            <div className='p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded'>
+              <p className='text-xs text-amber-800 dark:text-amber-200'>
+                <strong>Nota:</strong> Solo puedes editar compras que no tengan cuotas pagadas.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setEditDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmEdit} className='bg-blue-600 hover:bg-blue-700'>
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

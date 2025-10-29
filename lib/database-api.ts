@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase"
-import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment } from "@/types/database"
+import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from "@/types/database"
 
 export async function getTransactions(userId: string) {
   const { data, error } = await supabase
@@ -336,4 +336,229 @@ export async function deleteCreditTransaction(transactionId: string, userId: str
   }
 
   console.log("Transaction deleted successfully")
+}
+
+// Investment Functions
+
+export async function createInvestment(investment: Omit<Investment, "id" | "created_at" | "updated_at">) {
+  const { data, error } = await supabase
+    .from("investments")
+    .insert([investment])
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function getInvestments(userId: string) {
+  const { data, error } = await supabase
+    .from("investments")
+    .select("*")
+    .eq("user_id", userId)
+    .order("start_date", { ascending: false })
+
+  if (error) throw error
+  return data
+}
+
+export async function getActiveInvestments(userId: string) {
+  const { data, error } = await supabase
+    .from("investments")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_liquidated", false)
+    .order("maturity_date", { ascending: true })
+
+  if (error) throw error
+  return data
+}
+
+export async function liquidateInvestment(
+  investmentId: string,
+  userId: string,
+  liquidationDate: string,
+  actualReturn: number
+) {
+  // Get the investment details
+  const { data: investment, error: fetchError } = await supabase
+    .from("investments")
+    .select("*")
+    .eq("id", investmentId)
+    .eq("user_id", userId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!investment) throw new Error("Investment not found")
+
+  // Calculate total amount (capital + returns)
+  const totalAmount = investment.amount + actualReturn
+
+  // Create a transaction for the liquidation (income type)
+  const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
+    user_id: userId,
+    type: "income",
+    amount: totalAmount,
+    category: `Inversión - ${investment.investment_type}`,
+    description: `Liquidación: ${investment.description} (Capital: $${investment.amount.toFixed(2)} + Ganancia: $${actualReturn.toFixed(2)})`,
+    date: liquidationDate,
+    is_recurring: null,
+    installments: null,
+    current_installment: null,
+    paid: null,
+    parent_transaction_id: null,
+    due_date: null,
+  }
+
+  const { data: transactionData, error: transactionError } = await supabase
+    .from("transactions")
+    .insert([transaction])
+    .select()
+    .single()
+
+  if (transactionError) throw transactionError
+
+  // Update the investment as liquidated
+  const { data: updatedInvestment, error: updateError } = await supabase
+    .from("investments")
+    .update({
+      is_liquidated: true,
+      liquidation_date: liquidationDate,
+      actual_return: actualReturn,
+      transaction_id: transactionData.id
+    })
+    .eq("id", investmentId)
+    .select()
+    .single()
+
+  if (updateError) throw updateError
+
+  return { investment: updatedInvestment, transaction: transactionData }
+}
+
+export async function updateInvestment(
+  investmentId: string,
+  userId: string,
+  updates: Partial<Omit<Investment, "id" | "user_id" | "created_at" | "updated_at">>
+) {
+  const { data, error } = await supabase
+    .from("investments")
+    .update(updates)
+    .eq("id", investmentId)
+    .eq("user_id", userId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteInvestment(investmentId: string, userId: string) {
+  // Check if investment is liquidated and has a transaction
+  const { data: investment, error: fetchError } = await supabase
+    .from("investments")
+    .select("*")
+    .eq("id", investmentId)
+    .eq("user_id", userId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!investment) throw new Error("Investment not found")
+
+  // If liquidated and has a transaction, delete the transaction first
+  if (investment.is_liquidated && investment.transaction_id) {
+    const { error: deleteTransactionError } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", investment.transaction_id)
+      .eq("user_id", userId)
+
+    if (deleteTransactionError) {
+      console.error("Error deleting related transaction:", deleteTransactionError)
+    }
+  }
+
+  // Delete the investment
+  const { error: deleteError } = await supabase
+    .from("investments")
+    .delete()
+    .eq("id", investmentId)
+    .eq("user_id", userId)
+
+  if (deleteError) throw deleteError
+}
+
+export async function updateCreditPurchase(
+  purchaseId: string,
+  userId: string,
+  updates: Partial<Omit<CreditPurchase, "id" | "user_id" | "created_at" | "updated_at">>
+) {
+  // First verify the purchase belongs to the user
+  const { data: purchase, error: fetchError } = await supabase
+    .from("credit_purchases")
+    .select("*")
+    .eq("id", purchaseId)
+    .eq("user_id", userId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!purchase) throw new Error("Purchase not found")
+
+  // Update the purchase
+  const { data, error } = await supabase
+    .from("credit_purchases")
+    .update(updates)
+    .eq("id", purchaseId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteCreditPurchase(purchaseId: string, userId: string) {
+  // First verify the purchase belongs to the user
+  const { data: purchase, error: fetchError } = await supabase
+    .from("credit_purchases")
+    .select("*")
+    .eq("id", purchaseId)
+    .eq("user_id", userId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!purchase) throw new Error("Purchase not found")
+
+  // Get all installments for this purchase
+  const { data: installments, error: installmentsError } = await supabase
+    .from("credit_installments")
+    .select("*")
+    .eq("credit_purchase_id", purchaseId)
+
+  if (installmentsError) throw installmentsError
+
+  // Delete all related transactions (for paid installments)
+  if (installments && installments.length > 0) {
+    const transactionIds = installments
+      .filter(inst => inst.transaction_id)
+      .map(inst => inst.transaction_id!)
+
+    if (transactionIds.length > 0) {
+      const { error: deleteTransactionsError } = await supabase
+        .from("transactions")
+        .delete()
+        .in("id", transactionIds)
+
+      if (deleteTransactionsError) {
+        console.error("Error deleting transactions:", deleteTransactionsError)
+      }
+    }
+  }
+
+  // Delete the purchase (installments will cascade delete due to FK constraint)
+  const { error: deleteError } = await supabase
+    .from("credit_purchases")
+    .delete()
+    .eq("id", purchaseId)
+
+  if (deleteError) throw deleteError
 }
