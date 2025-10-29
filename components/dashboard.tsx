@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import { getMonth, getYear, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment } from '@/types/database';
+import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
 
 interface DashboardProps {
   transactions: Transaction[];
@@ -49,6 +49,7 @@ interface DashboardProps {
   expensePlans: ExpensePlan[];
   creditPurchases: CreditPurchase[];
   creditInstallments: CreditInstallment[];
+  investments: Investment[];
 }
 
 const COLORS = [
@@ -66,6 +67,7 @@ export function Dashboard({
   expensePlans,
   creditPurchases,
   creditInstallments,
+  investments,
 }: DashboardProps) {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(getMonth(currentDate));
@@ -113,6 +115,14 @@ export function Dashboard({
     .reduce((sum, t) => sum + t.amount, 0);
 
   const balance = cumulativeIncome - cumulativeExpenses;
+
+  // Calculate active investments (money that's locked up)
+  const activeInvestmentsTotal = investments
+    .filter((inv) => !inv.is_liquidated)
+    .reduce((sum, inv) => sum + inv.amount, 0);
+
+  // Liquid balance = Total balance - Active investments
+  const liquidBalance = balance - activeInvestmentsTotal;
 
   const expensesByCategory = currentMonthTransactions
     .filter((t) => t.type === 'expense' || t.type === 'credit') 
@@ -254,18 +264,34 @@ export function Dashboard({
             >
               ${balance.toLocaleString()}
             </div>
+            {activeInvestmentsTotal > 0 && (
+              <p className='text-xs text-gray-500 mt-1'>
+                ${activeInvestmentsTotal.toLocaleString()} invertido
+              </p>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className='bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 border-blue-200 dark:border-blue-800'>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>Total Ahorros</CardTitle>
-            <PiggyBank className='h-4 w-4 text-blue-600' />
+            <CardTitle className='text-sm font-medium'>Balance Líquido</CardTitle>
+            <DollarSign
+              className={`h-4 w-4 ${
+                liquidBalance >= 0 ? 'text-blue-600' : 'text-red-600'
+              }`}
+            />
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold text-blue-600'>
-              ${totalSavings.toLocaleString()}
+            <div
+              className={`text-2xl font-bold ${
+                liquidBalance >= 0 ? 'text-blue-600' : 'text-red-600'
+              }`}
+            >
+              ${liquidBalance.toLocaleString()}
             </div>
+            <p className='text-xs text-blue-600 dark:text-blue-400 mt-1'>
+              Dinero disponible para usar
+            </p>
           </CardContent>
         </Card>
       </div>
