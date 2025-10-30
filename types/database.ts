@@ -16,6 +16,7 @@ export interface Database {
           paid: boolean | null
           parent_transaction_id: string | null
           due_date: string | null
+          balance_total: number | null
           created_at: string
           updated_at: string
         }
@@ -33,6 +34,7 @@ export interface Database {
           paid?: boolean | null
           parent_transaction_id?: string | null
           due_date?: string | null
+          balance_total?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -50,6 +52,7 @@ export interface Database {
           paid?: boolean | null
           parent_transaction_id?: string | null
           due_date?: string | null
+          balance_total?: number | null
           created_at?: string
           updated_at?: string
         }

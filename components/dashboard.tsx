@@ -451,39 +451,85 @@ export function Dashboard({
         </CardHeader>
         <CardContent>
           <div className='space-y-2'>
-            {transactions.slice(0, 10).map((transaction) => (
-              <div
-                key={transaction.id}
-                className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
-              >
-                <div className='flex items-center gap-3'>
-                  {transaction.type === 'income' ? (
-                    <ArrowUpCircle className='h-5 w-5 text-green-600' />
-                  ) : (
-                    <ArrowDownCircle className='h-5 w-5 text-red-600' />
-                  )}
-                  <div>
-                    <div className='font-medium'>{transaction.description}</div>
-                    <div className='text-sm text-gray-600'>
-                      {transaction.category} •{' '}
-                      {format(parseISO(transaction.date), 'dd/MM/yyyy', {
-                        locale: es,
-                      })}
+            {transactions.slice(0, 10).map((transaction) => {
+              // Calculate liquid balance (Balance Total - Active Investments at that point)
+              const transactionDate = new Date(transaction.date);
+              const activeInvestmentsAtTransaction = investments
+                .filter((inv) => {
+                  const invStartDate = new Date(inv.start_date);
+                  const invEndDate = inv.liquidation_date ? new Date(inv.liquidation_date) : new Date();
+                  return invStartDate <= transactionDate && transactionDate <= invEndDate && !inv.is_liquidated;
+                })
+                .reduce((sum, inv) => sum + inv.amount, 0);
+
+              const liquidBalanceAtTransaction = transaction.balance_total !== null
+                ? transaction.balance_total - activeInvestmentsAtTransaction
+                : null;
+
+              return (
+                <div
+                  key={transaction.id}
+                  className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                >
+                  <div className='flex items-center gap-3'>
+                    {transaction.type === 'income' ? (
+                      <ArrowUpCircle className='h-5 w-5 text-green-600' />
+                    ) : (
+                      <ArrowDownCircle className='h-5 w-5 text-red-600' />
+                    )}
+                    <div>
+                      <div className='font-medium'>{transaction.description}</div>
+                      <div className='text-sm text-gray-600 flex items-center gap-2'>
+                        <span>{transaction.category}</span>
+                        <span>•</span>
+                        <span>
+                          {format(parseISO(transaction.date), 'dd/MM/yyyy', {
+                            locale: es,
+                          })}
+                        </span>
+                      </div>
+                      <div className='text-xs text-gray-500 mt-1 flex items-center gap-3'>
+                        {transaction.balance_total !== null ? (
+                          <>
+                            <span>
+                              Balance Total:{' '}
+                              <span className={`font-medium ${
+                                transaction.balance_total >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                ${transaction.balance_total.toLocaleString()}
+                              </span>
+                            </span>
+                            <span>•</span>
+                            <span>
+                              Balance Líquido:{' '}
+                              <span className={`font-medium ${
+                                liquidBalanceAtTransaction! >= 0 ? 'text-blue-600' : 'text-red-600'
+                              }`}>
+                                ${liquidBalanceAtTransaction!.toLocaleString()}
+                              </span>
+                            </span>
+                          </>
+                        ) : (
+                          <span className='text-gray-400 dark:text-gray-600 italic'>
+                            Balances no disponibles (transacción legacy)
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  <div
+                    className={`font-semibold ${
+                      transaction.type === 'income'
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}
+                  >
+                    {transaction.type === 'income' ? '+' : '-'}$
+                    {transaction.amount.toLocaleString()}
+                  </div>
                 </div>
-                <div
-                  className={`font-semibold ${
-                    transaction.type === 'income'
-                      ? 'text-green-600'
-                      : 'text-red-600'
-                  }`}
-                >
-                  {transaction.type === 'income' ? '+' : '-'}$
-                  {transaction.amount.toLocaleString()}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {transactions.length === 0 && (
               <div className='text-center text-gray-500 py-8'>
                 No hay transacciones registradas

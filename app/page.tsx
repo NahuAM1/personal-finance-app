@@ -695,7 +695,7 @@ function FinanceAppContent() {
           </TabsContent>
 
           <TabsContent value='history'>
-            <History onTransactionDeleted={loadData} />
+            <History onTransactionDeleted={loadData} investments={investments} />
           </TabsContent>
         </Tabs>
       </div>
