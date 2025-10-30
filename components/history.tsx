@@ -25,12 +25,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import type { Investment } from '@/types/database';
 
 interface HistoryProps {
   onTransactionDeleted?: () => void;
+  investments?: Investment[];
 }
 
-export function History({ onTransactionDeleted }: HistoryProps = {}) {
+export function History({ onTransactionDeleted, investments = [] }: HistoryProps = {}) {
   const { toast } = useToast();
   const { transactions, loading, error, deleteTransaction } = useTransactions();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -162,55 +164,98 @@ export function History({ onTransactionDeleted }: HistoryProps = {}) {
                 </div>
                 
                 <div className='space-y-2'>
-                  {dayTransactions.map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className='flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50'
-                    >
-                      <div className='flex-1'>
-                        <div className='flex items-center gap-2'>
+                  {dayTransactions.map((transaction) => {
+                    // Calculate liquid balance (Balance Total - Active Investments at that point)
+                    const transactionDate = new Date(transaction.date);
+                    const activeInvestmentsAtTransaction = investments
+                      .filter((inv) => {
+                        const invStartDate = new Date(inv.start_date);
+                        const invEndDate = inv.liquidation_date ? new Date(inv.liquidation_date) : new Date();
+                        return invStartDate <= transactionDate && transactionDate <= invEndDate && !inv.is_liquidated;
+                      })
+                      .reduce((sum, inv) => sum + inv.amount, 0);
+
+                    const liquidBalanceAtTransaction = transaction.balance_total !== null
+                      ? transaction.balance_total - activeInvestmentsAtTransaction
+                      : null;
+
+                    return (
+                      <div
+                        key={transaction.id}
+                        className='flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50'
+                      >
+                        <div className='flex-1'>
+                          <div className='flex items-center gap-2'>
+                            <span
+                              className={`font-semibold ${getTypeColor(
+                                transaction.type
+                              )}`}
+                            >
+                              {getTypeLabel(transaction.type)}
+                            </span>
+                            <span className='text-gray-500'>|</span>
+                            <span className='text-sm text-gray-600'>
+                              {transaction.category}
+                            </span>
+                          </div>
+                          <p className='text-sm text-gray-700 mt-1'>
+                            {transaction.description}
+                          </p>
+                          {transaction.installments && (
+                            <p className='text-xs text-gray-500 mt-1'>
+                              Cuota {transaction.current_installment} de{' '}
+                              {transaction.installments}
+                            </p>
+                          )}
+                          <div className='text-xs text-gray-500 mt-2 flex items-center gap-3'>
+                            {transaction.balance_total !== null ? (
+                              <>
+                                <span>
+                                  Balance Total:{' '}
+                                  <span className={`font-medium ${
+                                    transaction.balance_total >= 0 ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    ${transaction.balance_total.toLocaleString()}
+                                  </span>
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  Balance Líquido:{' '}
+                                  <span className={`font-medium ${
+                                    liquidBalanceAtTransaction! >= 0 ? 'text-blue-600' : 'text-red-600'
+                                  }`}>
+                                    ${liquidBalanceAtTransaction!.toLocaleString()}
+                                  </span>
+                                </span>
+                              </>
+                            ) : (
+                              <span className='text-gray-400 dark:text-gray-600 italic'>
+                                Balances no disponibles (transacción legacy)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className='flex items-center gap-4'>
                           <span
-                            className={`font-semibold ${getTypeColor(
+                            className={`font-bold text-lg ${getTypeColor(
                               transaction.type
                             )}`}
                           >
-                            {getTypeLabel(transaction.type)}
+                            {transaction.type === 'expense' || transaction.type === 'credit' ? '-' : '+'} $
+                            {transaction.amount.toLocaleString()}
                           </span>
-                          <span className='text-gray-500'>|</span>
-                          <span className='text-sm text-gray-600'>
-                            {transaction.category}
-                          </span>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            onClick={() => openDeleteDialog(transaction.id)}
+                            className='text-red-600 hover:text-red-700 hover:bg-red-50'
+                          >
+                            <Trash2 className='h-4 w-4' />
+                          </Button>
                         </div>
-                        <p className='text-sm text-gray-700 mt-1'>
-                          {transaction.description}
-                        </p>
-                        {transaction.installments && (
-                          <p className='text-xs text-gray-500 mt-1'>
-                            Cuota {transaction.current_installment} de{' '}
-                            {transaction.installments}
-                          </p>
-                        )}
                       </div>
-                      <div className='flex items-center gap-4'>
-                        <span
-                          className={`font-bold text-lg ${getTypeColor(
-                            transaction.type
-                          )}`}
-                        >
-                          {transaction.type === 'expense' || transaction.type === 'credit' ? '-' : '+'} $
-                          {transaction.amount.toLocaleString()}
-                        </span>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          onClick={() => openDeleteDialog(transaction.id)}
-                          className='text-red-600 hover:text-red-700 hover:bg-red-50'
-                        >
-                          <Trash2 className='h-4 w-4' />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
