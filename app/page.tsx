@@ -40,6 +40,7 @@ import Image from 'next/image';
 import Logo from '../assets/images/logo.svg';
 import { useFormContext } from '@/contexts/form-context';
 import VoiceChat from '@/components/voice-chat';
+import { Loader } from '@/components/loader';
 
 function FinanceAppContent() {
   const { user } = useAuth();
@@ -472,16 +473,7 @@ function FinanceAppContent() {
   };
 
   if (loading) {
-    return (
-      <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800'>
-        <div className='text-center'>
-          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-[#466E45] mx-auto'></div>
-          <p className='mt-4 text-gray-600 dark:text-gray-400'>
-            Cargando datos...
-          </p>
-        </div>
-      </div>
-    );
+    return <Loader />;
   }
 
   return (
