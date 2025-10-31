@@ -15,10 +15,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   if (loading) {
     return (
-      <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800'>
+      <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800'>
         <Card className='w-full max-w-md'>
           <CardContent className='flex flex-col items-center justify-center py-12'>
-            <Loader2 className='h-8 w-8 animate-spin text-blue-600 mb-4' />
+            <Loader2 className='h-8 w-8 animate-spin text-[#466E45] mb-4' />
             <p className='text-gray-600 dark:text-gray-400'>
               Verificando autenticación...
             </p>

@@ -37,7 +37,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
-import SingleLogo from '../assets/images/single-logo.png';
+import Logo from '../assets/images/logo.svg';
 import { useFormContext } from '@/contexts/form-context';
 import VoiceChat from '@/components/voice-chat';
 
@@ -473,9 +473,9 @@ function FinanceAppContent() {
 
   if (loading) {
     return (
-      <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800'>
+      <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800'>
         <div className='text-center'>
-          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto'></div>
+          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-[#466E45] mx-auto'></div>
           <p className='mt-4 text-gray-600 dark:text-gray-400'>
             Cargando datos...
           </p>
@@ -485,12 +485,12 @@ function FinanceAppContent() {
   }
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800'>
+    <div className='min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800'>
       <div className='container mx-auto p-4 max-w-7xl'>
         <div className='flex items-center justify-between py-3 px-6 mb-6 bg-white rounded-full shadow-md'>
           <div className='flex items-center justify-center gap-2'>
-            <Image src={SingleLogo} width={50} alt='Personal Wallet logo' />
-            <h1 className='text-xl lg:text-3xl font-bold text-[#0F365D] dark:text-white'>
+            <Image src={Logo} width={60} height={60} alt='Personal Wallet logo' />
+            <h1 className='text-xl lg:text-3xl font-bold text-[#466E45] dark:text-white'>
               Personal Wallet
             </h1>
           </div>
