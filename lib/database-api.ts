@@ -13,9 +13,42 @@ export async function getTransactions(userId: string) {
 }
 
 export async function addTransaction(transaction: Omit<Transaction, "id" | "created_at" | "updated_at">) {
+  // Calculate balance_total before inserting
+  // Get all transactions for this user to calculate cumulative balance
+  const { data: existingTransactions, error: fetchError } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("user_id", transaction.user_id)
+    .order("date", { ascending: true })
+
+  if (fetchError) throw fetchError
+
+  // Calculate current balance from all existing transactions
+  const currentBalance = (existingTransactions || []).reduce((balance, t) => {
+    if (t.type === "income") {
+      return balance + t.amount
+    } else {
+      return balance - t.amount
+    }
+  }, 0)
+
+  // Calculate new balance after this transaction
+  let newBalance = currentBalance
+  if (transaction.type === "income") {
+    newBalance += transaction.amount
+  } else {
+    newBalance -= transaction.amount
+  }
+
+  // Insert transaction with calculated balance_total
+  const transactionWithBalance = {
+    ...transaction,
+    balance_total: newBalance
+  }
+
   const { data, error } = await supabase
     .from("transactions")
-    .insert([transaction])
+    .insert([transactionWithBalance])
     .select()
     .single()
 
@@ -240,7 +273,7 @@ export async function payCreditInstallment(
     ? installment.credit_purchase[0]
     : installment.credit_purchase
 
-  // Create a transaction for this payment
+  // Create a transaction for this payment using addTransaction to calculate balance
   const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: userId,
     type: "credit",
@@ -254,15 +287,11 @@ export async function payCreditInstallment(
     paid: null,
     parent_transaction_id: null,
     due_date: null,
+    balance_total: null, // Will be calculated by addTransaction
   }
 
-  const { data: transactionData, error: transactionError } = await supabase
-    .from("transactions")
-    .insert([transaction])
-    .select()
-    .single()
-
-  if (transactionError) throw transactionError
+  // Use addTransaction to automatically calculate balance_total
+  const transactionData = await addTransaction(transaction)
 
   // Update the installment as paid
   const { data: updatedInstallment, error: updateError } = await supabase
@@ -394,7 +423,7 @@ export async function liquidateInvestment(
   // Calculate total amount (capital + returns)
   const totalAmount = investment.amount + actualReturn
 
-  // Create a transaction for the liquidation (income type)
+  // Create a transaction for the liquidation (income type) using addTransaction to calculate balance
   const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: userId,
     type: "income",
@@ -408,15 +437,11 @@ export async function liquidateInvestment(
     paid: null,
     parent_transaction_id: null,
     due_date: null,
+    balance_total: null, // Will be calculated by addTransaction
   }
 
-  const { data: transactionData, error: transactionError } = await supabase
-    .from("transactions")
-    .insert([transaction])
-    .select()
-    .single()
-
-  if (transactionError) throw transactionError
+  // Use addTransaction to automatically calculate balance_total
+  const transactionData = await addTransaction(transaction)
 
   // Update the investment as liquidated
   const { data: updatedInvestment, error: updateError } = await supabase
