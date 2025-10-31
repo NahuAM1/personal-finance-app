@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogIn, Shield, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
-import SingleLogo from '../assets/images/single-logo.png';
+import Logo from '../assets/images/logo.svg';
 import { useToast } from '@/hooks/use-toast';
 
 export function LoginForm() {
@@ -101,13 +101,13 @@ export function LoginForm() {
   };
 
   return (
-    <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4'>
+    <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800 p-4'>
       <div className='w-full max-w-md space-y-6'>
         <div className='text-center space-y-2'>
           <div className='flex justify-center'>
-            <Image src={SingleLogo} width={60} alt='Personal Wallet logo' />
+            <Image src={Logo} width={80} height={80} alt='Personal Wallet logo' />
           </div>
-          <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>
+          <h1 className='text-3xl font-bold text-[#466E45] dark:text-white'>
             Personal Wallet
           </h1>
           <p className='text-gray-600 dark:text-gray-300'>
