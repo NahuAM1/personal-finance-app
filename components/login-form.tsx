@@ -18,6 +18,7 @@ import { LogIn, Shield, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 import Logo from '../assets/images/logo.svg';
+import GoogleLogo from '../assets/images/googleLogo.svg';
 import { useToast } from '@/hooks/use-toast';
 
 export function LoginForm() {
@@ -92,12 +93,12 @@ export function LoginForm() {
       toast({
         title: 'Error',
         description:
-          'No se pudo realizar el inicio de sesion del usuario. Intente mas tarde.',
+          'No se pudo realizar el inicio de sesion con Google. Intente mas tarde.',
         variant: 'destructive',
       });
+      setLoading(false);
     }
-
-    setLoading(false);
+    // No establecemos loading a false aquí porque la redirección a Google manejará eso
   };
 
   return (
@@ -123,6 +124,31 @@ export function LoginForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className='space-y-4'>
+            <Button
+              type='button'
+              variant='outline'
+              className='w-full'
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className='h-4 w-4 animate-spin mr-2' />
+              ) : (
+                <Image src={GoogleLogo} width={20} height={20} alt='Google logo'/>
+              )}
+              Continuar con Google
+            </Button>
+            <div className='relative'>
+              <div className='absolute inset-0 flex items-center'>
+                <span className='w-full border-t' />
+              </div>
+              <div className='relative flex justify-center text-xs uppercase'>
+                <span className='bg-white dark:bg-gray-950 px-2 text-gray-500'>
+                  O continúa con email
+                </span>
+              </div>
+            </div>
+
             <Tabs defaultValue='signin' className='w-full'>
               <TabsList className='w-full'>
                 <TabsTrigger value='signin'>Iniciar Sesión</TabsTrigger>
