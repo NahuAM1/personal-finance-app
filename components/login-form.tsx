@@ -22,12 +22,14 @@ import GoogleLogo from '../assets/images/googleLogo.svg';
 import { useToast } from '@/hooks/use-toast';
 
 export function LoginForm() {
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [resetCooldown, setResetCooldown] = useState(0);
+  const [resetEmail, setResetEmail] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -39,6 +41,16 @@ export function LoginForm() {
     }
     return () => clearInterval(timer);
   }, [cooldown]);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resetCooldown > 0) {
+      timer = setInterval(() => {
+        setResetCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resetCooldown]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,12 +113,55 @@ export function LoginForm() {
     // No establecemos loading a false aquí porque la redirección a Google manejará eso
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetCooldown > 0) return;
+
+    setLoading(true);
+
+    const { error } = await resetPassword(resetEmail);
+
+    if (error) {
+      const errorMessage = error.message || '';
+      const isRateLimit = errorMessage.includes('rate limit') || error.status === 429;
+
+      toast({
+        title: 'Error',
+        description: isRateLimit
+          ? 'Has excedido el límite de envíos. Por favor espera unos minutos antes de intentar nuevamente.'
+          : 'No se pudo enviar el correo de recuperación. Verifica el email e intenta nuevamente.',
+        variant: 'destructive',
+      });
+
+      if (isRateLimit) {
+        setResetCooldown(180); // 3 minutos de cooldown para rate limit
+      }
+    } else {
+      toast({
+        title: 'Correo enviado',
+        description:
+          '¡Revisa tu email! Te hemos enviado un enlace para restablecer tu contraseña.',
+      });
+      setResetEmail('');
+      setResetCooldown(60); // 1 minuto de cooldown normal
+    }
+
+    setLoading(false);
+  };
+
   return (
     <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800 p-4'>
       <div className='w-full max-w-md space-y-6'>
         <div className='text-center space-y-2'>
           <div className='flex justify-center'>
-            <Image src={Logo} width={80} height={80} alt='Personal Wallet logo' />
+            <Image
+              src={Logo}
+              width={80}
+              height={80}
+              alt='Personal Wallet logo'
+              priority
+              style={{ height: 'auto' }}
+            />
           </div>
           <h1 className='text-3xl font-bold text-[#466E45] dark:text-white'>
             Personal Wallet
@@ -134,7 +189,13 @@ export function LoginForm() {
               {loading ? (
                 <Loader2 className='h-4 w-4 animate-spin mr-2' />
               ) : (
-                <Image src={GoogleLogo} width={20} height={20} alt='Google logo'/>
+                <Image
+                  src={GoogleLogo}
+                  width={20}
+                  height={20}
+                  alt='Google logo'
+                  style={{ height: 'auto' }}
+                />
               )}
               Continuar con Google
             </Button>
@@ -150,9 +211,10 @@ export function LoginForm() {
             </div>
 
             <Tabs defaultValue='signin' className='w-full'>
-              <TabsList className='w-full'>
+              <TabsList className='grid w-full grid-cols-3'>
                 <TabsTrigger value='signin'>Iniciar Sesión</TabsTrigger>
                 <TabsTrigger value='signup'>Registrarse</TabsTrigger>
+                <TabsTrigger value='reset'>Recuperar</TabsTrigger>
               </TabsList>
 
               <TabsContent value='signin' className='space-y-4'>
@@ -261,6 +323,39 @@ export function LoginForm() {
                       <LogIn className='h-4 w-4 mr-2' />
                     )}
                     {cooldown > 0 ? `Espera ${cooldown}s...` : 'Crear Cuenta'}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value='reset' className='space-y-4'>
+                <form onSubmit={handleResetPassword} className='space-y-4'>
+                  <div className='space-y-2'>
+                    <Label htmlFor='reset-email'>Email</Label>
+                    <Input
+                      id='reset-email'
+                      type='email'
+                      placeholder='tu@email.com'
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Alert>
+                    <Mail className='h-4 w-4' />
+                    <AlertDescription>
+                      Te enviaremos un enlace a tu correo para restablecer tu
+                      contraseña.
+                    </AlertDescription>
+                  </Alert>
+                  <Button type='submit' className='w-full' disabled={loading || resetCooldown > 0}>
+                    {loading ? (
+                      <Loader2 className='h-4 w-4 animate-spin mr-2' />
+                    ) : (
+                      <Mail className='h-4 w-4 mr-2' />
+                    )}
+                    {resetCooldown > 0
+                      ? `Espera ${resetCooldown}s...`
+                      : 'Enviar enlace de recuperación'}
                   </Button>
                 </form>
               </TabsContent>
