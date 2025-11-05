@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -38,6 +38,8 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   Calendar,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { getMonth, getYear, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -72,6 +74,25 @@ export function Dashboard({
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(getMonth(currentDate));
   const [selectedYear, setSelectedYear] = useState(getYear(currentDate));
+  const [showAmounts, setShowAmounts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('showAmounts');
+      return saved !== null ? JSON.parse(saved) : true;
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('showAmounts', JSON.stringify(showAmounts));
+  }, [showAmounts]);
+
+  const toggleAmounts = () => {
+    setShowAmounts((prev: boolean) => !prev);
+  };
+
+  const formatAmount = (amount: number) => {
+    return showAmounts ? `$${amount.toLocaleString()}` : '$****';
+  };
 
   const months = [
     { value: 0, label: 'Enero' },
@@ -168,13 +189,28 @@ export function Dashboard({
     <div className='space-y-6'>
       <Card>
         <CardHeader>
-          <CardTitle className='flex items-center gap-2'>
-            <Calendar className='h-5 w-5' />
-            Filtrar por Período
-          </CardTitle>
-          <CardDescription>
-            Selecciona el mes y año para ver los datos específicos
-          </CardDescription>
+          <div className='flex items-center justify-between'>
+            <div>
+              <CardTitle className='flex items-center gap-2'>
+                <Calendar className='h-5 w-5' />
+                Filtrar por Período
+              </CardTitle>
+              <CardDescription>
+                Selecciona el mes y año para ver los datos específicos
+              </CardDescription>
+            </div>
+            <button
+              onClick={toggleAmounts}
+              className='p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
+              title={showAmounts ? 'Ocultar montos' : 'Mostrar montos'}
+            >
+              {showAmounts ? (
+                <Eye className='h-5 w-5 text-gray-600' />
+              ) : (
+                <EyeOff className='h-5 w-5 text-gray-600' />
+              )}
+            </button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className='flex gap-4'>
@@ -228,7 +264,7 @@ export function Dashboard({
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-green-600'>
-              ${totalIncome.toLocaleString()}
+              {formatAmount(totalIncome)}
             </div>
           </CardContent>
         </Card>
@@ -242,7 +278,7 @@ export function Dashboard({
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-red-600'>
-              ${totalExpenses.toLocaleString()}
+              {formatAmount(totalExpenses)}
             </div>
           </CardContent>
         </Card>
@@ -262,11 +298,11 @@ export function Dashboard({
                 balance >= 0 ? 'text-green-600' : 'text-red-600'
               }`}
             >
-              ${balance.toLocaleString()}
+              {formatAmount(balance)}
             </div>
             {activeInvestmentsTotal > 0 && (
               <p className='text-xs text-gray-500 mt-1'>
-                ${activeInvestmentsTotal.toLocaleString()} invertido
+                {formatAmount(activeInvestmentsTotal)} invertido
               </p>
             )}
           </CardContent>
@@ -287,7 +323,7 @@ export function Dashboard({
                 liquidBalance >= 0 ? 'text-blue-600' : 'text-red-600'
               }`}
             >
-              ${liquidBalance.toLocaleString()}
+              {formatAmount(liquidBalance)}
             </div>
             <p className='text-xs text-blue-600 dark:text-blue-400 mt-1'>
               Dinero disponible para usar
@@ -375,8 +411,7 @@ export function Dashboard({
                   <div className='flex justify-between items-center'>
                     <span className='font-medium'>{goal.name}</span>
                     <Badge variant='outline'>
-                      ${goal.current_amount.toLocaleString()} / $
-                      {goal.target_amount.toLocaleString()}
+                      {formatAmount(goal.current_amount)} / {formatAmount(goal.target_amount)}
                     </Badge>
                   </div>
                   <Progress value={progress} className='h-2' />
@@ -421,7 +456,7 @@ export function Dashboard({
                       </div>
                       <div className='text-right'>
                         <div className='font-medium'>
-                          ${installment.amount.toLocaleString()}
+                          {formatAmount(installment.amount)}
                         </div>
                         <div className={`text-sm flex items-center gap-1 ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
                           <Calendar className='h-3 w-3' />
@@ -496,7 +531,7 @@ export function Dashboard({
                               <span className={`font-medium ${
                                 transaction.balance_total >= 0 ? 'text-green-600' : 'text-red-600'
                               }`}>
-                                ${transaction.balance_total.toLocaleString()}
+                                {formatAmount(transaction.balance_total)}
                               </span>
                             </span>
                             <span>•</span>
@@ -505,7 +540,7 @@ export function Dashboard({
                               <span className={`font-medium ${
                                 liquidBalanceAtTransaction! >= 0 ? 'text-blue-600' : 'text-red-600'
                               }`}>
-                                ${liquidBalanceAtTransaction!.toLocaleString()}
+                                {formatAmount(liquidBalanceAtTransaction!)}
                               </span>
                             </span>
                           </>
@@ -524,8 +559,7 @@ export function Dashboard({
                         : 'text-red-600'
                     }`}
                   >
-                    {transaction.type === 'income' ? '+' : '-'}$
-                    {transaction.amount.toLocaleString()}
+                    {transaction.type === 'income' ? '+' : '-'}{formatAmount(transaction.amount).replace('$', '')}
                   </div>
                 </div>
               );

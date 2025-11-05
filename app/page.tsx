@@ -18,6 +18,7 @@ import { CreditCardOverviewNew } from '@/components/credit-card-overview-new';
 import { InvestmentForm } from '@/components/investment-form';
 import { InvestmentLiquidateForm } from '@/components/investment-liquidate-form';
 import { InvestmentsOverview } from '@/components/investments-overview';
+import { Market } from '@/components/market';
 import { Savings } from '@/components/savings';
 import { ExpensePlans } from '@/components/expense-plans';
 import { History } from '@/components/history';
@@ -630,13 +631,12 @@ function FinanceAppContent() {
 
           <TabsContent value='investments'>
             <Tabs defaultValue='nueva' className='space-y-4'>
-              <div className='flex items-center justify-center'>
-                <TabsList>
-                  <TabsTrigger value='nueva'>Nueva Inversión</TabsTrigger>
-                  <TabsTrigger value='liquidar'>Liquidar</TabsTrigger>
-                  <TabsTrigger value='ver'>Ver Inversiones</TabsTrigger>
-                </TabsList>
-              </div>
+              <TabsList className='grid grid-cols-2 md:grid-cols-4 w-full h-auto p-[10px]'>
+                <TabsTrigger value='nueva' >Nueva Inversión</TabsTrigger>
+                <TabsTrigger value='liquidar' >Liquidar</TabsTrigger>
+                <TabsTrigger value='ver' >Ver Inversiones</TabsTrigger>
+                <TabsTrigger value='mercado' >Mercado</TabsTrigger>
+              </TabsList>
 
               <TabsContent value='nueva'>
                 <Card>
@@ -675,6 +675,10 @@ function FinanceAppContent() {
                   onDelete={deleteInvestment}
                   onUpdate={updateInvestment}
                 />
+              </TabsContent>
+
+              <TabsContent value='mercado'>
+                <Market />
               </TabsContent>
             </Tabs>
           </TabsContent>
