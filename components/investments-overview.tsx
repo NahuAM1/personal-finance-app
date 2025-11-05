@@ -179,7 +179,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                 <div className='text-sm text-gray-600 dark:text-gray-400 mb-1'>
                   Inversiones Activas
                 </div>
-                <div className='text-2xl font-bold text-gray-900 dark:text-gray-100'>
+                <div className='text-sm md:text-2xl text-2xl font-bold text-gray-900 dark:text-gray-100'>
                   {activeInvestments.length}
                 </div>
               </div>
@@ -187,7 +187,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                 <div className='text-sm text-gray-600 dark:text-gray-400 mb-1'>
                   Capital Invertido
                 </div>
-                <div className='text-2xl font-bold text-blue-600 dark:text-blue-400'>
+                <div className='text-sm md:text-2xl font-bold text-blue-600 dark:text-blue-400'>
                   ${totalInvested.toLocaleString('es-AR')}
                 </div>
               </div>
@@ -195,7 +195,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                 <div className='text-sm text-gray-600 dark:text-gray-400 mb-1'>
                   Ganancia Estimada
                 </div>
-                <div className='text-2xl font-bold text-green-600 dark:text-green-400'>
+                <div className='text-sm md:text-2xl font-bold text-green-600 dark:text-green-400'>
                   +${totalEstimatedReturns.toLocaleString('es-AR')}
                 </div>
               </div>
