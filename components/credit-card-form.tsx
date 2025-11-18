@@ -80,7 +80,9 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
       { length: numInstallments },
       (_, index) => {
         const installmentNumber = index + 1;
+        // Siempre establecer el día 29 de cada mes como fecha de vencimiento
         const dueDate = addMonths(today, index);
+        dueDate.setDate(29);
 
         return {
           installment_number: installmentNumber,
