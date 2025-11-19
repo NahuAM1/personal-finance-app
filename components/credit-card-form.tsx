@@ -142,9 +142,9 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
                 <SelectValue placeholder='Selecciona cuotas' />
               </SelectTrigger>
               <SelectContent>
-                {[3, 6, 9, 12, 18, 24, 36].map((num) => (
+                {[1, 3, 6, 9, 12, 18, 24, 36].map((num) => (
                   <SelectItem key={num} value={num.toString()}>
-                    {num} cuotas
+                    {num} {num === 1 ? 'cuota' : 'cuotas'}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -184,13 +184,13 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
             <CardContent className='pt-6'>
               <div className='text-center'>
                 <div className='text-sm text-green-700 dark:text-green-300'>
-                  Cuota mensual
+                  {installments === '1' ? 'Pago único' : 'Cuota mensual'}
                 </div>
                 <div className='text-2xl font-bold text-green-800 dark:text-green-200'>
                   ${monthlyAmount}
                 </div>
                 <div className='text-sm text-green-600 dark:text-green-400'>
-                  durante {installments} meses
+                  {installments === '1' ? 'pago en 1 cuota' : `durante ${installments} meses`}
                 </div>
               </div>
             </CardContent>
