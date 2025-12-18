@@ -37,6 +37,18 @@ const investmentTypes = [
   { value: 'cedears', label: 'CEDEARs' },
   { value: 'cauciones', label: 'Cauciones' },
   { value: 'fondos_comunes_inversion', label: 'Fondos Comunes de Inversión' },
+  { value: 'compra_divisas', label: 'Compra de Divisas' },
+];
+
+const currencies = [
+  { value: 'USD', label: 'Dólar Estadounidense (USD)' },
+  { value: 'EUR', label: 'Euro (EUR)' },
+  { value: 'BRL', label: 'Real Brasileño (BRL)' },
+  { value: 'GBP', label: 'Libra Esterlina (GBP)' },
+  { value: 'CHF', label: 'Franco Suizo (CHF)' },
+  { value: 'JPY', label: 'Yen Japonés (JPY)' },
+  { value: 'UYU', label: 'Peso Uruguayo (UYU)' },
+  { value: 'CLP', label: 'Peso Chileno (CLP)' },
 ];
 
 export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
@@ -46,6 +58,10 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [maturityDate, setMaturityDate] = useState('');
   const [annualRate, setAnnualRate] = useState('');
+  const [currency, setCurrency] = useState('');
+  const [exchangeRate, setExchangeRate] = useState('');
+
+  const isCurrencyPurchase = investmentType === 'compra_divisas';
 
   // Calculate estimated return
   const calculateEstimatedReturn = () => {
@@ -69,6 +85,7 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
     e.preventDefault();
 
     if (!description || !investmentType || !amount || !startDate) return;
+    if (isCurrencyPurchase && (!currency || !exchangeRate)) return;
 
     const investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
       description,
@@ -82,6 +99,8 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
       liquidation_date: null,
       actual_return: null,
       transaction_id: null,
+      currency: isCurrencyPurchase && currency ? currency : null,
+      exchange_rate: isCurrencyPurchase && exchangeRate ? Number.parseFloat(exchangeRate) : null,
     };
 
     onSubmit(investment);
@@ -93,6 +112,8 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
     setStartDate(format(new Date(), 'yyyy-MM-dd'));
     setMaturityDate('');
     setAnnualRate('');
+    setCurrency('');
+    setExchangeRate('');
   };
 
   return (
@@ -136,6 +157,39 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
             </SelectContent>
           </Select>
         </div>
+
+        {isCurrencyPurchase && (
+          <div className='grid gap-4 md:grid-cols-2'>
+            <div className='space-y-2'>
+              <Label htmlFor='currency'>Divisa</Label>
+              <Select value={currency} onValueChange={setCurrency} required>
+                <SelectTrigger>
+                  <SelectValue placeholder='Selecciona la divisa' />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((curr) => (
+                    <SelectItem key={curr.value} value={curr.value}>
+                      {curr.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className='space-y-2'>
+              <Label htmlFor='exchange-rate'>Tipo de Cambio (ARS)</Label>
+              <Input
+                id='exchange-rate'
+                type='number'
+                step='0.01'
+                placeholder='1050.00'
+                value={exchangeRate}
+                onChange={(e) => setExchangeRate(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+        )}
 
         <div className='grid gap-4 md:grid-cols-2'>
           <div className='space-y-2'>
@@ -187,7 +241,40 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
           </div>
         </div>
 
-        {estimatedReturn > 0 && (
+        {isCurrencyPurchase && amount && exchangeRate && Number.parseFloat(exchangeRate) > 0 && (
+          <Card className='bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800'>
+            <CardContent className='pt-6'>
+              <div className='space-y-3'>
+                <div className='flex items-center justify-between text-sm'>
+                  <span className='text-emerald-700 dark:text-emerald-300'>Monto en ARS:</span>
+                  <span className='font-semibold text-emerald-900 dark:text-emerald-100'>
+                    ${Number.parseFloat(amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div className='flex items-center justify-between text-sm'>
+                  <span className='text-emerald-700 dark:text-emerald-300'>Tipo de cambio:</span>
+                  <span className='font-semibold text-emerald-900 dark:text-emerald-100'>
+                    ${Number.parseFloat(exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div className='pt-3 border-t border-emerald-200 dark:border-emerald-800'>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-sm font-semibold text-emerald-700 dark:text-emerald-300'>
+                      {currency ? `Unidades de ${currency}:` : 'Unidades de divisa:'}
+                    </span>
+                    <span className='text-xl font-bold text-emerald-900 dark:text-emerald-100'>
+                      {(Number.parseFloat(amount) / Number.parseFloat(exchangeRate)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isCurrencyPurchase && estimatedReturn > 0 && (
           <Card className='bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'>
             <CardContent className='pt-6'>
               <div className='space-y-3'>

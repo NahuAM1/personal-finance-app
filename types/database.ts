@@ -205,7 +205,7 @@ export interface Database {
           id: string
           user_id: string
           description: string
-          investment_type: "plazo_fijo" | "fci" | "bonos" | "acciones" | "crypto" | "letras" | "cedears" | "cauciones" | "fondos_comunes_inversion"
+          investment_type: "plazo_fijo" | "fci" | "bonos" | "acciones" | "crypto" | "letras" | "cedears" | "cauciones" | "fondos_comunes_inversion" | "compra_divisas"
           amount: number
           start_date: string
           maturity_date: string | null
@@ -215,6 +215,8 @@ export interface Database {
           liquidation_date: string | null
           actual_return: number | null
           transaction_id: string | null
+          currency: string | null
+          exchange_rate: number | null
           created_at: string
           updated_at: string
         }
@@ -222,7 +224,7 @@ export interface Database {
           id?: string
           user_id: string
           description: string
-          investment_type: "plazo_fijo" | "fci" | "bonos" | "acciones" | "crypto" | "letras" | "cedears" | "cauciones" | "fondos_comunes_inversion"
+          investment_type: "plazo_fijo" | "fci" | "bonos" | "acciones" | "crypto" | "letras" | "cedears" | "cauciones" | "fondos_comunes_inversion" | "compra_divisas"
           amount: number
           start_date: string
           maturity_date?: string | null
@@ -232,6 +234,8 @@ export interface Database {
           liquidation_date?: string | null
           actual_return?: number | null
           transaction_id?: string | null
+          currency?: string | null
+          exchange_rate?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -239,7 +243,7 @@ export interface Database {
           id?: string
           user_id?: string
           description?: string
-          investment_type?: "plazo_fijo" | "fci" | "bonos" | "acciones" | "crypto" | "letras" | "cedears" | "cauciones" | "fondos_comunes_inversion"
+          investment_type?: "plazo_fijo" | "fci" | "bonos" | "acciones" | "crypto" | "letras" | "cedears" | "cauciones" | "fondos_comunes_inversion" | "compra_divisas"
           amount?: number
           start_date?: string
           maturity_date?: string | null
@@ -249,6 +253,8 @@ export interface Database {
           liquidation_date?: string | null
           actual_return?: number | null
           transaction_id?: string | null
+          currency?: string | null
+          exchange_rate?: number | null
           created_at?: string
           updated_at?: string
         }

@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS public.investments (
         'letras',
         'cedears',
         'cauciones',
-        'fondos_comunes_inversion'
+        'fondos_comunes_inversion',
+        'compra_divisas'
     )),
     amount DECIMAL(12,2) NOT NULL CHECK (amount > 0),
     start_date DATE NOT NULL,

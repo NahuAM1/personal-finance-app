@@ -478,6 +478,110 @@ export async function updateInvestment(
   return data
 }
 
+export async function partialSellCurrency(
+  investmentId: string,
+  userId: string,
+  unitsSold: number,
+  sellExchangeRate: number,
+  saleDate: string
+) {
+  // Get the investment details
+  const { data: investment, error: fetchError } = await supabase
+    .from("investments")
+    .select("*")
+    .eq("id", investmentId)
+    .eq("user_id", userId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!investment) throw new Error("Investment not found")
+  if (investment.investment_type !== 'compra_divisas') throw new Error("This function is only for currency investments")
+  if (!investment.exchange_rate) throw new Error("Investment has no exchange rate")
+
+  // Calculate total currency units available
+  const totalUnits = investment.amount / investment.exchange_rate
+
+  // Validate units to sell
+  if (unitsSold > totalUnits) throw new Error("Cannot sell more units than available")
+  if (unitsSold <= 0) throw new Error("Units to sell must be greater than 0")
+
+  // Calculate sale amounts
+  const saleAmount = unitsSold * sellExchangeRate
+  const proportionalCost = unitsSold * investment.exchange_rate
+  const profit = saleAmount - proportionalCost
+
+  // Calculate remaining amount in ARS (remaining units * original exchange rate)
+  const remainingUnits = totalUnits - unitsSold
+  const remainingAmount = remainingUnits * investment.exchange_rate
+
+  // Check if this is a full sale (within small tolerance for floating point)
+  const isFullSale = remainingUnits < 0.01
+
+  // Create a transaction for the partial sale income
+  const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
+    user_id: userId,
+    type: "income",
+    amount: saleAmount,
+    category: `Inversión - ${investment.investment_type}`,
+    description: isFullSale
+      ? `Venta total ${investment.currency}: ${unitsSold.toFixed(2)} unidades a TC $${sellExchangeRate.toFixed(2)} (${investment.description})`
+      : `Venta parcial ${investment.currency}: ${unitsSold.toFixed(2)} unidades a TC $${sellExchangeRate.toFixed(2)} (${investment.description})`,
+    date: saleDate,
+    is_recurring: null,
+    installments: null,
+    current_installment: null,
+    paid: null,
+    parent_transaction_id: null,
+    due_date: null,
+    balance_total: null, // Will be calculated by addTransaction
+  }
+
+  const transactionData = await addTransaction(transaction)
+
+  if (isFullSale) {
+    // Full sale - mark as liquidated
+    const { data: updatedInvestment, error: updateError } = await supabase
+      .from("investments")
+      .update({
+        is_liquidated: true,
+        liquidation_date: saleDate,
+        actual_return: profit,
+        transaction_id: transactionData.id
+      })
+      .eq("id", investmentId)
+      .select()
+      .single()
+
+    if (updateError) throw updateError
+
+    return {
+      investment: updatedInvestment,
+      transaction: transactionData,
+      isFullSale: true,
+      profit
+    }
+  } else {
+    // Partial sale - update the remaining amount
+    const { data: updatedInvestment, error: updateError } = await supabase
+      .from("investments")
+      .update({
+        amount: remainingAmount
+      })
+      .eq("id", investmentId)
+      .select()
+      .single()
+
+    if (updateError) throw updateError
+
+    return {
+      investment: updatedInvestment,
+      transaction: transactionData,
+      isFullSale: false,
+      profit
+    }
+  }
+}
+
 export async function deleteInvestment(investmentId: string, userId: string) {
   // Check if investment is liquidated and has a transaction
   const { data: investment, error: fetchError } = await supabase

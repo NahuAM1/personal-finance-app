@@ -253,6 +253,34 @@ function FinanceAppContent() {
     }
   };
 
+  const sellCurrency = async (investmentId: string, unitsSold: number, sellExchangeRate: number) => {
+    if (!user) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const result = await api.partialSellCurrency(investmentId, user.id, unitsSold, sellExchangeRate, today);
+
+      toast({
+        title: 'Éxito',
+        description: result.isFullSale
+          ? 'Venta total completada e ingreso creado correctamente'
+          : 'Venta parcial completada. La inversión se ha actualizado con las unidades restantes.',
+      });
+
+      // Reload all data to update dashboard and balance
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo realizar la venta',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const updateInvestment = async (investmentId: string, updates: Partial<Investment>) => {
     if (!user) return;
 
@@ -664,6 +692,7 @@ function FinanceAppContent() {
                     <InvestmentLiquidateForm
                       investments={investments}
                       onLiquidate={liquidateInvestment}
+                      onCurrencySale={sellCurrency}
                     />
                   </CardContent>
                 </Card>

@@ -52,6 +52,7 @@ const investmentTypeLabels: Record<string, string> = {
   cedears: 'CEDEARs',
   cauciones: 'Cauciones',
   fondos_comunes_inversion: 'Fondos Comunes de Inversión',
+  compra_divisas: 'Compra de Divisas',
 };
 
 const investmentTypeColors: Record<string, string> = {
@@ -64,6 +65,7 @@ const investmentTypeColors: Record<string, string> = {
   cedears: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
   cauciones: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
   fondos_comunes_inversion: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+  compra_divisas: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
 };
 
 export function InvestmentsOverview({ investments, onDelete, onUpdate }: InvestmentsOverviewProps) {
@@ -305,24 +307,67 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                 )}
 
                 {/* Financial details */}
-                <div className='grid grid-cols-2 gap-3 text-sm'>
-                  <div className='p-3 bg-blue-100 dark:bg-blue-900 rounded'>
-                    <div className='text-xs text-blue-700 dark:text-blue-300 mb-1'>
-                      Capital
+                {investment.investment_type === 'compra_divisas' && investment.currency && investment.exchange_rate ? (
+                  <div className='space-y-3'>
+                    {/* Currency info grid */}
+                    <div className='grid grid-cols-2 gap-3 text-sm'>
+                      <div className='p-3 bg-blue-100 dark:bg-blue-900 rounded'>
+                        <div className='text-xs text-blue-700 dark:text-blue-300 mb-1'>
+                          Invertido (ARS)
+                        </div>
+                        <div className='font-bold text-blue-900 dark:text-blue-100'>
+                          ${investment.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      <div className='p-3 bg-emerald-100 dark:bg-emerald-900 rounded'>
+                        <div className='text-xs text-emerald-700 dark:text-emerald-300 mb-1'>
+                          Unidades {investment.currency}
+                        </div>
+                        <div className='font-bold text-emerald-900 dark:text-emerald-100'>
+                          {(investment.amount / investment.exchange_rate).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
                     </div>
-                    <div className='font-bold text-blue-900 dark:text-blue-100'>
-                      ${investment.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    {/* Exchange rate info */}
+                    <div className='flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 rounded text-sm'>
+                      <span className='text-gray-600 dark:text-gray-400 flex items-center gap-1'>
+                        <DollarSign className='h-3 w-3' />
+                        TC Compra:
+                      </span>
+                      <span className='font-semibold'>${investment.exchange_rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {/* Show actual return if liquidated */}
+                    {investment.is_liquidated && (
+                      <div className={`p-3 rounded ${(investment.actual_return || 0) >= 0 ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
+                        <div className={`text-xs mb-1 ${(investment.actual_return || 0) >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                          {(investment.actual_return || 0) >= 0 ? 'Ganancia' : 'Pérdida'}
+                        </div>
+                        <div className={`font-bold ${(investment.actual_return || 0) >= 0 ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
+                          {(investment.actual_return || 0) >= 0 ? '+' : ''}${(investment.actual_return || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className='grid grid-cols-2 gap-3 text-sm'>
+                    <div className='p-3 bg-blue-100 dark:bg-blue-900 rounded'>
+                      <div className='text-xs text-blue-700 dark:text-blue-300 mb-1'>
+                        Capital
+                      </div>
+                      <div className='font-bold text-blue-900 dark:text-blue-100'>
+                        ${investment.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className='p-3 bg-green-100 dark:bg-green-900 rounded'>
+                      <div className='text-xs text-green-700 dark:text-green-300 mb-1'>
+                        {investment.is_liquidated ? 'Ganancia Real' : 'Ganancia Est.'}
+                      </div>
+                      <div className='font-bold text-green-800 dark:text-green-200'>
+                        +${(investment.is_liquidated ? investment.actual_return || 0 : investment.estimated_return).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </div>
                     </div>
                   </div>
-                  <div className='p-3 bg-green-100 dark:bg-green-900 rounded'>
-                    <div className='text-xs text-green-700 dark:text-green-300 mb-1'>
-                      {investment.is_liquidated ? 'Ganancia Real' : 'Ganancia Est.'}
-                    </div>
-                    <div className='font-bold text-green-800 dark:text-green-200'>
-                      +${(investment.is_liquidated ? investment.actual_return || 0 : investment.estimated_return).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                </div>
+                )}
 
                 {/* Dates */}
                 <div className='space-y-2 text-sm'>
@@ -388,14 +433,34 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
 
                 {/* Total return */}
                 <div className='pt-3 border-t border-gray-200 dark:border-gray-700'>
-                  <div className='flex items-center justify-between'>
-                    <span className='text-sm font-semibold text-gray-700 dark:text-gray-300'>
-                      Total {investment.is_liquidated ? 'Liquidado' : 'Esperado'}:
-                    </span>
-                    <span className='text-xl font-bold text-gray-900 dark:text-gray-100'>
-                      ${(investment.amount + (investment.is_liquidated ? investment.actual_return || 0 : investment.estimated_return)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
+                  {investment.investment_type === 'compra_divisas' && investment.is_liquidated ? (
+                    <div className='flex items-center justify-between'>
+                      <span className='text-sm font-semibold text-gray-700 dark:text-gray-300'>
+                        Total Liquidado:
+                      </span>
+                      <span className={`text-xl font-bold ${(investment.amount + (investment.actual_return || 0)) >= investment.amount ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        ${(investment.amount + (investment.actual_return || 0)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ) : investment.investment_type === 'compra_divisas' ? (
+                    <div className='flex items-center justify-between'>
+                      <span className='text-sm font-semibold text-gray-700 dark:text-gray-300'>
+                        Capital Invertido:
+                      </span>
+                      <span className='text-xl font-bold text-gray-900 dark:text-gray-100'>
+                        ${investment.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className='flex items-center justify-between'>
+                      <span className='text-sm font-semibold text-gray-700 dark:text-gray-300'>
+                        Total {investment.is_liquidated ? 'Liquidado' : 'Esperado'}:
+                      </span>
+                      <span className='text-xl font-bold text-gray-900 dark:text-gray-100'>
+                        ${(investment.amount + (investment.is_liquidated ? investment.actual_return || 0 : investment.estimated_return)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
