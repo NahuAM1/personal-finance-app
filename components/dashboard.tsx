@@ -25,9 +25,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
 import {
   TrendingUp,
@@ -53,15 +50,6 @@ interface DashboardProps {
   creditInstallments: CreditInstallment[];
   investments: Investment[];
 }
-
-const COLORS = [
-  '#10b981', // emerald
-  '#14b8a6', // teal
-  '#06b6d4', // cyan
-  '#f59e0b', // amber
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-];
 
 export function Dashboard({
   transactions,
@@ -403,34 +391,51 @@ export function Dashboard({
             <CardDescription>Porcentaje por categoría - {months[selectedMonth].label} {selectedYear}</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width='100%' height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx='50%'
-                  cy='50%'
-                  labelLine={false}
-                  label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
-                  }
-                  outerRadius={80}
-                  fill='#8884d8'
-                  dataKey='value'
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
+            <ResponsiveContainer width='100%' height={Math.max(200, pieData.length * 40)}>
+              <BarChart data={pieData} layout='vertical' margin={{ left: 20, right: 40 }}>
+                <CartesianGrid strokeDasharray='3 3' stroke='#e5e7eb' horizontal={true} vertical={false} />
+                <XAxis type='number' hide />
+                <YAxis
+                  dataKey='name'
+                  type='category'
+                  width={100}
+                  axisLine={false}
+                  tickLine={false}
+                  fontSize={12}
+                />
                 <Tooltip
                   formatter={(value) => [
                     `$${Number(value).toLocaleString()}`,
                     'Monto',
                   ]}
+                  contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '12px',
+                    border: 'none',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                  }}
                 />
-              </PieChart>
+                <Bar
+                  dataKey='value'
+                  fill='url(#barGradient2)'
+                  radius={[0, 8, 8, 0]}
+                  label={{
+                    position: 'right',
+                    formatter: (value: number) => {
+                      const total = pieData.reduce((sum, d) => sum + d.value, 0);
+                      return `${((value / total) * 100).toFixed(0)}%`;
+                    },
+                    fontSize: 12,
+                    fill: '#6b7280',
+                  }}
+                />
+                <defs>
+                  <linearGradient id='barGradient2' x1='0' y1='0' x2='1' y2='0'>
+                    <stop offset='0%' stopColor='#8b5cf6' />
+                    <stop offset='100%' stopColor='#a855f7' />
+                  </linearGradient>
+                </defs>
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
