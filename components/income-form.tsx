@@ -66,11 +66,17 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
         <Label htmlFor='income-amount'>Monto</Label>
         <Input
           id='income-amount'
+          name='income-amount'
           type='number'
+          inputMode='decimal'
           placeholder='0.00'
           value={incomeForm.amount}
           onChange={(e) => setIncomeAmount(e.target.value)}
           required
+          min={0}
+          step='0.01'
+          autoComplete='off'
+          className='tabular-nums'
         />
       </div>
 
@@ -98,10 +104,12 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
         <Label htmlFor='income-description'>Descripción</Label>
         <Textarea
           id='income-description'
-          placeholder='Describe el ingreso...'
+          name='income-description'
+          placeholder='Describe el ingreso…'
           value={incomeForm.description}
           onChange={(e) => setIncomeDescription(e.target.value)}
           required
+          autoComplete='off'
         />
       </div>
 

@@ -55,12 +55,12 @@ interface DashboardProps {
 }
 
 const COLORS = [
-  '#0088FE',
-  '#00C49F',
-  '#FFBB28',
-  '#FF8042',
-  '#8884D8',
-  '#82CA9D',
+  '#10b981', // emerald
+  '#14b8a6', // teal
+  '#06b6d4', // cyan
+  '#f59e0b', // amber
+  '#8b5cf6', // violet
+  '#ec4899', // pink
 ];
 
 export function Dashboard({
@@ -186,28 +186,33 @@ export function Dashboard({
   );
 
   return (
-    <div className='space-y-6'>
-      <Card>
+    <div className='space-y-8'>
+      {/* Period Filter Card */}
+      <Card className='bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200/50 dark:border-emerald-800/50'>
         <CardHeader>
           <div className='flex items-center justify-between'>
             <div>
-              <CardTitle className='flex items-center gap-2'>
-                <Calendar className='h-5 w-5' />
+              <CardTitle className='flex items-center gap-3 text-emerald-800 dark:text-emerald-200'>
+                <div className='p-2 bg-emerald-100 dark:bg-emerald-900 rounded-xl'>
+                  <Calendar className='h-5 w-5 text-emerald-600 dark:text-emerald-400' aria-hidden="true" />
+                </div>
                 Filtrar por Período
               </CardTitle>
-              <CardDescription>
+              <CardDescription className='mt-2'>
                 Selecciona el mes y año para ver los datos específicos
               </CardDescription>
             </div>
             <button
               onClick={toggleAmounts}
-              className='p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
-              title={showAmounts ? 'Ocultar montos' : 'Mostrar montos'}
+              className='p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500'
+              aria-label={showAmounts ? 'Ocultar montos' : 'Mostrar montos'}
+              aria-pressed={showAmounts}
+              type="button"
             >
               {showAmounts ? (
-                <Eye className='h-5 w-5 text-gray-600' />
+                <Eye className='h-5 w-5 text-emerald-600 dark:text-emerald-400' aria-hidden="true" />
               ) : (
-                <EyeOff className='h-5 w-5 text-gray-600' />
+                <EyeOff className='h-5 w-5 text-gray-400' aria-hidden="true" />
               )}
             </button>
           </div>
@@ -215,12 +220,12 @@ export function Dashboard({
         <CardContent>
           <div className='flex gap-4'>
             <div className='flex-1'>
-              <label className='text-sm font-medium mb-2 block'>Mes</label>
+              <label className='text-sm font-semibold mb-2 block text-gray-700 dark:text-gray-300'>Mes</label>
               <Select
                 value={selectedMonth.toString()}
                 onValueChange={(value) => setSelectedMonth(parseInt(value))}
               >
-                <SelectTrigger>
+                <SelectTrigger className='h-12'>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -233,12 +238,12 @@ export function Dashboard({
               </Select>
             </div>
             <div className='flex-1'>
-              <label className='text-sm font-medium mb-2 block'>Año</label>
+              <label className='text-sm font-semibold mb-2 block text-gray-700 dark:text-gray-300'>Año</label>
               <Select
                 value={selectedYear.toString()}
                 onValueChange={(value) => setSelectedYear(parseInt(value))}
               >
-                <SelectTrigger>
+                <SelectTrigger className='h-12'>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -254,88 +259,107 @@ export function Dashboard({
         </CardContent>
       </Card>
 
-      <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
-        <Card>
-          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>
-              Ingresos de {months[selectedMonth].label} {selectedYear}
+      {/* Stats Cards */}
+      <div className='grid gap-5 md:grid-cols-2 lg:grid-cols-4'>
+        {/* Income Card */}
+        <Card className='relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-0 shadow-lg shadow-emerald-500/20'>
+          <div className='absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16' />
+          <div className='absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12' />
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2 relative'>
+            <CardTitle className='text-sm font-medium text-emerald-100'>
+              Ingresos de {months[selectedMonth].label}
             </CardTitle>
-            <TrendingUp className='h-4 w-4 text-green-600' />
+            <div className='p-2 bg-white/20 rounded-xl backdrop-blur-sm'>
+              <TrendingUp className='h-4 w-4' aria-hidden="true" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className='text-2xl font-bold text-green-600'>
+          <CardContent className='relative'>
+            <div className='text-3xl font-bold tabular-nums tracking-tight'>
               {formatAmount(totalIncome)}
             </div>
+            <p className='text-xs text-emerald-200 mt-1'>
+              {selectedYear}
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>
-              Gastos de {months[selectedMonth].label} {selectedYear}
+        {/* Expenses Card */}
+        <Card className='relative overflow-hidden bg-gradient-to-br from-rose-500 to-pink-600 text-white border-0 shadow-lg shadow-rose-500/20'>
+          <div className='absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16' />
+          <div className='absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12' />
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2 relative'>
+            <CardTitle className='text-sm font-medium text-rose-100'>
+              Gastos de {months[selectedMonth].label}
             </CardTitle>
-            <TrendingDown className='h-4 w-4 text-red-600' />
+            <div className='p-2 bg-white/20 rounded-xl backdrop-blur-sm'>
+              <TrendingDown className='h-4 w-4' aria-hidden="true" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className='text-2xl font-bold text-red-600'>
+          <CardContent className='relative'>
+            <div className='text-3xl font-bold tabular-nums tracking-tight'>
               {formatAmount(totalExpenses)}
             </div>
+            <p className='text-xs text-rose-200 mt-1'>
+              {selectedYear}
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>Balance Total</CardTitle>
-            <DollarSign
-              className={`h-4 w-4 ${
-                balance >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}
-            />
+        {/* Balance Card */}
+        <Card className={`relative overflow-hidden border-0 shadow-lg ${
+          balance >= 0
+            ? 'bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/20'
+            : 'bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/20'
+        } text-white`}>
+          <div className='absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16' />
+          <div className='absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12' />
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2 relative'>
+            <CardTitle className='text-sm font-medium text-white/80'>Balance Total</CardTitle>
+            <div className='p-2 bg-white/20 rounded-xl backdrop-blur-sm'>
+              <DollarSign className='h-4 w-4' aria-hidden="true" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${
-                balance >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}
-            >
+          <CardContent className='relative'>
+            <div className='text-3xl font-bold tabular-nums tracking-tight'>
               {formatAmount(balance)}
             </div>
             {activeInvestmentsTotal > 0 && (
-              <p className='text-xs text-gray-500 mt-1'>
+              <p className='text-xs text-white/70 mt-1 tabular-nums'>
                 {formatAmount(activeInvestmentsTotal)} invertido
               </p>
             )}
           </CardContent>
         </Card>
 
-        <Card className='bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 border-blue-200 dark:border-blue-800'>
-          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>Balance Líquido</CardTitle>
-            <DollarSign
-              className={`h-4 w-4 ${
-                liquidBalance >= 0 ? 'text-blue-600' : 'text-red-600'
-              }`}
-            />
+        {/* Liquid Balance Card */}
+        <Card className='relative overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600 text-white border-0 shadow-lg shadow-cyan-500/20'>
+          <div className='absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16' />
+          <div className='absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12' />
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2 relative'>
+            <CardTitle className='text-sm font-medium text-cyan-100'>Balance Líquido</CardTitle>
+            <div className='p-2 bg-white/20 rounded-xl backdrop-blur-sm'>
+              <DollarSign className='h-4 w-4' aria-hidden="true" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${
-                liquidBalance >= 0 ? 'text-blue-600' : 'text-red-600'
-              }`}
-            >
+          <CardContent className='relative'>
+            <div className='text-3xl font-bold tabular-nums tracking-tight'>
               {formatAmount(liquidBalance)}
             </div>
-            <p className='text-xs text-blue-600 dark:text-blue-400 mt-1'>
+            <p className='text-xs text-cyan-200 mt-1'>
               Dinero disponible para usar
             </p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Charts Section */}
       <div className='grid gap-6 md:grid-cols-2'>
-        <Card>
+        <Card className='shadow-lg'>
           <CardHeader>
-            <CardTitle>Gastos por Categoría</CardTitle>
+            <CardTitle className='flex items-center gap-2'>
+              <div className='w-1 h-6 bg-gradient-to-b from-emerald-500 to-teal-500 rounded-full' />
+              Gastos por Categoría
+            </CardTitle>
             <CardDescription>
               Distribución de gastos de {months[selectedMonth].label} {selectedYear}
             </CardDescription>
@@ -343,24 +367,39 @@ export function Dashboard({
           <CardContent>
             <ResponsiveContainer width='100%' height={300}>
               <BarChart data={categoryData}>
-                <CartesianGrid strokeDasharray='3 3' />
-                <XAxis dataKey='category' />
-                <YAxis />
+                <CartesianGrid strokeDasharray='3 3' stroke='#e5e7eb' vertical={false} />
+                <XAxis dataKey='category' axisLine={false} tickLine={false} fontSize={12} />
+                <YAxis axisLine={false} tickLine={false} fontSize={12} />
                 <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '12px',
+                    border: 'none',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                  }}
                   formatter={(value) => [
                     `$${Number(value).toLocaleString()}`,
                     'Monto',
                   ]}
                 />
-                <Bar dataKey='amount' fill='#8884d8' />
+                <Bar dataKey='amount' fill='url(#barGradient)' radius={[8, 8, 0, 0]} />
+                <defs>
+                  <linearGradient id='barGradient' x1='0' y1='0' x2='0' y2='1'>
+                    <stop offset='0%' stopColor='#10b981' />
+                    <stop offset='100%' stopColor='#14b8a6' />
+                  </linearGradient>
+                </defs>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className='shadow-lg'>
           <CardHeader>
-            <CardTitle>Distribución de Gastos</CardTitle>
+            <CardTitle className='flex items-center gap-2'>
+              <div className='w-1 h-6 bg-gradient-to-b from-violet-500 to-purple-500 rounded-full' />
+              Distribución de Gastos
+            </CardTitle>
             <CardDescription>Porcentaje por categoría - {months[selectedMonth].label} {selectedYear}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -445,7 +484,7 @@ export function Dashboard({
                       }`}
                     >
                       <div className='flex items-center gap-3'>
-                        <CreditCard className={`h-4 w-4 ${isOverdue ? 'text-red-600' : 'text-blue-600'}`} />
+                        <CreditCard className={`h-4 w-4 ${isOverdue ? 'text-red-600' : 'text-blue-600'}`} aria-hidden="true" />
                         <div>
                           <div className='font-medium'>{installment.purchase!.description}</div>
                           <div className='text-sm text-gray-600'>
@@ -455,13 +494,13 @@ export function Dashboard({
                         </div>
                       </div>
                       <div className='text-right'>
-                        <div className='font-medium'>
+                        <div className='font-medium tabular-nums'>
                           {formatAmount(installment.amount)}
                         </div>
-                        <div className={`text-sm flex items-center gap-1 ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
-                          <Calendar className='h-3 w-3' />
+                        <div className={`text-sm flex items-center gap-1 tabular-nums ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
+                          <Calendar className='h-3 w-3' aria-hidden="true" />
                           {format(parseISO(installment.due_date), 'dd/MM/yyyy')}
-                          {isOverdue && ' ⚠️'}
+                          {isOverdue && <span role="img" aria-label="Vencido"> ⚠️</span>}
                         </div>
                       </div>
                     </div>
@@ -508,9 +547,9 @@ export function Dashboard({
                 >
                   <div className='flex items-center gap-3'>
                     {transaction.type === 'income' ? (
-                      <ArrowUpCircle className='h-5 w-5 text-green-600' />
+                      <ArrowUpCircle className='h-5 w-5 text-green-600' aria-hidden="true" />
                     ) : (
-                      <ArrowDownCircle className='h-5 w-5 text-red-600' />
+                      <ArrowDownCircle className='h-5 w-5 text-red-600' aria-hidden="true" />
                     )}
                     <div>
                       <div className='font-medium'>{transaction.description}</div>

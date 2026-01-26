@@ -70,14 +70,20 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   return (
     <form onSubmit={handleSubmit} className='space-y-4'>
       <div className='space-y-2'>
-        <Label htmlFor='amount'>Monto</Label>
+        <Label htmlFor='expense-amount'>Monto</Label>
         <Input
-          id='amount'
+          id='expense-amount'
+          name='expense-amount'
           type='number'
+          inputMode='decimal'
           placeholder='0.00'
           value={expenseForm.amount}
           onChange={(e) => setExpenseAmount(e.target.value)}
           required
+          min={0}
+          step='0.01'
+          autoComplete='off'
+          className='tabular-nums'
         />
       </div>
 
@@ -102,13 +108,15 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
       </div>
 
       <div className='space-y-2'>
-        <Label htmlFor='description'>Descripción</Label>
+        <Label htmlFor='expense-description'>Descripción</Label>
         <Textarea
-          id='description'
-          placeholder='Describe el gasto...'
+          id='expense-description'
+          name='expense-description'
+          placeholder='Describe el gasto…'
           value={expenseForm.description}
           onChange={(e) => setExpenseDescription(e.target.value)}
           required
+          autoComplete='off'
         />
       </div>
 

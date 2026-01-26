@@ -249,8 +249,9 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                             size='icon'
                             onClick={() => openDeleteDialog(transaction.id)}
                             className='text-red-600 hover:text-red-700 hover:bg-red-50'
+                            aria-label='Eliminar transacción'
                           >
-                            <Trash2 className='h-4 w-4' />
+                            <Trash2 className='h-4 w-4' aria-hidden="true" />
                           </Button>
                         </div>
                       </div>
@@ -278,8 +279,9 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                   size='sm'
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
+                  aria-label='Página anterior'
                 >
-                  <ChevronLeft className='h-4 w-4 mr-1' />
+                  <ChevronLeft className='h-4 w-4 mr-1' aria-hidden="true" />
                   Anterior
                 </Button>
                 <Button
@@ -287,9 +289,10 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                   size='sm'
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
+                  aria-label='Página siguiente'
                 >
                   Siguiente
-                  <ChevronRight className='h-4 w-4 ml-1' />
+                  <ChevronRight className='h-4 w-4 ml-1' aria-hidden="true" />
                 </Button>
               </div>
             </div>

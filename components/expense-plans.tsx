@@ -101,7 +101,7 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <PlusCircle className='h-4 w-4 mr-2' />
+              <PlusCircle className='h-4 w-4 mr-2' aria-hidden="true" />
               Nuevo Plan
             </Button>
           </DialogTrigger>
@@ -154,13 +154,19 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
                 <Label htmlFor='plan-amount'>Monto Estimado</Label>
                 <Input
                   id='plan-amount'
+                  name='plan-amount'
                   type='number'
+                  inputMode='decimal'
                   placeholder='0.00'
                   value={newPlan.targetAmount}
                   onChange={(e) =>
                     setNewPlan({ ...newPlan, targetAmount: e.target.value })
                   }
                   required
+                  min={0}
+                  step='0.01'
+                  autoComplete='off'
+                  className='tabular-nums'
                 />
               </div>
               <div className='space-y-2'>
@@ -197,12 +203,12 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
           const CategoryIcon = categoryInfo.icon;
 
           return (
-            <Card key={plan.id} className='hover:shadow-lg transition-shadow'>
+            <Card key={plan.id} className='hover:shadow-lg transition-all duration-300 hover:border-emerald-200 dark:hover:border-emerald-800'>
               <CardHeader>
                 <div className='flex items-start justify-between'>
                   <div className='flex items-center gap-3'>
-                    <div className='p-2 bg-blue-100 dark:bg-blue-900 rounded-lg'>
-                      <CategoryIcon className='h-5 w-5 text-blue-600 dark:text-blue-400' />
+                    <div className='p-2 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900 dark:to-teal-900 rounded-xl'>
+                      <CategoryIcon className='h-5 w-5 text-emerald-600 dark:text-emerald-400' />
                     </div>
                     <div>
                       <CardTitle className='text-lg'>{plan.name}</CardTitle>
@@ -216,7 +222,7 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
               </CardHeader>
               <CardContent className='space-y-4'>
                 <div>
-                  <div className='flex justify-between text-sm mb-2'>
+                  <div className='flex justify-between text-sm mb-2 tabular-nums'>
                     <span className='font-medium'>
                       ${plan.current_amount.toLocaleString()}
                     </span>
@@ -226,19 +232,19 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
                   </div>
                   <Progress value={progress} className='h-2' />
                   <div className='flex justify-between text-sm mt-2 text-gray-600'>
-                    <span>Faltan ${remaining.toLocaleString()}</span>
+                    <span className='tabular-nums'>Faltan ${remaining.toLocaleString()}</span>
                     <span className='flex items-center gap-1'>
-                      <Calendar className='h-3 w-3' />
+                      <Calendar className='h-3 w-3' aria-hidden="true" />
                       {daysLeft > 0 ? `${daysLeft}d` : 'Vencido'}
                     </span>
                   </div>
                 </div>
 
-                <div className='pt-2 border-t'>
-                  <div className='text-sm text-gray-600 mb-2'>
+                <div className='pt-2 border-t border-emerald-100 dark:border-emerald-800'>
+                  <div className='text-sm text-gray-600 dark:text-gray-400 mb-2'>
                     Ahorro mensual sugerido:
                   </div>
-                  <div className='text-lg font-semibold text-blue-600'>
+                  <div className='text-lg font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums'>
                     $
                     {daysLeft > 0
                       ? Math.ceil(
@@ -259,7 +265,7 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
       {expensePlans.length === 0 && (
         <Card>
           <CardContent className='text-center py-12'>
-            <MapPin className='h-16 w-16 text-gray-400 mx-auto mb-4' />
+            <MapPin className='h-16 w-16 text-gray-400 mx-auto mb-4' aria-hidden="true" />
             <h3 className='text-xl font-medium text-gray-900 dark:text-gray-100 mb-2'>
               No tienes planes de gastos
             </h3>
@@ -270,7 +276,7 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size='lg'>
-                  <PlusCircle className='h-5 w-5 mr-2' />
+                  <PlusCircle className='h-5 w-5 mr-2' aria-hidden="true" />
                   Crear Primer Plan
                 </Button>
               </DialogTrigger>
@@ -279,28 +285,33 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
         </Card>
       )}
 
-      <Card className='bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800'>
+      <Card className='bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 border-emerald-200 dark:border-emerald-800'>
         <CardHeader>
-          <CardTitle className='text-blue-800 dark:text-blue-200'>
-            💡 Consejos para tus planes
+          <CardTitle className='text-emerald-800 dark:text-emerald-200 flex items-center gap-2'>
+            <span className='text-2xl'>💡</span>
+            Consejos para tus planes
           </CardTitle>
         </CardHeader>
-        <CardContent className='text-blue-700 dark:text-blue-300'>
-          <ul className='space-y-2 text-sm'>
-            <li>
-              • Divide el monto total por los meses disponibles para saber
+        <CardContent className='text-emerald-700 dark:text-emerald-300'>
+          <ul className='space-y-3 text-sm'>
+            <li className='flex items-start gap-2'>
+              <span className='text-emerald-500'>•</span>
+              Divide el monto total por los meses disponibles para saber
               cuánto ahorrar mensualmente
             </li>
-            <li>
-              • Considera crear una cuenta de ahorros separada para cada plan
+            <li className='flex items-start gap-2'>
+              <span className='text-emerald-500'>•</span>
+              Considera crear una cuenta de ahorros separada para cada plan
               importante
             </li>
-            <li>
-              • Revisa y ajusta tus planes regularmente según cambien tus
+            <li className='flex items-start gap-2'>
+              <span className='text-emerald-500'>•</span>
+              Revisa y ajusta tus planes regularmente según cambien tus
               prioridades
             </li>
-            <li>
-              • Celebra cuando alcances tus metas para mantenerte motivado
+            <li className='flex items-start gap-2'>
+              <span className='text-emerald-500'>•</span>
+              Celebra cuando alcances tus metas para mantenerte motivado
             </li>
           </ul>
         </CardContent>

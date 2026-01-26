@@ -4,17 +4,21 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+          "border-transparent bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm shadow-emerald-500/25",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border-transparent bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
-        outline: "text-foreground",
+          "border-transparent bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-sm shadow-red-500/25",
+        outline: "border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300",
+        success:
+          "border-transparent bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-sm shadow-green-500/25",
+        warning:
+          "border-transparent bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-sm shadow-amber-500/25",
       },
     },
     defaultVariants: {

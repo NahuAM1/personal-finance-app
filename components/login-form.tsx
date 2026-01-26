@@ -102,48 +102,59 @@ export function LoginForm() {
   };
 
   return (
-    <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800 p-4'>
-      <div className='w-full max-w-md space-y-6'>
-        <div className='text-center space-y-2'>
+    <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-950 dark:via-emerald-950/20 dark:to-gray-950 p-4'>
+      {/* Decorative background elements */}
+      <div className='fixed inset-0 overflow-hidden pointer-events-none'>
+        <div className='absolute -top-40 -right-40 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl' />
+        <div className='absolute -bottom-40 -left-40 w-80 h-80 bg-teal-400/20 rounded-full blur-3xl' />
+      </div>
+
+      <div className='relative w-full max-w-md space-y-8'>
+        <div className='text-center space-y-4'>
           <div className='flex justify-center'>
-            <Image src={Logo} width={80} height={80} alt='Personal Wallet logo' />
+            <div className='relative'>
+              <div className='absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full blur-xl opacity-50' />
+              <Image src={Logo} width={88} height={88} alt='Personal Wallet logo' className='relative' />
+            </div>
           </div>
-          <h1 className='text-3xl font-bold text-[#466E45] dark:text-white'>
-            Personal Wallet
-          </h1>
-          <p className='text-gray-600 dark:text-gray-300'>
-            Gestiona tus finanzas de manera segura
-          </p>
+          <div>
+            <h1 className='text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent'>
+              Personal Wallet
+            </h1>
+            <p className='text-gray-600 dark:text-gray-400 mt-2'>
+              Gestiona tus finanzas de manera inteligente
+            </p>
+          </div>
         </div>
 
-        <Card className='shadow-lg'>
-          <CardHeader className='space-y-1'>
-            <CardTitle className='text-2xl text-center'>Acceder</CardTitle>
+        <Card className='shadow-xl shadow-emerald-500/5 border-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl'>
+          <CardHeader className='space-y-1 pb-4'>
+            <CardTitle className='text-2xl text-center font-bold'>Bienvenido</CardTitle>
             <CardDescription className='text-center'>
               Inicia sesión o crea una cuenta nueva
             </CardDescription>
           </CardHeader>
-          <CardContent className='space-y-4'>
+          <CardContent className='space-y-5'>
             <Button
               type='button'
               variant='outline'
-              className='w-full'
+              className='w-full h-12 text-base border-2 hover:border-emerald-400 dark:hover:border-emerald-600 bg-white dark:bg-gray-900'
               onClick={handleGoogleSignIn}
               disabled={loading}
             >
               {loading ? (
-                <Loader2 className='h-4 w-4 animate-spin mr-2' />
+                <Loader2 className='h-5 w-5 animate-spin mr-3' />
               ) : (
-                <Image src={GoogleLogo} width={20} height={20} alt='Google logo'/>
+                <Image src={GoogleLogo} width={22} height={22} alt='Google logo' className='mr-2'/>
               )}
               Continuar con Google
             </Button>
-            <div className='relative'>
+            <div className='relative py-2'>
               <div className='absolute inset-0 flex items-center'>
-                <span className='w-full border-t' />
+                <span className='w-full border-t border-gray-200 dark:border-gray-700' />
               </div>
               <div className='relative flex justify-center text-xs uppercase'>
-                <span className='bg-white dark:bg-gray-950 px-2 text-gray-500'>
+                <span className='bg-white/80 dark:bg-gray-900/80 px-4 text-gray-500 font-medium'>
                   O continúa con email
                 </span>
               </div>
@@ -166,6 +177,9 @@ export function LoginForm() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      autoComplete='email'
+                      inputMode='email'
+                      spellCheck={false}
                     />
                   </div>
                   <div className='space-y-2'>
@@ -178,6 +192,7 @@ export function LoginForm() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        autoComplete='current-password'
                       />
                       <Button
                         type='button'
@@ -185,11 +200,13 @@ export function LoginForm() {
                         size='sm'
                         className='absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent'
                         onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        aria-pressed={showPassword}
                       >
                         {showPassword ? (
-                          <EyeOff className='h-4 w-4' />
+                          <EyeOff className='h-4 w-4' aria-hidden="true" />
                         ) : (
-                          <Eye className='h-4 w-4' />
+                          <Eye className='h-4 w-4' aria-hidden="true" />
                         )}
                       </Button>
                     </div>
@@ -216,6 +233,9 @@ export function LoginForm() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      autoComplete='email'
+                      inputMode='email'
+                      spellCheck={false}
                     />
                   </div>
                   <div className='space-y-2'>
@@ -229,6 +249,7 @@ export function LoginForm() {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         minLength={6}
+                        autoComplete='new-password'
                       />
                       <Button
                         type='button'
@@ -236,11 +257,13 @@ export function LoginForm() {
                         size='sm'
                         className='absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent'
                         onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        aria-pressed={showPassword}
                       >
                         {showPassword ? (
-                          <EyeOff className='h-4 w-4' />
+                          <EyeOff className='h-4 w-4' aria-hidden="true" />
                         ) : (
-                          <Eye className='h-4 w-4' />
+                          <Eye className='h-4 w-4' aria-hidden="true" />
                         )}
                       </Button>
                     </div>
@@ -266,12 +289,14 @@ export function LoginForm() {
               </TabsContent>
             </Tabs>
 
-            <div className='bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800'>
-              <div className='flex items-start gap-2'>
-                <Shield className='h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0' />
-                <div className='text-sm text-blue-800 dark:text-blue-200'>
-                  <p className='font-medium mb-1'>Seguridad garantizada</p>
-                  <p className='text-blue-700 dark:text-blue-300'>
+            <div className='bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 p-4 rounded-xl border border-emerald-200/50 dark:border-emerald-800/50'>
+              <div className='flex items-start gap-3'>
+                <div className='p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg'>
+                  <Shield className='h-4 w-4 text-emerald-600 dark:text-emerald-400' aria-hidden="true" />
+                </div>
+                <div className='text-sm'>
+                  <p className='font-semibold text-emerald-800 dark:text-emerald-200 mb-1'>Seguridad garantizada</p>
+                  <p className='text-emerald-700 dark:text-emerald-300 leading-relaxed'>
                     Tus datos financieros están protegidos con encriptación de
                     nivel bancario.
                   </p>
@@ -280,6 +305,10 @@ export function LoginForm() {
             </div>
           </CardContent>
         </Card>
+
+        <p className='text-center text-sm text-gray-500 dark:text-gray-400'>
+          Al continuar, aceptas nuestros términos de servicio y política de privacidad.
+        </p>
       </div>
     </div>
   );

@@ -85,32 +85,34 @@ export function Savings({
 
   return (
     <div className='space-y-6'>
-      <Card>
+      <Card className='bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border-emerald-200 dark:border-emerald-800'>
         <CardHeader>
           <CardTitle className='flex items-center gap-2'>
-            <Target className='h-5 w-5' />
+            <div className='p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg'>
+              <Target className='h-5 w-5 text-emerald-600 dark:text-emerald-400' aria-hidden="true" />
+            </div>
             Resumen de Ahorros
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className='grid gap-4 md:grid-cols-3'>
-            <div className='text-center'>
-              <div className='text-2xl font-bold text-blue-600'>
+            <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
+              <div className='text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums'>
                 ${totalSaved.toLocaleString()}
               </div>
-              <div className='text-sm text-gray-600'>Total Ahorrado</div>
+              <div className='text-sm text-gray-600 dark:text-gray-400'>Total Ahorrado</div>
             </div>
-            <div className='text-center'>
-              <div className='text-2xl font-bold text-green-600'>
+            <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
+              <div className='text-2xl font-bold text-teal-600 dark:text-teal-400 tabular-nums'>
                 ${totalTarget.toLocaleString()}
               </div>
-              <div className='text-sm text-gray-600'>Meta Total</div>
+              <div className='text-sm text-gray-600 dark:text-gray-400'>Meta Total</div>
             </div>
-            <div className='text-center'>
-              <div className='text-2xl font-bold text-purple-600'>
+            <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
+              <div className='text-2xl font-bold text-cyan-600 dark:text-cyan-400 tabular-nums'>
                 {overallProgress.toFixed(1)}%
               </div>
-              <div className='text-sm text-gray-600'>Progreso General</div>
+              <div className='text-sm text-gray-600 dark:text-gray-400'>Progreso General</div>
             </div>
           </div>
           <div className='mt-4'>
@@ -124,7 +126,7 @@ export function Savings({
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <PlusCircle className='h-4 w-4 mr-2' />
+              <PlusCircle className='h-4 w-4 mr-2' aria-hidden="true" />
               Nueva Meta
             </Button>
           </DialogTrigger>
@@ -152,13 +154,19 @@ export function Savings({
                 <Label htmlFor='goal-amount'>Monto Objetivo</Label>
                 <Input
                   id='goal-amount'
+                  name='goal-amount'
                   type='number'
+                  inputMode='decimal'
                   placeholder='0.00'
                   value={newGoal.targetAmount}
                   onChange={(e) =>
                     setNewGoal({ ...newGoal, targetAmount: e.target.value })
                   }
                   required
+                  min={0}
+                  step='0.01'
+                  autoComplete='off'
+                  className='tabular-nums'
                 />
               </div>
               <div className='space-y-2'>
@@ -197,7 +205,7 @@ export function Savings({
                   <div>
                     <CardTitle className='text-lg'>{goal.name}</CardTitle>
                     <CardDescription className='flex items-center gap-2 mt-1'>
-                      <Calendar className='h-4 w-4' />
+                      <Calendar className='h-4 w-4' aria-hidden="true" />
                       {daysLeft > 0
                         ? `${daysLeft} días restantes`
                         : 'Fecha vencida'}
@@ -210,24 +218,32 @@ export function Savings({
               </CardHeader>
               <CardContent className='space-y-4'>
                 <div>
-                  <div className='flex justify-between text-sm mb-2'>
+                  <div className='flex justify-between text-sm mb-2 tabular-nums'>
                     <span>${goal.current_amount.toLocaleString()}</span>
                     <span>${goal.target_amount.toLocaleString()}</span>
                   </div>
                   <Progress value={progress} className='h-2' />
-                  <div className='text-sm text-gray-600 mt-1'>
+                  <div className='text-sm text-gray-600 mt-1 tabular-nums'>
                     Faltan ${remaining.toLocaleString()}
                   </div>
                 </div>
 
                 <div className='flex gap-2'>
+                  <label htmlFor={`add-amount-${goal.id}`} className='sr-only'>Monto a agregar</label>
                   <Input
+                    id={`add-amount-${goal.id}`}
+                    name={`add-amount-${goal.id}`}
                     type='number'
-                    placeholder='Monto a agregar'
+                    inputMode='decimal'
+                    placeholder='Monto a agregar…'
                     value={addAmount[goal.id] || ''}
                     onChange={(e) =>
                       setAddAmount({ ...addAmount, [goal.id]: e.target.value })
                     }
+                    min={0}
+                    step='0.01'
+                    autoComplete='off'
+                    className='tabular-nums'
                   />
                   <Button
                     onClick={() => handleAddMoney(goal.id)}
@@ -235,8 +251,9 @@ export function Savings({
                       !addAmount[goal.id] ||
                       Number.parseFloat(addAmount[goal.id]) <= 0
                     }
+                    aria-label='Agregar dinero a la meta'
                   >
-                    <DollarSign className='h-4 w-4' />
+                    <DollarSign className='h-4 w-4' aria-hidden="true" />
                   </Button>
                 </div>
               </CardContent>
@@ -248,7 +265,7 @@ export function Savings({
       {savingsGoals.length === 0 && (
         <Card>
           <CardContent className='text-center py-8'>
-            <Target className='h-12 w-12 text-gray-400 mx-auto mb-4' />
+            <Target className='h-12 w-12 text-gray-400 mx-auto mb-4' aria-hidden="true" />
             <h3 className='text-lg font-medium text-gray-900 dark:text-gray-100 mb-2'>
               No tienes metas de ahorro
             </h3>
@@ -259,7 +276,7 @@ export function Savings({
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
-                  <PlusCircle className='h-4 w-4 mr-2' />
+                  <PlusCircle className='h-4 w-4 mr-2' aria-hidden="true" />
                   Crear Primera Meta
                 </Button>
               </DialogTrigger>

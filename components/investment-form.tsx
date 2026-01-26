@@ -135,10 +135,12 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
           <Label htmlFor='investment-description'>Descripción</Label>
           <Textarea
             id='investment-description'
-            placeholder='Ej: Plazo fijo Banco Galicia 28 días'
+            name='investment-description'
+            placeholder='Ej: Plazo fijo Banco Galicia 28 días…'
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             required
+            autoComplete='off'
           />
         </div>
 
@@ -180,12 +182,17 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
               <Label htmlFor='exchange-rate'>Tipo de Cambio (ARS)</Label>
               <Input
                 id='exchange-rate'
+                name='exchange-rate'
                 type='number'
+                inputMode='decimal'
                 step='0.01'
                 placeholder='1050.00'
                 value={exchangeRate}
                 onChange={(e) => setExchangeRate(e.target.value)}
                 required
+                min={0}
+                autoComplete='off'
+                className='tabular-nums'
               />
             </div>
           </div>
@@ -196,12 +203,17 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
             <Label htmlFor='investment-amount'>Monto a Invertir</Label>
             <Input
               id='investment-amount'
+              name='investment-amount'
               type='number'
+              inputMode='decimal'
               step='0.01'
               placeholder='0.00'
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
+              min={0}
+              autoComplete='off'
+              className='tabular-nums'
             />
           </div>
 
@@ -209,11 +221,16 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
             <Label htmlFor='annual-rate'>TNA % (opcional)</Label>
             <Input
               id='annual-rate'
+              name='annual-rate'
               type='number'
+              inputMode='decimal'
               step='0.01'
               placeholder='45.00'
               value={annualRate}
               onChange={(e) => setAnnualRate(e.target.value)}
+              min={0}
+              autoComplete='off'
+              className='tabular-nums'
             />
           </div>
         </div>
@@ -247,14 +264,14 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
               <div className='space-y-3'>
                 <div className='flex items-center justify-between text-sm'>
                   <span className='text-emerald-700 dark:text-emerald-300'>Monto en ARS:</span>
-                  <span className='font-semibold text-emerald-900 dark:text-emerald-100'>
+                  <span className='font-semibold text-emerald-900 dark:text-emerald-100 tabular-nums'>
                     ${Number.parseFloat(amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
 
                 <div className='flex items-center justify-between text-sm'>
                   <span className='text-emerald-700 dark:text-emerald-300'>Tipo de cambio:</span>
-                  <span className='font-semibold text-emerald-900 dark:text-emerald-100'>
+                  <span className='font-semibold text-emerald-900 dark:text-emerald-100 tabular-nums'>
                     ${Number.parseFloat(exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -264,7 +281,7 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
                     <span className='text-sm font-semibold text-emerald-700 dark:text-emerald-300'>
                       {currency ? `Unidades de ${currency}:` : 'Unidades de divisa:'}
                     </span>
-                    <span className='text-xl font-bold text-emerald-900 dark:text-emerald-100'>
+                    <span className='text-xl font-bold text-emerald-900 dark:text-emerald-100 tabular-nums'>
                       {(Number.parseFloat(amount) / Number.parseFloat(exchangeRate)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -280,14 +297,14 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
               <div className='space-y-3'>
                 <div className='flex items-center justify-between text-sm'>
                   <span className='text-blue-700 dark:text-blue-300'>Capital invertido:</span>
-                  <span className='font-semibold text-blue-900 dark:text-blue-100'>
+                  <span className='font-semibold text-blue-900 dark:text-blue-100 tabular-nums'>
                     ${Number.parseFloat(amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
 
                 <div className='flex items-center justify-between text-sm'>
                   <span className='text-blue-700 dark:text-blue-300'>Ganancia estimada:</span>
-                  <span className='font-semibold text-green-600 dark:text-green-400'>
+                  <span className='font-semibold text-green-600 dark:text-green-400 tabular-nums'>
                     +${estimatedReturn.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -295,10 +312,10 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
                 <div className='pt-3 border-t border-blue-200 dark:border-blue-800'>
                   <div className='flex items-center justify-between'>
                     <span className='text-sm font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1'>
-                      <TrendingUp className='h-4 w-4' />
+                      <TrendingUp className='h-4 w-4' aria-hidden="true" />
                       Total al vencimiento:
                     </span>
-                    <span className='text-xl font-bold text-blue-900 dark:text-blue-100'>
+                    <span className='text-xl font-bold text-blue-900 dark:text-blue-100 tabular-nums'>
                       ${totalReturn.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -315,7 +332,7 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
         )}
 
         <Button type='submit' className='w-full bg-green-600 hover:bg-green-700'>
-          <TrendingUp className='h-4 w-4 mr-2' />
+          <TrendingUp className='h-4 w-4 mr-2' aria-hidden="true" />
           Registrar Inversión
         </Button>
       </form>

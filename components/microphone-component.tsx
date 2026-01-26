@@ -78,49 +78,61 @@ export function MicrophoneComponent({
   };
 
   return (
-    <div className='flex items-center justify-center h-screen w-full relative'>
-      <div onClick={() => handleHidden()} className='absolute top-0 right-0'>
-        <Button variant='ghost' size='icon'>
-          <X className='w-4 h-4' />
+    <div className='flex items-center justify-center h-screen w-full relative bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-950 dark:via-emerald-950/20 dark:to-gray-950'>
+      {/* Decorative background elements */}
+      <div className='absolute inset-0 overflow-hidden pointer-events-none'>
+        <div className='absolute -top-40 -right-40 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl' />
+        <div className='absolute -bottom-40 -left-40 w-80 h-80 bg-teal-400/20 rounded-full blur-3xl' />
+      </div>
+
+      <div onClick={() => handleHidden()} className='absolute top-4 right-4 z-10'>
+        <Button variant='ghost' size='icon' className='hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-full' aria-label='Cerrar grabación'>
+          <X className='w-5 h-5' aria-hidden='true' />
         </Button>
       </div>
-      <div className='w-full'>
+
+      <div className='w-full relative z-10'>
         {(isRecording || transcript) && (
-          <div className='w-[200px] m-auto rounded-md border p-4 bg-white'>
-            <div className='flex-1 flex w-full justify-between'>
+          <div className='w-[280px] m-auto rounded-2xl border-2 border-emerald-100 dark:border-emerald-900 p-5 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-xl shadow-emerald-500/10'>
+            <div className='flex-1 flex w-full justify-between items-center'>
               <div className='space-y-1'>
-                <p className='text-sm font-medium leading-none'>
-                  {recordingComplete ? 'Recorded' : 'Recording'}
+                <p className='text-sm font-semibold leading-none text-gray-900 dark:text-gray-100'>
+                  {recordingComplete ? 'Grabación completada' : 'Grabando...'}
                 </p>
-                <p className='text-sm text-muted-foreground'>
+                <p className='text-sm text-gray-500 dark:text-gray-400'>
                   {recordingComplete
-                    ? 'Thanks for talking.'
-                    : 'Start speaking...'}
+                    ? 'Procesando tu mensaje...'
+                    : 'Habla claramente...'}
                 </p>
               </div>
               {isRecording && (
-                <div className='rounded-full w-4 h-4 bg-red-400 animate-pulse' />
+                <div className='relative'>
+                  <div className='rounded-full w-4 h-4 bg-red-500 animate-pulse' />
+                  <div className='absolute inset-0 rounded-full bg-red-400 animate-ping opacity-75' />
+                </div>
               )}
             </div>
 
             {transcript && (
-              <div className='border rounded-md p-2 h-fullm mt-4'>
-                <p className='mb-0'>{transcript}</p>
+              <div className='border-2 border-emerald-100 dark:border-emerald-900 rounded-xl p-3 mt-4 bg-emerald-50/50 dark:bg-emerald-950/30'>
+                <p className='mb-0 text-sm text-gray-700 dark:text-gray-300'>{transcript}</p>
               </div>
             )}
           </div>
         )}
 
-        <div className='flex items-center w-full'>
+        <div className='flex items-center w-full justify-center'>
           {isRecording ? (
             <button
               onClick={handleToggleRecording}
-              className='mt-10 m-auto flex items-center justify-center bg-red-400 hover:bg-red-500 rounded-full w-10 h-10 md:w-14 md:h-14 focus:outline-none'
+              className='mt-10 flex items-center justify-center bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 rounded-full w-16 h-16 md:w-20 md:h-20 focus:outline-none focus:ring-4 focus:ring-red-500/30 shadow-lg shadow-red-500/30 transition-all duration-200 hover:scale-105'
+              aria-label='Detener grabación'
             >
               <svg
-                className='h-6 w-6 md:h-12 md:w-12 '
+                className='h-8 w-8 md:h-10 md:w-10'
                 viewBox='0 0 24 24'
                 xmlns='http://www.w3.org/2000/svg'
+                aria-hidden='true'
               >
                 <path fill='white' d='M6 19h4V5H6v14zm8-14v14h4V5h-4z' />
               </svg>
@@ -128,12 +140,14 @@ export function MicrophoneComponent({
           ) : (
             <button
               onClick={handleToggleRecording}
-              className='mt-10 m-auto flex items-center justify-center bg-blue-400 hover:bg-blue-500 rounded-full w-10 h-10 md:w-14 md:h-14 focus:outline-none'
+              className='mt-10 flex items-center justify-center bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-full w-16 h-16 md:w-20 md:h-20 focus:outline-none focus:ring-4 focus:ring-emerald-500/30 shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:scale-105'
+              aria-label='Iniciar grabación'
             >
               <svg
                 viewBox='0 0 256 256'
                 xmlns='http://www.w3.org/2000/svg'
-                className='w-6 h-6 md:w-10 md:h-10 text-white'
+                className='w-8 h-8 md:w-10 md:h-10 text-white'
+                aria-hidden='true'
               >
                 <path
                   fill='currentColor'
@@ -143,6 +157,10 @@ export function MicrophoneComponent({
             </button>
           )}
         </div>
+
+        <p className='text-center text-sm text-gray-500 dark:text-gray-400 mt-6'>
+          {isRecording ? 'Toca para detener' : 'Toca para grabar'}
+        </p>
       </div>
     </div>
   );

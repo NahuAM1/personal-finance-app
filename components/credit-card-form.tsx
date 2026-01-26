@@ -123,11 +123,17 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
             <Label htmlFor='total-amount'>Monto Total</Label>
             <Input
               id='total-amount'
+              name='total-amount'
               type='number'
+              inputMode='decimal'
               placeholder='0.00'
               value={totalAmount}
               onChange={(e) => setTotalAmount(e.target.value)}
               required
+              min={0}
+              step='0.01'
+              autoComplete='off'
+              className='tabular-nums'
             />
           </div>
 
@@ -172,10 +178,12 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
           <Label htmlFor='credit-description'>Descripción</Label>
           <Textarea
             id='credit-description'
-            placeholder='Describe la compra...'
+            name='credit-description'
+            placeholder='Describe la compra…'
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             required
+            autoComplete='off'
           />
         </div>
 
@@ -186,7 +194,7 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
                 <div className='text-sm text-green-700 dark:text-green-300'>
                   {installments === '1' ? 'Pago único' : 'Cuota mensual'}
                 </div>
-                <div className='text-2xl font-bold text-green-800 dark:text-green-200'>
+                <div className='text-2xl font-bold text-green-800 dark:text-green-200 tabular-nums'>
                   ${monthlyAmount}
                 </div>
                 <div className='text-sm text-green-600 dark:text-green-400'>

@@ -184,9 +184,11 @@ export function Market() {
               variant='outline'
               size='sm'
               disabled={loading}
+              aria-label='Actualizar datos del mercado'
             >
               <RefreshCw
                 className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}
+                aria-hidden="true"
               />
               Actualizar
             </Button>
@@ -211,14 +213,14 @@ export function Market() {
                     <div className='flex gap-8 items-center'>
                       <div className='text-right'>
                         <div className='text-xs text-gray-500 mb-1'>Compra</div>
-                        <div className='text-lg font-semibold text-green-600'>
-                          $ {dolar.compra.toLocaleString()}
+                        <div className='text-lg font-semibold text-green-600 tabular-nums'>
+                          ${'\u00A0'}{dolar.compra.toLocaleString()}
                         </div>
                       </div>
                       <div className='text-right'>
                         <div className='text-xs text-gray-500 mb-1'>Venta</div>
-                        <div className='text-lg font-semibold text-red-600'>
-                          $ {dolar.venta.toLocaleString()}
+                        <div className='text-lg font-semibold text-red-600 tabular-nums'>
+                          ${'\u00A0'}{dolar.venta.toLocaleString()}
                         </div>
                       </div>
                     </div>
@@ -229,12 +231,17 @@ export function Market() {
 
             <TabsContent value='cedears' className='space-y-4'>
               <div className='mb-4'>
+                <label htmlFor='search-cedears' className='sr-only'>Buscar CEDEARs</label>
                 <input
-                  type='text'
-                  placeholder='Buscar por ticker...'
+                  id='search-cedears'
+                  name='search-cedears'
+                  type='search'
+                  placeholder='Buscar por ticker…'
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className='w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800'
+                  className='w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  autoComplete='off'
+                  spellCheck={false}
                 />
               </div>
               <div className='overflow-x-auto'>
@@ -255,10 +262,10 @@ export function Market() {
                         <td className='py-3 px-4 font-semibold'>
                           {cedear.ticker}
                         </td>
-                        <td className='py-3 px-4 text-right font-medium'>
-                          $ {cedear.price_ars?.toLocaleString() || '-'}
+                        <td className='py-3 px-4 text-right font-medium tabular-nums'>
+                          ${'\u00A0'}{cedear.price_ars?.toLocaleString() || '-'}
                         </td>
-                        <td className='py-3 px-4 text-right'>
+                        <td className='py-3 px-4 text-right tabular-nums'>
                           {cedear.change_ars !== undefined ? (
                             <span
                               className={`flex items-center justify-end gap-1 font-semibold ${
@@ -268,9 +275,9 @@ export function Market() {
                               }`}
                             >
                               {cedear.change_ars >= 0 ? (
-                                <TrendingUp className='h-3 w-3' />
+                                <TrendingUp className='h-3 w-3' aria-hidden="true" />
                               ) : (
-                                <TrendingDown className='h-3 w-3' />
+                                <TrendingDown className='h-3 w-3' aria-hidden="true" />
                               )}
                               {cedear.change_ars.toFixed(2)}%
                             </span>
@@ -285,12 +292,17 @@ export function Market() {
 
             <TabsContent value='bonos' className='space-y-4'>
               <div className='mb-4'>
+                <label htmlFor='search-bonos' className='sr-only'>Buscar Bonos</label>
                 <input
-                  type='text'
-                  placeholder='Buscar por ticker...'
+                  id='search-bonos'
+                  name='search-bonos'
+                  type='search'
+                  placeholder='Buscar por ticker…'
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className='w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800'
+                  className='w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  autoComplete='off'
+                  spellCheck={false}
                 />
               </div>
               <div className='overflow-x-auto'>
@@ -311,10 +323,10 @@ export function Market() {
                         <td className='py-3 px-4 font-semibold'>
                           {bono.ticker}
                         </td>
-                        <td className='py-3 px-4 text-right font-medium'>
-                          $ {bono.price_ars?.toLocaleString() || '-'}
+                        <td className='py-3 px-4 text-right font-medium tabular-nums'>
+                          ${'\u00A0'}{bono.price_ars?.toLocaleString() || '-'}
                         </td>
-                        <td className='py-3 px-4 text-right'>
+                        <td className='py-3 px-4 text-right tabular-nums'>
                           {bono.change_ars !== undefined ? (
                             <span
                               className={`flex items-center justify-end gap-1 font-semibold ${
@@ -322,9 +334,9 @@ export function Market() {
                               }`}
                             >
                               {bono.change_ars >= 0 ? (
-                                <TrendingUp className='h-3 w-3' />
+                                <TrendingUp className='h-3 w-3' aria-hidden="true" />
                               ) : (
-                                <TrendingDown className='h-3 w-3' />
+                                <TrendingDown className='h-3 w-3' aria-hidden="true" />
                               )}
                               {bono.change_ars.toFixed(2)}%
                             </span>
