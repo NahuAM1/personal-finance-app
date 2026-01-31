@@ -1,7 +1,7 @@
-import OpenAI from 'openai';
-import { NextRequest, NextResponse } from 'next/server';
-import { OpenAIModels } from '@/public/enums';
-import { getMessage } from '@/public/utils/openAI';
+import OpenAI from "openai";
+import { NextRequest, NextResponse } from "next/server";
+import { OpenAIModels } from "@/public/enums";
+import { getMessage } from "@/public/utils/openAI";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -13,16 +13,16 @@ export async function POST(request: NextRequest) {
   const messages = new Array(getMessage(message));
   try {
     const response = await openai.chat.completions.create({
-      model: OpenAIModels.DEEPSEEK_R1_FREE,
+      model: OpenAIModels.NVIDIA,
       messages,
       temperature: 0.7,
     });
 
     return new NextResponse(JSON.stringify(response), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error('Error generating response:', error);
-    return new Response('Error generating response', { status: 500 });
+    console.error("Error generating response:", error);
+    return new Response("Error generating response", { status: 500 });
   }
 }
