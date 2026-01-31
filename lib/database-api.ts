@@ -420,16 +420,19 @@ export async function liquidateInvestment(
   if (fetchError) throw fetchError
   if (!investment) throw new Error("Investment not found")
 
-  // Calculate total amount (capital + returns)
-  const totalAmount = investment.amount + actualReturn
+  // Only record the difference (profit or loss), not the full amount
+  const isProfit = actualReturn >= 0
+  const absoluteReturn = Math.abs(actualReturn)
 
-  // Create a transaction for the liquidation (income type) using addTransaction to calculate balance
+  // Create a transaction for the liquidation using addTransaction to calculate balance
   const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: userId,
-    type: "income",
-    amount: totalAmount,
+    type: isProfit ? "income" : "expense",
+    amount: absoluteReturn,
     category: `Inversión - ${investment.investment_type}`,
-    description: `Liquidación: ${investment.description} (Capital: $${investment.amount.toFixed(2)} + Ganancia: $${actualReturn.toFixed(2)})`,
+    description: isProfit
+      ? `Liquidación: ${investment.description} (Capital: $${investment.amount.toFixed(2)} + Ganancia: $${actualReturn.toFixed(2)})`
+      : `Liquidación: ${investment.description} (Capital: $${investment.amount.toFixed(2)} - Pérdida: $${absoluteReturn.toFixed(2)})`,
     date: liquidationDate,
     is_recurring: null,
     installments: null,
@@ -517,15 +520,18 @@ export async function partialSellCurrency(
   // Check if this is a full sale (within small tolerance for floating point)
   const isFullSale = remainingUnits < 0.01
 
-  // Create a transaction for the partial sale income
+  // Only record the difference (profit or loss), not the full sale amount
+  const isProfit = profit >= 0
+  const absoluteProfit = Math.abs(profit)
+  const saleTypeLabel = isFullSale ? 'Venta total' : 'Venta parcial'
+
+  // Create a transaction for the profit/loss only
   const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: userId,
-    type: "income",
-    amount: saleAmount,
+    type: isProfit ? "income" : "expense",
+    amount: absoluteProfit,
     category: `Inversión - ${investment.investment_type}`,
-    description: isFullSale
-      ? `Venta total ${investment.currency}: ${unitsSold.toFixed(2)} unidades a TC $${sellExchangeRate.toFixed(2)} (${investment.description})`
-      : `Venta parcial ${investment.currency}: ${unitsSold.toFixed(2)} unidades a TC $${sellExchangeRate.toFixed(2)} (${investment.description})`,
+    description: `${saleTypeLabel} ${investment.currency}: ${unitsSold.toFixed(2)} unidades a TC $${sellExchangeRate.toFixed(2)} (${isProfit ? 'Ganancia' : 'Pérdida'}: $${absoluteProfit.toFixed(2)}) (${investment.description})`,
     date: saleDate,
     is_recurring: null,
     installments: null,

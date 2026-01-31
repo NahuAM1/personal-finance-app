@@ -236,7 +236,7 @@ function FinanceAppContent() {
 
       toast({
         title: 'Éxito',
-        description: 'Inversión liquidada e ingreso creado correctamente',
+        description: 'Inversión liquidada y diferencia registrada correctamente',
       });
 
       // Reload all data to update dashboard and balance
@@ -263,8 +263,8 @@ function FinanceAppContent() {
       toast({
         title: 'Éxito',
         description: result.isFullSale
-          ? 'Venta total completada e ingreso creado correctamente'
-          : 'Venta parcial completada. La inversión se ha actualizado con las unidades restantes.',
+          ? 'Venta total completada y diferencia registrada correctamente'
+          : 'Venta parcial completada y diferencia registrada. La inversión se actualizó con las unidades restantes.',
       });
 
       // Reload all data to update dashboard and balance

@@ -134,7 +134,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
             Liquidar Inversión
           </CardTitle>
           <CardDescription>
-            Al liquidar, se creará automáticamente un ingreso con el capital + ganancias (o - pérdidas)
+            Al liquidar, se registrará solo la diferencia: ganancia como ingreso o pérdida como gasto
           </CardDescription>
         </CardHeader>
       </Card>
@@ -491,8 +491,8 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
         >
           <TrendingUp className='h-4 w-4 mr-2' />
           {isCurrencyInvestment && unitsToSell && Number.parseFloat(unitsToSell) < totalCurrencyUnits
-            ? 'Vender Parcialmente y Crear Ingreso'
-            : 'Liquidar Inversión y Crear Ingreso'
+            ? 'Vender Parcialmente y Registrar Diferencia'
+            : 'Liquidar Inversión y Registrar Diferencia'
           }
         </Button>
       </div>
