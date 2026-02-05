@@ -20,6 +20,9 @@ export async function GET(request: Request) {
       case "bonos":
         url = "https://data912.com/live/arg_bonds";
         break;
+      case "acciones":
+        url = "https://data912.com/live/arg_stocks";
+        break;
       default:
         return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }

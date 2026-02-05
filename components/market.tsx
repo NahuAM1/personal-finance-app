@@ -47,14 +47,30 @@ interface BonoData {
   ratio?: number;
 }
 
+interface AccionData {
+  ticker: string;
+  price_ars: number;
+  change_ars: number;
+  price_usd?: number;
+  change_usd?: number;
+}
+
+interface RawStockData {
+  symbol: string;
+  c: number;
+  pct_change: number;
+}
+
 export function Market() {
   const [activeTab, setActiveTab] = useState('dolar');
   const [dolarData, setDolarData] = useState<DolarData[]>([]);
   const [cedearData, setCedearData] = useState<CedearData[]>([]);
   const [bonoData, setBonoData] = useState<BonoData[]>([]);
+  const [accionData, setAccionData] = useState<AccionData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dolarCCL, setDolarCCL] = useState<number>(1500); // Default value
+  const [dolarCCL, setDolarCCL] = useState<number>(1500);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const { toast } = useToast();
 
   const fetchData = async (type: string) => {
@@ -62,7 +78,6 @@ export function Market() {
     try {
       console.log(`Fetching ${type} data...`);
 
-      // First, get the dolar CCL value for calculations
       let dolarCCLValue = dolarCCL;
       if (type === 'cedears' || type === 'bonos') {
         try {
@@ -93,7 +108,6 @@ export function Market() {
       const data = await response.json();
       console.log(`Data received for ${type}:`, data);
 
-      // Log first item to see structure
       if (Array.isArray(data) && data.length > 0) {
         console.log(`First ${type} item structure:`, data[0]);
         console.log(`${type} property keys:`, Object.keys(data[0]));
@@ -104,10 +118,9 @@ export function Market() {
           setDolarData(Array.isArray(data) ? data : []);
           break;
         case 'cedears':
-          // Map the data to match our interface
           const mappedCedears = Array.isArray(data) ? data.map((item: Record<string, number | string>) => ({
             ticker: item.symbol as string,
-            price_ars: item.c as number, // c = close price
+            price_ars: item.c as number,
             change_ars: item.pct_change as number,
             price_usd: undefined,
             change_usd: undefined,
@@ -117,11 +130,10 @@ export function Market() {
           setCedearData(mappedCedears);
           break;
         case 'bonos':
-          // Map the data to match our interface
           const mappedBonos = Array.isArray(data) ? data.map((item: Record<string, number | string>) => ({
             ticker: item.symbol as string,
             name: item.name as string,
-            price_ars: item.c as number, // c = close price
+            price_ars: item.c as number,
             change_ars: item.pct_change as number,
             price_usd: undefined,
             change_usd: undefined,
@@ -129,6 +141,64 @@ export function Market() {
           })) : [];
           console.log(`Mapped ${mappedBonos.length} Bonos. First item:`, mappedBonos[0]);
           setBonoData(mappedBonos);
+          break;
+        case 'acciones':
+          const rawStocks: RawStockData[] = Array.isArray(data) ? data : [];
+          const allSymbols = new Set(rawStocks.map(s => s.symbol));
+          const stockMap = new Map<string, AccionData>();
+
+          for (const stock of rawStocks) {
+            const symbol = stock.symbol;
+
+            if (symbol.includes('.')) continue;
+
+            if (symbol.endsWith('D')) {
+              const baseSymbol = symbol.slice(0, -1);
+              if (allSymbols.has(baseSymbol)) continue;
+
+              stockMap.set(symbol, {
+                ticker: symbol,
+                price_ars: 0,
+                change_ars: 0,
+                price_usd: stock.c,
+                change_usd: stock.pct_change,
+              });
+              continue;
+            }
+
+            stockMap.set(symbol, {
+              ticker: symbol,
+              price_ars: stock.c,
+              change_ars: stock.pct_change,
+              price_usd: undefined,
+              change_usd: undefined,
+            });
+          }
+
+          for (const stock of rawStocks) {
+            const symbol = stock.symbol;
+            if (symbol.endsWith('D') && !symbol.includes('.')) {
+              const baseSymbol = symbol.slice(0, -1);
+              const existingStock = stockMap.get(baseSymbol);
+              if (existingStock) {
+                existingStock.price_usd = stock.c;
+                existingStock.change_usd = stock.pct_change;
+              }
+            }
+            if (symbol.includes('.D')) {
+              const baseSymbol = symbol.replace('.D', '');
+              const existingStock = stockMap.get(baseSymbol);
+              if (existingStock) {
+                existingStock.price_usd = stock.c;
+                existingStock.change_usd = stock.pct_change;
+              }
+            }
+          }
+
+          const mappedAcciones = Array.from(stockMap.values())
+            .sort((a, b) => a.ticker.localeCompare(b.ticker));
+          console.log(`Mapped ${mappedAcciones.length} Acciones. First item:`, mappedAcciones[0]);
+          setAccionData(mappedAcciones);
           break;
       }
 
@@ -196,10 +266,11 @@ export function Market() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className='grid w-full grid-cols-3'>
+            <TabsList className='grid w-full grid-cols-4'>
               <TabsTrigger value='dolar'>Dólar</TabsTrigger>
               <TabsTrigger value='cedears'>CEDEARs</TabsTrigger>
               <TabsTrigger value='bonos'>Bonos</TabsTrigger>
+              <TabsTrigger value='acciones'>Acciones</TabsTrigger>
             </TabsList>
 
             <TabsContent value='dolar' className='space-y-4'>
@@ -339,6 +410,106 @@ export function Market() {
                                 <TrendingDown className='h-3 w-3' aria-hidden="true" />
                               )}
                               {bono.change_ars.toFixed(2)}%
+                            </span>
+                          ) : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
+
+            <TabsContent value='acciones' className='space-y-4'>
+              <div className='mb-4'>
+                <label htmlFor='search-acciones' className='sr-only'>Buscar Acciones</label>
+                <input
+                  id='search-acciones'
+                  name='search-acciones'
+                  type='search'
+                  placeholder='Buscar por ticker…'
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className='w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  autoComplete='off'
+                  spellCheck={false}
+                />
+              </div>
+              <div className='overflow-x-auto'>
+                <table className='w-full text-sm'>
+                  <thead>
+                    <tr className='border-b border-gray-200 dark:border-gray-700'>
+                      <th
+                        className='text-left py-3 px-4 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800'
+                        onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                      >
+                        <span className='flex items-center gap-1'>
+                          Ticker
+                          <span className='text-xs'>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        </span>
+                      </th>
+                      <th className='text-right py-3 px-4'>Precio ARS</th>
+                      <th className='text-right py-3 px-4'>Cambio ARS</th>
+                      <th className='text-right py-3 px-4'>$ Precio USD</th>
+                      <th className='text-right py-3 px-4'>$ Cambio USD</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filterData(accionData)
+                      .sort((a, b) => sortOrder === 'asc'
+                        ? a.ticker.localeCompare(b.ticker)
+                        : b.ticker.localeCompare(a.ticker))
+                      .map((accion) => (
+                      <tr
+                        key={accion.ticker}
+                        className='border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      >
+                        <td className='py-3 px-4 font-semibold'>
+                          {accion.ticker}
+                        </td>
+                        <td className='py-3 px-4 text-right font-medium tabular-nums'>
+                          {accion.price_ars > 0
+                            ? `$${'\u00A0'}${accion.price_ars.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                            : '-'}
+                        </td>
+                        <td className='py-3 px-4 text-right tabular-nums'>
+                          {accion.price_ars > 0 ? (
+                            <span
+                              className={`flex items-center justify-end gap-1 font-semibold ${
+                                accion.change_ars >= 0
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                              }`}
+                            >
+                              {accion.change_ars >= 0 ? (
+                                <TrendingUp className='h-3 w-3' aria-hidden="true" />
+                              ) : (
+                                <TrendingDown className='h-3 w-3' aria-hidden="true" />
+                              )}
+                              {accion.change_ars.toFixed(2)}%
+                            </span>
+                          ) : '-'}
+                        </td>
+                        <td className='py-3 px-4 text-right font-medium tabular-nums'>
+                          {accion.price_usd !== undefined
+                            ? `US$${'\u00A0'}${accion.price_usd.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                            : '-'}
+                        </td>
+                        <td className='py-3 px-4 text-right tabular-nums'>
+                          {accion.change_usd !== undefined ? (
+                            <span
+                              className={`flex items-center justify-end gap-1 font-semibold ${
+                                accion.change_usd >= 0
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                              }`}
+                            >
+                              {accion.change_usd >= 0 ? (
+                                <TrendingUp className='h-3 w-3' aria-hidden="true" />
+                              ) : (
+                                <TrendingDown className='h-3 w-3' aria-hidden="true" />
+                              )}
+                              {accion.change_usd.toFixed(2)}%
                             </span>
                           ) : '-'}
                         </td>
