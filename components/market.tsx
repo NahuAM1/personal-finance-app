@@ -61,12 +61,56 @@ interface RawStockData {
   pct_change: number;
 }
 
+interface CryptoItem {
+  instrumentId: number;
+  name: string;
+  displayName: string;
+  iconUrl: string;
+  slug: string;
+  price: number;
+  precision: number;
+  aboveDollarPrecision: number;
+  deltaPercent: number;
+  sellCurrencyId: number;
+}
+
+interface CryptoMarketData {
+  priceData: {
+    price: number;
+    officialClosingPrice: number;
+    delta: number;
+    deltaPercent: number;
+  };
+  priceHistory: {
+    priceDeltas: Record<string, { delta: number; deltaPercent: number }>;
+  };
+  financialData: {
+    cryptoMarketCapitalization: number;
+    cryptoVolume24Hours: number;
+  };
+}
+
+interface CryptoResponse {
+  instrumentId: number;
+  displayName: string;
+  name: string;
+  iconUrl: string;
+  marketData: CryptoMarketData;
+  popular: CryptoItem[];
+  trending: CryptoItem[];
+  dailyRaisers: CryptoItem[];
+  dailyFallers: CryptoItem[];
+}
+
 export function Market() {
   const [activeTab, setActiveTab] = useState('dolar');
   const [dolarData, setDolarData] = useState<DolarData[]>([]);
   const [cedearData, setCedearData] = useState<CedearData[]>([]);
   const [bonoData, setBonoData] = useState<BonoData[]>([]);
   const [accionData, setAccionData] = useState<AccionData[]>([]);
+  const [cryptoData, setCryptoData] = useState<CryptoResponse | null>(null);
+  const [selectedCryptoDetail, setSelectedCryptoDetail] = useState<CryptoResponse | null>(null);
+  const [loadingCryptoDetail, setLoadingCryptoDetail] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dolarCCL, setDolarCCL] = useState<number>(1500);
@@ -200,6 +244,10 @@ export function Market() {
           console.log(`Mapped ${mappedAcciones.length} Acciones. First item:`, mappedAcciones[0]);
           setAccionData(mappedAcciones);
           break;
+        case 'crypto':
+          setCryptoData(data as CryptoResponse);
+          setSelectedCryptoDetail(data as CryptoResponse);
+          break;
       }
 
       console.log(`Successfully loaded ${type} data`);
@@ -220,6 +268,25 @@ export function Market() {
       fetchData(activeTab);
     }
   }, [activeTab]);
+
+  const fetchCryptoDetail = async (instrumentId: number) => {
+    setLoadingCryptoDetail(true);
+    try {
+      const response = await fetch(`/api/market?type=crypto&instrumentId=${instrumentId}`);
+      if (!response.ok) throw new Error('Error fetching crypto detail');
+      const data = await response.json();
+      setSelectedCryptoDetail(data as CryptoResponse);
+    } catch (error) {
+      console.error('Error fetching crypto detail:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo obtener el detalle de la crypto',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingCryptoDetail(false);
+    }
+  };
 
   const filterData = <T extends { ticker?: string; nombre?: string; name?: string }>(
     data: T[]
@@ -266,11 +333,12 @@ export function Market() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className='grid w-full grid-cols-4'>
+            <TabsList className='grid w-full grid-cols-3 md:grid-cols-5 h-auto'>
               <TabsTrigger value='dolar'>Dólar</TabsTrigger>
               <TabsTrigger value='cedears'>CEDEARs</TabsTrigger>
               <TabsTrigger value='bonos'>Bonos</TabsTrigger>
               <TabsTrigger value='acciones'>Acciones</TabsTrigger>
+              <TabsTrigger value='crypto'>Crypto</TabsTrigger>
             </TabsList>
 
             <TabsContent value='dolar' className='space-y-4'>
@@ -518,6 +586,316 @@ export function Market() {
                   </tbody>
                 </table>
               </div>
+            </TabsContent>
+
+            <TabsContent value='crypto' className='space-y-4'>
+              {cryptoData && (
+                <>
+                  {/* Dynamic Hero Card */}
+                  {selectedCryptoDetail && (
+                    <div className={`p-4 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 rounded-lg border border-orange-200 dark:border-orange-800 transition-opacity ${loadingCryptoDetail ? 'opacity-50' : ''}`}>
+                      <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-3'>
+                          <img
+                            src={selectedCryptoDetail.iconUrl}
+                            alt={selectedCryptoDetail.displayName}
+                            className='w-10 h-10 rounded-full'
+                          />
+                          <div>
+                            <div className='font-bold text-lg'>{selectedCryptoDetail.displayName}</div>
+                            <div className='text-sm text-gray-500'>{selectedCryptoDetail.name}</div>
+                          </div>
+                          {loadingCryptoDetail && (
+                            <RefreshCw className='h-4 w-4 animate-spin text-gray-400' aria-hidden='true' />
+                          )}
+                        </div>
+                        <div className='text-right'>
+                          <div className='text-2xl font-bold tabular-nums'>
+                            US${'\u00A0'}{selectedCryptoDetail.marketData.priceData.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          <span
+                            className={`flex items-center justify-end gap-1 font-semibold ${
+                              selectedCryptoDetail.marketData.priceData.deltaPercent >= 0
+                                ? 'text-green-600'
+                                : 'text-red-600'
+                            }`}
+                          >
+                            {selectedCryptoDetail.marketData.priceData.deltaPercent >= 0 ? (
+                              <TrendingUp className='h-3 w-3' aria-hidden='true' />
+                            ) : (
+                              <TrendingDown className='h-3 w-3' aria-hidden='true' />
+                            )}
+                            {selectedCryptoDetail.marketData.priceData.deltaPercent.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className='grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-sm'>
+                        {selectedCryptoDetail.marketData.priceHistory.priceDeltas.OneWeek && (
+                          <div className='bg-white/60 dark:bg-gray-800/60 rounded-lg p-2 text-center'>
+                            <div className='text-xs text-gray-500'>7 días</div>
+                            <div className={`font-semibold ${selectedCryptoDetail.marketData.priceHistory.priceDeltas.OneWeek.deltaPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {selectedCryptoDetail.marketData.priceHistory.priceDeltas.OneWeek.deltaPercent.toFixed(2)}%
+                            </div>
+                          </div>
+                        )}
+                        {selectedCryptoDetail.marketData.priceHistory.priceDeltas.OneMonth && (
+                          <div className='bg-white/60 dark:bg-gray-800/60 rounded-lg p-2 text-center'>
+                            <div className='text-xs text-gray-500'>30 días</div>
+                            <div className={`font-semibold ${selectedCryptoDetail.marketData.priceHistory.priceDeltas.OneMonth.deltaPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {selectedCryptoDetail.marketData.priceHistory.priceDeltas.OneMonth.deltaPercent.toFixed(2)}%
+                            </div>
+                          </div>
+                        )}
+                        {selectedCryptoDetail.marketData.priceHistory.priceDeltas.SixMonths && (
+                          <div className='bg-white/60 dark:bg-gray-800/60 rounded-lg p-2 text-center'>
+                            <div className='text-xs text-gray-500'>6 meses</div>
+                            <div className={`font-semibold ${selectedCryptoDetail.marketData.priceHistory.priceDeltas.SixMonths.deltaPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {selectedCryptoDetail.marketData.priceHistory.priceDeltas.SixMonths.deltaPercent.toFixed(2)}%
+                            </div>
+                          </div>
+                        )}
+                        {selectedCryptoDetail.marketData.priceHistory.priceDeltas.OneYear && (
+                          <div className='bg-white/60 dark:bg-gray-800/60 rounded-lg p-2 text-center'>
+                            <div className='text-xs text-gray-500'>1 año</div>
+                            <div className={`font-semibold ${selectedCryptoDetail.marketData.priceHistory.priceDeltas.OneYear.deltaPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {selectedCryptoDetail.marketData.priceHistory.priceDeltas.OneYear.deltaPercent.toFixed(2)}%
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className='grid grid-cols-2 gap-3 mt-3 text-sm'>
+                        <div className='bg-white/60 dark:bg-gray-800/60 rounded-lg p-2 text-center'>
+                          <div className='text-xs text-gray-500'>Market Cap</div>
+                          <div className='font-semibold'>
+                            US${'\u00A0'}{(selectedCryptoDetail.marketData.financialData.cryptoMarketCapitalization / 1e9).toFixed(1)}B
+                          </div>
+                        </div>
+                        <div className='bg-white/60 dark:bg-gray-800/60 rounded-lg p-2 text-center'>
+                          <div className='text-xs text-gray-500'>Volumen 24h</div>
+                          <div className='font-semibold'>
+                            US${'\u00A0'}{(selectedCryptoDetail.marketData.financialData.cryptoVolume24Hours / 1e9).toFixed(1)}B
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Popular Cryptos */}
+                  <div>
+                    <h3 className='font-semibold text-sm text-gray-500 mb-3 flex items-center gap-1'>
+                      <Star className='h-4 w-4' aria-hidden='true' />
+                      Populares
+                    </h3>
+                    <div className='overflow-x-auto'>
+                      <table className='w-full text-sm'>
+                        <thead>
+                          <tr className='border-b border-gray-200 dark:border-gray-700'>
+                            <th className='text-left py-3 px-4'>Crypto</th>
+                            <th className='text-right py-3 px-4'>Precio USD</th>
+                            <th className='text-right py-3 px-4'>Cambio %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cryptoData.popular.map((crypto) => (
+                            <tr
+                              key={crypto.instrumentId}
+                              className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
+                                selectedCryptoDetail?.instrumentId === crypto.instrumentId ? 'bg-orange-50 dark:bg-orange-950/20' : ''
+                              }`}
+                              onClick={() => fetchCryptoDetail(crypto.instrumentId)}
+                            >
+                              <td className='py-3 px-4'>
+                                <div className='flex items-center gap-2'>
+                                  <img
+                                    src={crypto.iconUrl}
+                                    alt={crypto.displayName}
+                                    className='w-6 h-6 rounded-full'
+                                  />
+                                  <div>
+                                    <div className='font-semibold'>{crypto.name}</div>
+                                    <div className='text-xs text-gray-500'>{crypto.displayName}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className='py-3 px-4 text-right font-medium tabular-nums'>
+                                US${'\u00A0'}{crypto.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: crypto.aboveDollarPrecision })}
+                              </td>
+                              <td className='py-3 px-4 text-right tabular-nums'>
+                                <span
+                                  className={`flex items-center justify-end gap-1 font-semibold ${
+                                    crypto.deltaPercent >= 0
+                                      ? 'text-green-600'
+                                      : 'text-red-600'
+                                  }`}
+                                >
+                                  {crypto.deltaPercent >= 0 ? (
+                                    <TrendingUp className='h-3 w-3' aria-hidden='true' />
+                                  ) : (
+                                    <TrendingDown className='h-3 w-3' aria-hidden='true' />
+                                  )}
+                                  {crypto.deltaPercent.toFixed(2)}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Trending */}
+                  {cryptoData.trending.length > 0 && (
+                    <div>
+                      <h3 className='font-semibold text-sm text-gray-500 mb-3 flex items-center gap-1'>
+                        <TrendingUp className='h-4 w-4' aria-hidden='true' />
+                        Tendencias
+                      </h3>
+                      <div className='overflow-x-auto'>
+                        <table className='w-full text-sm'>
+                          <thead>
+                            <tr className='border-b border-gray-200 dark:border-gray-700'>
+                              <th className='text-left py-3 px-4'>Crypto</th>
+                              <th className='text-right py-3 px-4'>Precio USD</th>
+                              <th className='text-right py-3 px-4'>Cambio %</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cryptoData.trending.map((crypto) => (
+                              <tr
+                                key={crypto.instrumentId}
+                                className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
+                                  selectedCryptoDetail?.instrumentId === crypto.instrumentId ? 'bg-orange-50 dark:bg-orange-950/20' : ''
+                                }`}
+                                onClick={() => fetchCryptoDetail(crypto.instrumentId)}
+                              >
+                                <td className='py-3 px-4'>
+                                  <div className='flex items-center gap-2'>
+                                    <img
+                                      src={crypto.iconUrl}
+                                      alt={crypto.displayName}
+                                      className='w-6 h-6 rounded-full'
+                                    />
+                                    <div>
+                                      <div className='font-semibold'>{crypto.name}</div>
+                                      <div className='text-xs text-gray-500'>{crypto.displayName}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className='py-3 px-4 text-right font-medium tabular-nums'>
+                                  US${'\u00A0'}{crypto.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: crypto.aboveDollarPrecision })}
+                                </td>
+                                <td className='py-3 px-4 text-right tabular-nums'>
+                                  <span
+                                    className={`flex items-center justify-end gap-1 font-semibold ${
+                                      crypto.deltaPercent >= 0
+                                        ? 'text-green-600'
+                                        : 'text-red-600'
+                                    }`}
+                                  >
+                                    {crypto.deltaPercent >= 0 ? (
+                                      <TrendingUp className='h-3 w-3' aria-hidden='true' />
+                                    ) : (
+                                      <TrendingDown className='h-3 w-3' aria-hidden='true' />
+                                    )}
+                                    {crypto.deltaPercent.toFixed(2)}%
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Daily Raisers & Fallers */}
+                  <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                    {cryptoData.dailyRaisers.length > 0 && (
+                      <div>
+                        <h3 className='font-semibold text-sm text-green-600 mb-3 flex items-center gap-1'>
+                          <TrendingUp className='h-4 w-4' aria-hidden='true' />
+                          Mayores subas del día
+                        </h3>
+                        <div className='space-y-2'>
+                          {cryptoData.dailyRaisers.map((crypto) => (
+                            <div
+                              key={crypto.instrumentId}
+                              className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
+                                selectedCryptoDetail?.instrumentId === crypto.instrumentId
+                                  ? 'bg-orange-50 dark:bg-orange-950/20 ring-1 ring-orange-300'
+                                  : 'bg-green-50 dark:bg-green-950/20'
+                              }`}
+                              onClick={() => fetchCryptoDetail(crypto.instrumentId)}
+                            >
+                              <div className='flex items-center gap-2'>
+                                <img
+                                  src={crypto.iconUrl}
+                                  alt={crypto.displayName}
+                                  className='w-6 h-6 rounded-full'
+                                />
+                                <div>
+                                  <div className='font-semibold text-sm'>{crypto.name}</div>
+                                  <div className='text-xs text-gray-500'>{crypto.displayName}</div>
+                                </div>
+                              </div>
+                              <div className='text-right'>
+                                <div className='text-sm font-medium tabular-nums'>
+                                  US${'\u00A0'}{crypto.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: crypto.aboveDollarPrecision })}
+                                </div>
+                                <Badge variant='outline' className='text-green-600 border-green-300'>
+                                  +{crypto.deltaPercent.toFixed(2)}%
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {cryptoData.dailyFallers.length > 0 && (
+                      <div>
+                        <h3 className='font-semibold text-sm text-red-600 mb-3 flex items-center gap-1'>
+                          <TrendingDown className='h-4 w-4' aria-hidden='true' />
+                          Mayores bajas del día
+                        </h3>
+                        <div className='space-y-2'>
+                          {cryptoData.dailyFallers.map((crypto) => (
+                            <div
+                              key={crypto.instrumentId}
+                              className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
+                                selectedCryptoDetail?.instrumentId === crypto.instrumentId
+                                  ? 'bg-orange-50 dark:bg-orange-950/20 ring-1 ring-orange-300'
+                                  : 'bg-red-50 dark:bg-red-950/20'
+                              }`}
+                              onClick={() => fetchCryptoDetail(crypto.instrumentId)}
+                            >
+                              <div className='flex items-center gap-2'>
+                                <img
+                                  src={crypto.iconUrl}
+                                  alt={crypto.displayName}
+                                  className='w-6 h-6 rounded-full'
+                                />
+                                <div>
+                                  <div className='font-semibold text-sm'>{crypto.name}</div>
+                                  <div className='text-xs text-gray-500'>{crypto.displayName}</div>
+                                </div>
+                              </div>
+                              <div className='text-right'>
+                                <div className='text-sm font-medium tabular-nums'>
+                                  US${'\u00A0'}{crypto.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: crypto.aboveDollarPrecision })}
+                                </div>
+                                <Badge variant='outline' className='text-red-600 border-red-300'>
+                                  {crypto.deltaPercent.toFixed(2)}%
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

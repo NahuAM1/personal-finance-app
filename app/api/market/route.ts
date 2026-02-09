@@ -23,6 +23,11 @@ export async function GET(request: Request) {
       case "acciones":
         url = "https://data912.com/live/arg_stocks";
         break;
+      case "crypto": {
+        const instrumentId = searchParams.get("instrumentId") || "100000";
+        url = `https://www.etoro.com/api/marketing-seo/v1/instruments/${instrumentId}/es`;
+        break;
+      }
       default:
         return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
