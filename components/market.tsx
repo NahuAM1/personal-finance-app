@@ -594,7 +594,7 @@ export function Market() {
                   {/* Dynamic Hero Card */}
                   {selectedCryptoDetail && (
                     <div className={`p-4 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 rounded-lg border border-orange-200 dark:border-orange-800 transition-opacity ${loadingCryptoDetail ? 'opacity-50' : ''}`}>
-                      <div className='flex items-center justify-between'>
+                      <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
                         <div className='flex items-center gap-3'>
                           <img
                             src={selectedCryptoDetail.iconUrl}
@@ -609,12 +609,12 @@ export function Market() {
                             <RefreshCw className='h-4 w-4 animate-spin text-gray-400' aria-hidden='true' />
                           )}
                         </div>
-                        <div className='text-right'>
+                        <div className='md:text-right'>
                           <div className='text-2xl font-bold tabular-nums'>
                             US${'\u00A0'}{selectedCryptoDetail.marketData.priceData.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                           <span
-                            className={`flex items-center justify-end gap-1 font-semibold ${
+                            className={`flex items-center md:justify-end gap-1 font-semibold ${
                               selectedCryptoDetail.marketData.priceData.deltaPercent >= 0
                                 ? 'text-green-600'
                                 : 'text-red-600'

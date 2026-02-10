@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,17 @@ import {
 } from '@/components/ui/card';
 import { format, differenceInDays } from 'date-fns';
 import type { Investment } from '@/types/database';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+interface CryptoOption {
+  instrumentId: number;
+  name: string;
+  displayName: string;
+  iconUrl: string;
+  price: number;
+  aboveDollarPrecision: number;
+}
 
 interface InvestmentFormProps {
   onSubmit: (investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
@@ -60,8 +70,89 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
   const [annualRate, setAnnualRate] = useState('');
   const [currency, setCurrency] = useState('');
   const [exchangeRate, setExchangeRate] = useState('');
+  const [cryptoOptions, setCryptoOptions] = useState<CryptoOption[]>([]);
+  const [selectedCrypto, setSelectedCrypto] = useState('');
+  const [cryptoPriceUsd, setCryptoPriceUsd] = useState('');
+  const [dolarCCL, setDolarCCL] = useState(0);
+  const [loadingCrypto, setLoadingCrypto] = useState(false);
+  const { toast } = useToast();
 
   const isCurrencyPurchase = investmentType === 'compra_divisas';
+  const isCrypto = investmentType === 'crypto';
+
+  useEffect(() => {
+    if (!isCrypto) return;
+    const fetchCryptoList = async () => {
+      setLoadingCrypto(true);
+      try {
+        const [cryptoRes, dolarRes] = await Promise.all([
+          fetch('/api/market?type=crypto'),
+          fetch('/api/market?type=dolar'),
+        ]);
+        if (cryptoRes.ok) {
+          const data = await cryptoRes.json();
+          const popular: CryptoOption[] = (data.popular ?? []).map(
+            (c: CryptoOption) => ({
+              instrumentId: c.instrumentId,
+              name: c.name,
+              displayName: c.displayName,
+              iconUrl: c.iconUrl,
+              price: c.price,
+              aboveDollarPrecision: c.aboveDollarPrecision,
+            })
+          );
+          const trending: CryptoOption[] = (data.trending ?? []).map(
+            (c: CryptoOption) => ({
+              instrumentId: c.instrumentId,
+              name: c.name,
+              displayName: c.displayName,
+              iconUrl: c.iconUrl,
+              price: c.price,
+              aboveDollarPrecision: c.aboveDollarPrecision,
+            })
+          );
+          const seen = new Set<number>();
+          const merged: CryptoOption[] = [];
+          for (const item of [...popular, ...trending]) {
+            if (!seen.has(item.instrumentId)) {
+              seen.add(item.instrumentId);
+              merged.push(item);
+            }
+          }
+          setCryptoOptions(merged);
+        }
+        if (dolarRes.ok) {
+          const dolarData = await dolarRes.json();
+          interface DolarItem { casa: string; venta: number }
+          const ccl = dolarData.find((d: DolarItem) => d.casa === 'contadoconliqui');
+          if (ccl) setDolarCCL(ccl.venta);
+        }
+      } catch (error) {
+        console.error('Error fetching crypto list:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudo cargar la lista de criptomonedas',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingCrypto(false);
+      }
+    };
+    fetchCryptoList();
+  }, [isCrypto]);
+
+  const handleCryptoSelect = (cryptoName: string) => {
+    setSelectedCrypto(cryptoName);
+    const crypto = cryptoOptions.find((c) => c.name === cryptoName);
+    if (crypto) {
+      setCryptoPriceUsd(crypto.price.toString());
+      setCurrency(crypto.name);
+      if (dolarCCL > 0) {
+        const priceArs = crypto.price * dolarCCL;
+        setExchangeRate(priceArs.toFixed(2));
+      }
+    }
+  };
 
   // Calculate estimated return
   const calculateEstimatedReturn = () => {
@@ -86,6 +177,7 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
 
     if (!description || !investmentType || !amount || !startDate) return;
     if (isCurrencyPurchase && (!currency || !exchangeRate)) return;
+    if (isCrypto && (!selectedCrypto || !exchangeRate)) return;
 
     const investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
       description,
@@ -99,8 +191,8 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
       liquidation_date: null,
       actual_return: null,
       transaction_id: null,
-      currency: isCurrencyPurchase && currency ? currency : null,
-      exchange_rate: isCurrencyPurchase && exchangeRate ? Number.parseFloat(exchangeRate) : null,
+      currency: (isCurrencyPurchase || isCrypto) && currency ? currency : null,
+      exchange_rate: (isCurrencyPurchase || isCrypto) && exchangeRate ? Number.parseFloat(exchangeRate) : null,
     };
 
     onSubmit(investment);
@@ -114,6 +206,8 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
     setAnnualRate('');
     setCurrency('');
     setExchangeRate('');
+    setSelectedCrypto('');
+    setCryptoPriceUsd('');
   };
 
   return (
@@ -159,6 +253,87 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
             </SelectContent>
           </Select>
         </div>
+
+        {isCrypto && (
+          <div className='space-y-4'>
+            <div className='space-y-2'>
+              <Label htmlFor='crypto-select'>Criptomoneda</Label>
+              {loadingCrypto ? (
+                <div className='flex items-center gap-2 text-sm text-gray-500 py-2'>
+                  <RefreshCw className='h-4 w-4 animate-spin' aria-hidden='true' />
+                  Cargando criptomonedas...
+                </div>
+              ) : (
+                <Select value={selectedCrypto} onValueChange={handleCryptoSelect} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder='Selecciona una crypto' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cryptoOptions.map((crypto) => (
+                      <SelectItem key={crypto.instrumentId} value={crypto.name}>
+                        <div className='flex items-center gap-2'>
+                          <img
+                            src={crypto.iconUrl}
+                            alt={crypto.displayName}
+                            className='w-5 h-5 rounded-full'
+                          />
+                          <span>{crypto.name}</span>
+                          <span className='text-gray-500'>- {crypto.displayName}</span>
+                          <span className='text-xs text-gray-400 tabular-nums'>
+                            US${'\u00A0'}{crypto.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {selectedCrypto && (
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-2'>
+                  <Label htmlFor='crypto-price-usd'>Precio USD (referencia)</Label>
+                  <Input
+                    id='crypto-price-usd'
+                    name='crypto-price-usd'
+                    type='number'
+                    inputMode='decimal'
+                    step='0.01'
+                    value={cryptoPriceUsd}
+                    onChange={(e) => {
+                      setCryptoPriceUsd(e.target.value);
+                      if (e.target.value && dolarCCL > 0) {
+                        setExchangeRate((Number.parseFloat(e.target.value) * dolarCCL).toFixed(2));
+                      }
+                    }}
+                    min={0}
+                    autoComplete='off'
+                    className='tabular-nums'
+                    readOnly
+                  />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='crypto-price-ars'>Precio en ARS (editable)</Label>
+                  <Input
+                    id='crypto-price-ars'
+                    name='crypto-price-ars'
+                    type='number'
+                    inputMode='decimal'
+                    step='0.01'
+                    value={exchangeRate}
+                    onChange={(e) => setExchangeRate(e.target.value)}
+                    required
+                    min={0}
+                    autoComplete='off'
+                    className='tabular-nums'
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {isCurrencyPurchase && (
           <div className='grid gap-4 md:grid-cols-2'>
@@ -291,7 +466,49 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
           </Card>
         )}
 
-        {!isCurrencyPurchase && estimatedReturn > 0 && (
+        {isCrypto && selectedCrypto && amount && exchangeRate && Number.parseFloat(exchangeRate) > 0 && (
+          <Card className='bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800'>
+            <CardContent className='pt-6'>
+              <div className='space-y-3'>
+                <div className='flex items-center justify-between text-sm'>
+                  <span className='text-orange-700 dark:text-orange-300'>Monto en ARS:</span>
+                  <span className='font-semibold text-orange-900 dark:text-orange-100 tabular-nums'>
+                    ${Number.parseFloat(amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div className='flex items-center justify-between text-sm'>
+                  <span className='text-orange-700 dark:text-orange-300'>Precio por {selectedCrypto}:</span>
+                  <span className='font-semibold text-orange-900 dark:text-orange-100 tabular-nums'>
+                    ${Number.parseFloat(exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ARS
+                  </span>
+                </div>
+
+                {dolarCCL > 0 && (
+                  <div className='flex items-center justify-between text-sm'>
+                    <span className='text-orange-700 dark:text-orange-300'>Dólar CCL usado:</span>
+                    <span className='font-semibold text-orange-900 dark:text-orange-100 tabular-nums'>
+                      ${dolarCCL.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+
+                <div className='pt-3 border-t border-orange-200 dark:border-orange-800'>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-sm font-semibold text-orange-700 dark:text-orange-300'>
+                      Unidades de {selectedCrypto}:
+                    </span>
+                    <span className='text-xl font-bold text-orange-900 dark:text-orange-100 tabular-nums'>
+                      {(Number.parseFloat(amount) / Number.parseFloat(exchangeRate)).toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 8 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isCurrencyPurchase && !isCrypto && estimatedReturn > 0 && (
           <Card className='bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'>
             <CardContent className='pt-6'>
               <div className='space-y-3'>

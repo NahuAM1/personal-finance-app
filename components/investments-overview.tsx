@@ -55,6 +55,19 @@ const investmentTypeLabels: Record<string, string> = {
   compra_divisas: 'Compra de Divisas',
 };
 
+const cryptoIcons: Record<string, string> = {
+  BTC: 'https://etoro-cdn.etorostatic.com/market-avatars/btc/150x150.png',
+  ETH: 'https://etoro-cdn.etorostatic.com/market-avatars/eth-usd/150x150.png',
+  SOL: 'https://etoro-cdn.etorostatic.com/market-avatars/100063/150x150.png',
+  XRP: 'https://etoro-cdn.etorostatic.com/market-avatars/100003/150x150.png',
+  ADA: 'https://etoro-cdn.etorostatic.com/market-avatars/100017/150x150.png',
+  XLM: 'https://etoro-cdn.etorostatic.com/market-avatars/100020/150x150.png',
+  BNB: 'https://etoro-cdn.etorostatic.com/market-avatars/100030/150x150.png',
+  DOGE: 'https://etoro-cdn.etorostatic.com/market-avatars/100043/150x150.png',
+  LINK: 'https://etoro-cdn.etorostatic.com/market-avatars/100040/150x150.png',
+  USDC: 'https://etoro-cdn.etorostatic.com/market-avatars/100444/150x150.png',
+};
+
 const investmentTypeColors: Record<string, string> = {
   plazo_fijo: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   fci: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
@@ -242,7 +255,14 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
               <CardHeader>
                 <div className='flex items-start justify-between gap-2'>
                   <div className='flex-1'>
-                    <CardTitle className='text-lg mb-2'>
+                    <CardTitle className='text-lg mb-2 flex items-center gap-2'>
+                      {investment.investment_type === 'crypto' && investment.currency && cryptoIcons[investment.currency] && (
+                        <img
+                          src={cryptoIcons[investment.currency]}
+                          alt={investment.currency}
+                          className='w-7 h-7 rounded-full'
+                        />
+                      )}
                       {investment.description}
                     </CardTitle>
                     <div className='flex items-center gap-2'>
