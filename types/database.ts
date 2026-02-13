@@ -57,38 +57,6 @@ export interface Database {
           updated_at?: string
         }
       }
-      savings_goals: {
-        Row: {
-          id: string
-          user_id: string
-          name: string
-          target_amount: number
-          current_amount: number
-          deadline: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          name: string
-          target_amount: number
-          current_amount?: number
-          deadline: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          name?: string
-          target_amount?: number
-          current_amount?: number
-          deadline?: string
-          created_at?: string
-          updated_at?: string
-        }
-      }
       expense_plans: {
         Row: {
           id: string
@@ -98,6 +66,7 @@ export interface Database {
           current_amount: number
           deadline: string
           category: string
+          deleted_at: string | null
           created_at: string
           updated_at: string
         }
@@ -109,6 +78,7 @@ export interface Database {
           current_amount?: number
           deadline: string
           category: string
+          deleted_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -120,6 +90,7 @@ export interface Database {
           current_amount?: number
           deadline?: string
           category?: string
+          deleted_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -264,7 +235,6 @@ export interface Database {
 }
 
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"]
-export type SavingsGoal = Database["public"]["Tables"]["savings_goals"]["Row"]
 export type ExpensePlan = Database["public"]["Tables"]["expense_plans"]["Row"]
 export type CreditPurchase = Database["public"]["Tables"]["credit_purchases"]["Row"]
 export type CreditInstallment = Database["public"]["Tables"]["credit_installments"]["Row"]

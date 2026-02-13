@@ -38,6 +38,9 @@ import {
   Car,
   Home,
   GraduationCap,
+  DollarSign,
+  Target,
+  Trash2,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import type { ExpensePlan } from '@/types/database';
@@ -45,8 +48,10 @@ import type { ExpensePlan } from '@/types/database';
 interface ExpensePlansProps {
   expensePlans: ExpensePlan[];
   onAddPlan: (
-    plan: Omit<ExpensePlan, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+    plan: Omit<ExpensePlan, 'id' | 'user_id' | 'deleted_at' | 'created_at' | 'updated_at'>
   ) => void;
+  onUpdatePlan: (id: string, amount: number) => void;
+  onDeletePlan: (id: string) => void;
 }
 
 const planCategories = [
@@ -57,7 +62,7 @@ const planCategories = [
   { value: 'Otros', label: 'Otros', icon: MapPin },
 ];
 
-export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
+export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePlan }: ExpensePlansProps) {
   const [newPlan, setNewPlan] = useState({
     name: '',
     targetAmount: '',
@@ -65,6 +70,11 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
     category: '',
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [addAmount, setAddAmount] = useState<Record<string, string>>({});
+
+  const totalSaved = expensePlans.reduce((sum, plan) => sum + plan.current_amount, 0);
+  const totalTarget = expensePlans.reduce((sum, plan) => sum + plan.target_amount, 0);
+  const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
   const handleAddPlan = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,8 +99,54 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
     setIsDialogOpen(false);
   };
 
+  const handleAddMoney = (planId: string) => {
+    const amount = Number.parseFloat(addAmount[planId] || '0');
+    if (amount > 0) {
+      onUpdatePlan(planId, amount);
+      setAddAmount({ ...addAmount, [planId]: '' });
+    }
+  };
+
   return (
     <div className='space-y-6'>
+      {expensePlans.length > 0 && (
+        <Card className='bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border-emerald-200 dark:border-emerald-800'>
+          <CardHeader>
+            <CardTitle className='flex items-center gap-2'>
+              <div className='p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg'>
+                <Target className='h-5 w-5 text-emerald-600 dark:text-emerald-400' aria-hidden="true" />
+              </div>
+              Resumen de Planes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='grid gap-4 md:grid-cols-3'>
+              <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
+                <div className='text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums'>
+                  ${totalSaved.toLocaleString()}
+                </div>
+                <div className='text-sm text-gray-600 dark:text-gray-400'>Total Ahorrado</div>
+              </div>
+              <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
+                <div className='text-2xl font-bold text-teal-600 dark:text-teal-400 tabular-nums'>
+                  ${totalTarget.toLocaleString()}
+                </div>
+                <div className='text-sm text-gray-600 dark:text-gray-400'>Meta Total</div>
+              </div>
+              <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
+                <div className='text-2xl font-bold text-cyan-600 dark:text-cyan-400 tabular-nums'>
+                  {overallProgress.toFixed(1)}%
+                </div>
+                <div className='text-sm text-gray-600 dark:text-gray-400'>Progreso General</div>
+              </div>
+            </div>
+            <div className='mt-4'>
+              <Progress value={overallProgress} className='h-3' />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className='flex justify-between items-center'>
         <div>
           <h2 className='text-2xl font-bold'>Planes de Gastos</h2>
@@ -191,7 +247,9 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
 
       <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
         {expensePlans.map((plan) => {
-          const progress = (plan.current_amount / plan.target_amount) * 100;
+          const progress = plan.target_amount > 0
+            ? (plan.current_amount / plan.target_amount) * 100
+            : 0;
           const remaining = plan.target_amount - plan.current_amount;
           const daysLeft = differenceInDays(
             new Date(plan.deadline),
@@ -256,6 +314,43 @@ export function ExpensePlans({ expensePlans, onAddPlan }: ExpensePlansProps) {
                     para alcanzar la meta a tiempo
                   </div>
                 </div>
+
+                {progress < 100 && (
+                  <div className='flex gap-2 pt-2 border-t border-emerald-100 dark:border-emerald-800'>
+                    <Input
+                      type='number'
+                      inputMode='decimal'
+                      placeholder='Agregar monto...'
+                      value={addAmount[plan.id] || ''}
+                      onChange={(e) =>
+                        setAddAmount({ ...addAmount, [plan.id]: e.target.value })
+                      }
+                      min={0}
+                      step='0.01'
+                      autoComplete='off'
+                      className='tabular-nums'
+                    />
+                    <Button
+                      onClick={() => handleAddMoney(plan.id)}
+                      disabled={
+                        !addAmount[plan.id] ||
+                        Number.parseFloat(addAmount[plan.id]) <= 0
+                      }
+                    >
+                      <DollarSign className='h-4 w-4' aria-hidden="true" />
+                    </Button>
+                  </div>
+                )}
+
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='w-full text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30'
+                  onClick={() => onDeletePlan(plan.id)}
+                >
+                  <Trash2 className='h-4 w-4 mr-2' aria-hidden="true" />
+                  Eliminar Plan
+                </Button>
               </CardContent>
             </Card>
           );

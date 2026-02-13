@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase"
-import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from "@/types/database"
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from "@/types/database"
 
 export async function getTransactions(userId: string) {
   const { data, error } = await supabase
@@ -56,21 +56,22 @@ export async function addTransaction(transaction: Omit<Transaction, "id" | "crea
   return data
 }
 
-export async function getSavingsGoals(userId: string) {
+export async function getExpensePlans(userId: string) {
   const { data, error } = await supabase
-    .from("savings_goals")
+    .from("expense_plans")
     .select("*")
     .eq("user_id", userId)
+    .is("deleted_at", null)
     .order("deadline", { ascending: true })
 
   if (error) throw error
   return data
 }
 
-export async function addSavingsGoal(goal: Omit<SavingsGoal, "id" | "created_at" | "updated_at">) {
+export async function addExpensePlan(plan: Omit<ExpensePlan, "id" | "deleted_at" | "created_at" | "updated_at">) {
   const { data, error } = await supabase
-    .from("savings_goals")
-    .insert([goal])
+    .from("expense_plans")
+    .insert([plan])
     .select()
     .single()
 
@@ -78,9 +79,9 @@ export async function addSavingsGoal(goal: Omit<SavingsGoal, "id" | "created_at"
   return data
 }
 
-export async function updateSavingsGoal(id: string, updates: Partial<SavingsGoal>) {
+export async function updateExpensePlan(id: string, updates: Partial<ExpensePlan>) {
   const { data, error } = await supabase
-    .from("savings_goals")
+    .from("expense_plans")
     .update(updates)
     .eq("id", id)
     .select()
@@ -90,26 +91,14 @@ export async function updateSavingsGoal(id: string, updates: Partial<SavingsGoal
   return data
 }
 
-export async function getExpensePlans(userId: string) {
-  const { data, error } = await supabase
+export async function deleteExpensePlan(id: string, userId: string) {
+  const { error } = await supabase
     .from("expense_plans")
-    .select("*")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
     .eq("user_id", userId)
-    .order("deadline", { ascending: true })
 
   if (error) throw error
-  return data
-}
-
-export async function addExpensePlan(plan: Omit<ExpensePlan, "id" | "created_at" | "updated_at">) {
-  const { data, error } = await supabase
-    .from("expense_plans")
-    .insert([plan])
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
 }
 
 // Credit card payment functions

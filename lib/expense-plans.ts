@@ -10,6 +10,7 @@ export class ExpensePlanService {
       .from("expense_plans")
       .select("*")
       .eq("user_id", userId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
 
     if (error) throw error
@@ -41,7 +42,11 @@ export class ExpensePlanService {
   }
 
   static async delete(id: string, userId: string) {
-    const { error } = await supabase.from("expense_plans").delete().eq("id", id).eq("user_id", userId)
+    const { error } = await supabase
+      .from("expense_plans")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", userId)
 
     if (error) throw error
   }

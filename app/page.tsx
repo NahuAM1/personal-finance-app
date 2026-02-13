@@ -19,7 +19,6 @@ import { InvestmentForm } from '@/components/investment-form';
 import { InvestmentLiquidateForm } from '@/components/investment-liquidate-form';
 import { InvestmentsOverview } from '@/components/investments-overview';
 import { Market } from '@/components/market';
-import { Savings } from '@/components/savings';
 import { ExpensePlans } from '@/components/expense-plans';
 import { History } from '@/components/history';
 import {
@@ -35,7 +34,7 @@ import { AuthGuard } from '@/components/auth-guard';
 import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
-import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
 import Logo from '../assets/images/logo.svg';
@@ -48,7 +47,6 @@ function FinanceAppContent() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [expensePlans, setExpensePlans] = useState<ExpensePlan[]>([]);
   const [creditPurchases, setCreditPurchases] = useState<CreditPurchase[]>([]);
   const [creditInstallments, setCreditInstallments] = useState<CreditInstallment[]>([]);
@@ -68,9 +66,8 @@ function FinanceAppContent() {
 
     try {
       setLoading(true);
-      const [transactionsData, savingsData, plansData, purchasesData, installmentsData, investmentsData] = await Promise.all([
+      const [transactionsData, plansData, purchasesData, installmentsData, investmentsData] = await Promise.all([
         api.getTransactions(user.id),
-        api.getSavingsGoals(user.id),
         api.getExpensePlans(user.id),
         api.getCreditPurchases(user.id),
         api.getAllCreditInstallments(user.id),
@@ -78,7 +75,6 @@ function FinanceAppContent() {
       ]);
 
       setTransactions(transactionsData || []);
-      setSavingsGoals(savingsData || []);
       setExpensePlans(plansData || []);
       setCreditPurchases(purchasesData || []);
       setCreditInstallments(installmentsData || []);
@@ -383,61 +379,8 @@ function FinanceAppContent() {
     }
   };
 
-  const addSavingsGoal = async (
-    goal: Omit<SavingsGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>
-  ) => {
-    if (!user) return;
-
-    try {
-      const newGoal = await api.addSavingsGoal({
-        ...goal,
-        user_id: user.id,
-        current_amount: goal.current_amount || 0,
-      });
-      setSavingsGoals((prev) => [...prev, newGoal]);
-      toast({
-        title: 'Éxito',
-        description: 'Meta de ahorro agregada correctamente',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'No se pudo agregar la meta de ahorro',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const updateSavingsGoal = async (id: string, amount: number) => {
-    const goal = savingsGoals.find((g) => g.id === id);
-    if (!goal) return;
-
-    try {
-      const newAmount = Math.min(
-        goal.current_amount + amount,
-        goal.target_amount
-      );
-      const updatedGoal = await api.updateSavingsGoal(id, {
-        current_amount: newAmount,
-      });
-      setSavingsGoals((prev) =>
-        prev.map((g) => (g.id === id ? updatedGoal : g))
-      );
-      toast({
-        title: 'Éxito',
-        description: 'Meta de ahorro actualizada correctamente',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'No se pudo actualizar la meta de ahorro',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const addExpensePlan = async (
-    plan: Omit<ExpensePlan, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+    plan: Omit<ExpensePlan, 'id' | 'user_id' | 'deleted_at' | 'created_at' | 'updated_at'>
   ) => {
     if (!user) return;
 
@@ -456,6 +399,53 @@ function FinanceAppContent() {
       toast({
         title: 'Error',
         description: 'No se pudo agregar el plan de gasto',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateExpensePlan = async (id: string, amount: number) => {
+    const plan = expensePlans.find((p) => p.id === id);
+    if (!plan) return;
+
+    try {
+      const newAmount = Math.min(
+        plan.current_amount + amount,
+        plan.target_amount
+      );
+      const updatedPlan = await api.updateExpensePlan(id, {
+        current_amount: newAmount,
+      });
+      setExpensePlans((prev) =>
+        prev.map((p) => (p.id === id ? updatedPlan : p))
+      );
+      toast({
+        title: 'Éxito',
+        description: 'Plan de gasto actualizado correctamente',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar el plan de gasto',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const deleteExpensePlan = async (id: string) => {
+    if (!user) return;
+
+    try {
+      await api.deleteExpensePlan(id, user.id);
+      setExpensePlans((prev) => prev.filter((p) => p.id !== id));
+      toast({
+        title: 'Éxito',
+        description: 'Plan de gasto eliminado correctamente',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar el plan de gasto',
         variant: 'destructive',
       });
     }
@@ -542,7 +532,7 @@ function FinanceAppContent() {
               </TabsTrigger>
               <TabsTrigger value='plans' className='flex items-center gap-2'>
                 <MapPin className='h-4 w-4' />
-                <span className='hidden sm:inline'>Planes</span>
+                <span className='hidden sm:inline'>Planes de Gastos</span>
               </TabsTrigger>
 
               <TabsTrigger value='history' className='flex items-center gap-2'>
@@ -555,7 +545,6 @@ function FinanceAppContent() {
           <TabsContent value='dashboard'>
             <Dashboard
               transactions={transactions}
-              savingsGoals={savingsGoals}
               expensePlans={expensePlans}
               creditPurchases={creditPurchases}
               creditInstallments={creditInstallments}
@@ -649,14 +638,6 @@ function FinanceAppContent() {
             </Tabs>
           </TabsContent>
 
-          <TabsContent value='savings'>
-            <Savings
-              savingsGoals={savingsGoals}
-              onAddGoal={addSavingsGoal}
-              onUpdateGoal={updateSavingsGoal}
-            />
-          </TabsContent>
-
           <TabsContent value='investments'>
             <Tabs defaultValue='nueva' className='space-y-4'>
               <TabsList className='grid grid-cols-2 md:grid-cols-4 w-full h-auto p-[10px]'>
@@ -716,6 +697,8 @@ function FinanceAppContent() {
             <ExpensePlans
               expensePlans={expensePlans}
               onAddPlan={addExpensePlan}
+              onUpdatePlan={updateExpensePlan}
+              onDeletePlan={deleteExpensePlan}
             />
           </TabsContent>
 

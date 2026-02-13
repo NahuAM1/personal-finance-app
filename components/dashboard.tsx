@@ -31,7 +31,6 @@ import {
   TrendingDown,
   DollarSign,
   CreditCard,
-  PiggyBank,
   ArrowUpCircle,
   ArrowDownCircle,
   Calendar,
@@ -40,11 +39,10 @@ import {
 } from 'lucide-react';
 import { getMonth, getYear, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Transaction, SavingsGoal, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
 
 interface DashboardProps {
   transactions: Transaction[];
-  savingsGoals: SavingsGoal[];
   expensePlans: ExpensePlan[];
   creditPurchases: CreditPurchase[];
   creditInstallments: CreditInstallment[];
@@ -53,7 +51,6 @@ interface DashboardProps {
 
 export function Dashboard({
   transactions,
-  savingsGoals,
   expensePlans,
   creditPurchases,
   creditInstallments,
@@ -130,8 +127,14 @@ export function Dashboard({
     .filter((inv) => !inv.is_liquidated)
     .reduce((sum, inv) => sum + inv.amount, 0);
 
-  // Liquid balance = Total balance - Active investments
-  const liquidBalance = balance - activeInvestmentsTotal;
+  // Calculate money reserved in expense plans
+  const totalPlannedSavings = expensePlans.reduce(
+    (sum, plan) => sum + plan.current_amount,
+    0
+  );
+
+  // Liquid balance = Total balance - Active investments - Reserved in plans
+  const liquidBalance = balance - activeInvestmentsTotal - totalPlannedSavings;
 
   const expensesByCategory = currentMonthTransactions
     .filter((t) => t.type === 'expense' || t.type === 'credit') 
@@ -167,11 +170,6 @@ export function Dashboard({
       };
     })
     .filter((inst) => inst.purchase); // Only include if purchase exists
-
-  const totalSavings = savingsGoals.reduce(
-    (sum, goal) => sum + goal.current_amount,
-    0
-  );
 
   return (
     <div className='space-y-8'>
@@ -316,6 +314,11 @@ export function Dashboard({
                 {formatAmount(activeInvestmentsTotal)} invertido
               </p>
             )}
+            {totalPlannedSavings > 0 && (
+              <p className='text-xs text-white/70 mt-1 tabular-nums'>
+                {formatAmount(totalPlannedSavings)} reservado en planes
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -336,6 +339,11 @@ export function Dashboard({
             <p className='text-xs text-cyan-200 mt-1'>
               Dinero disponible para usar
             </p>
+            {totalPlannedSavings > 0 && (
+              <p className='text-xs text-cyan-200 mt-1 tabular-nums'>
+                {formatAmount(totalPlannedSavings)} asignado a planes
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -444,27 +452,35 @@ export function Dashboard({
       <div className='grid gap-6 md:grid-cols-2'>
         <Card>
           <CardHeader>
-            <CardTitle>Metas de Ahorro</CardTitle>
-            <CardDescription>Progreso hacia tus objetivos</CardDescription>
+            <CardTitle>Planes de Gastos</CardTitle>
+            <CardDescription>Progreso de ahorro hacia tus planes</CardDescription>
           </CardHeader>
           <CardContent className='space-y-4'>
-            {savingsGoals.map((goal) => {
-              const progress = (goal.current_amount / goal.target_amount) * 100;
-              return (
-                <div key={goal.id} className='space-y-2'>
-                  <div className='flex justify-between items-center'>
-                    <span className='font-medium'>{goal.name}</span>
-                    <Badge variant='outline'>
-                      {formatAmount(goal.current_amount)} / {formatAmount(goal.target_amount)}
-                    </Badge>
+            {expensePlans.length > 0 ? (
+              expensePlans.map((plan) => {
+                const progress = plan.target_amount > 0
+                  ? (plan.current_amount / plan.target_amount) * 100
+                  : 0;
+                return (
+                  <div key={plan.id} className='space-y-2'>
+                    <div className='flex justify-between items-center'>
+                      <span className='font-medium'>{plan.name}</span>
+                      <Badge variant='outline'>
+                        {formatAmount(plan.current_amount)} / {formatAmount(plan.target_amount)}
+                      </Badge>
+                    </div>
+                    <Progress value={progress} className='h-2' />
+                    <div className='text-sm text-gray-600'>
+                      {progress.toFixed(1)}% completado
+                    </div>
                   </div>
-                  <Progress value={progress} className='h-2' />
-                  <div className='text-sm text-gray-600'>
-                    {progress.toFixed(1)}% completado
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className='text-center text-gray-500 py-4'>
+                No hay planes de gastos
+              </div>
+            )}
           </CardContent>
         </Card>
 
