@@ -564,26 +564,26 @@ export function Dashboard({
               return (
                 <div
                   key={transaction.id}
-                  className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                  className='flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors overflow-hidden'
                 >
-                  <div className='flex items-center gap-3'>
+                  <div className='flex items-center gap-3 min-w-0 flex-1'>
                     {transaction.type === 'income' ? (
-                      <ArrowUpCircle className='h-5 w-5 text-green-600' aria-hidden="true" />
+                      <ArrowUpCircle className='h-5 w-5 text-green-600 flex-shrink-0' aria-hidden="true" />
                     ) : (
-                      <ArrowDownCircle className='h-5 w-5 text-red-600' aria-hidden="true" />
+                      <ArrowDownCircle className='h-5 w-5 text-red-600 flex-shrink-0' aria-hidden="true" />
                     )}
-                    <div>
-                      <div className='font-medium'>{transaction.description}</div>
+                    <div className='min-w-0'>
+                      <div className='font-medium break-words'>{transaction.description}</div>
                       <div className='text-sm text-gray-600 flex items-center gap-2'>
-                        <span>{transaction.category}</span>
+                        <span className='truncate'>{transaction.category}</span>
                         <span>•</span>
-                        <span>
+                        <span className='flex-shrink-0'>
                           {format(parseISO(transaction.date), 'dd/MM/yyyy', {
                             locale: es,
                           })}
                         </span>
                       </div>
-                      <div className='text-xs text-gray-500 mt-1 flex items-center gap-3'>
+                      <div className='text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1'>
                         {transaction.balance_total !== null ? (
                           <>
                             <span>
@@ -613,7 +613,7 @@ export function Dashboard({
                     </div>
                   </div>
                   <div
-                    className={`font-semibold ${
+                    className={`font-semibold flex-shrink-0 text-right ${
                       transaction.type === 'income'
                         ? 'text-green-600'
                         : 'text-red-600'

@@ -182,9 +182,9 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                     return (
                       <div
                         key={transaction.id}
-                        className='flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50'
+                        className='flex items-center justify-between gap-3 p-4 border rounded-lg hover:bg-gray-50 overflow-hidden'
                       >
-                        <div className='flex-1'>
+                        <div className='flex-1 min-w-0'>
                           <div className='flex items-center gap-2'>
                             <span
                               className={`font-semibold ${getTypeColor(
@@ -198,7 +198,7 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                               {transaction.category}
                             </span>
                           </div>
-                          <p className='text-sm text-gray-700 mt-1'>
+                          <p className='text-sm text-gray-700 mt-1 break-words'>
                             {transaction.description}
                           </p>
                           {transaction.installments && (
@@ -207,7 +207,7 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                               {transaction.installments}
                             </p>
                           )}
-                          <div className='text-xs text-gray-500 mt-2 flex items-center gap-3'>
+                          <div className='text-xs text-gray-500 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1'>
                             {transaction.balance_total !== null ? (
                               <>
                                 <span>
@@ -235,9 +235,9 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                             )}
                           </div>
                         </div>
-                        <div className='flex items-center gap-4'>
+                        <div className='flex items-center gap-2 flex-shrink-0'>
                           <span
-                            className={`font-bold text-lg ${getTypeColor(
+                            className={`font-bold text-lg whitespace-nowrap ${getTypeColor(
                               transaction.type
                             )}`}
                           >
