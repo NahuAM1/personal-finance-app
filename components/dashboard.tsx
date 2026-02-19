@@ -340,8 +340,8 @@ export function Dashboard({
               Dinero disponible para usar
             </p>
             {totalPlannedSavings > 0 && (
-              <p className='text-xs text-cyan-200 mt-1 tabular-nums'>
-                {formatAmount(totalPlannedSavings)} asignado a planes
+              <p className='text-xs text-cyan-200/70 mt-1 tabular-nums'>
+                {formatAmount(totalPlannedSavings)} destinado a planes de gastos
               </p>
             )}
           </CardContent>
