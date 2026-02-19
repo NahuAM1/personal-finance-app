@@ -314,11 +314,6 @@ export function Dashboard({
                 {formatAmount(activeInvestmentsTotal)} invertido
               </p>
             )}
-            {totalPlannedSavings > 0 && (
-              <p className='text-xs text-white/70 mt-1 tabular-nums'>
-                {formatAmount(totalPlannedSavings)} reservado en planes
-              </p>
-            )}
           </CardContent>
         </Card>
 
