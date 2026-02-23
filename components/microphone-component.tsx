@@ -66,7 +66,6 @@ export function MicrophoneComponent({
   const accumulatedTranscriptRef = useRef<string>('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
-  const isRecordingRef = useRef(false);
 
   const formatTime = (seconds: number): string => {
     const m = Math.floor(seconds / 60);
@@ -96,7 +95,6 @@ export function MicrophoneComponent({
 
   const startRecording = useCallback(() => {
     setIsRecording(true);
-    isRecordingRef.current = true;
     setElapsed(0);
     accumulatedTranscriptRef.current = '';
 
@@ -129,7 +127,7 @@ export function MicrophoneComponent({
     };
 
     recognition.onend = () => {
-      if (isRecordingRef.current) {
+      if (isRecording) {
         try {
           recognition.start();
         } catch {
@@ -140,7 +138,6 @@ export function MicrophoneComponent({
 
     recognition.onerror = () => {
       setIsRecording(false);
-      isRecordingRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
     };
 
@@ -156,11 +153,10 @@ export function MicrophoneComponent({
         }
       }, 100);
     }
-  }, [getRecognitionInstance, setTranscript]);
+  }, [getRecognitionInstance, setTranscript, isRecording]);
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {
-      isRecordingRef.current = false;
       recognitionRef.current.onend = null;
       recognitionRef.current.stop();
       setIsRecording(false);
@@ -180,7 +176,6 @@ export function MicrophoneComponent({
 
   const handleClose = useCallback(() => {
     if (isRecording) {
-      isRecordingRef.current = false;
       if (recognitionRef.current) {
         recognitionRef.current.onend = null;
         recognitionRef.current.stop();

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { replaceTranscriptionPlaceholder } from '@/public/utils/transcriptionUtils';
 import { MicrophoneComponent } from '@/components/microphone-component';
 import { useToast } from '@/hooks/use-toast';
@@ -134,17 +133,14 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
           </button>
         )}
       </div>
-      {!hidden && createPortal(
-        <div className='fixed inset-0 z-50 flex'>
-          <MicrophoneComponent
-            transcript={transcript}
-            setTranscript={setTranscript}
-            setHidden={setHidden}
-            setTranscriptDone={setTranscriptDone}
-          />
-        </div>,
-        document.body
-      )}
+      <div className={`${hidden ? 'hidden' : 'flex'} fixed inset-0 z-50`}>
+        <MicrophoneComponent
+          transcript={transcript}
+          setTranscript={setTranscript}
+          setHidden={setHidden}
+          setTranscriptDone={setTranscriptDone}
+        />
+      </div>
     </>
   );
 }
