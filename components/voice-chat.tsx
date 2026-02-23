@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { replaceTranscriptionPlaceholder } from '@/public/utils/transcriptionUtils';
 import { MicrophoneComponent } from '@/components/microphone-component';
+import { Button } from './ui/button';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Loader2, ChevronRight } from 'lucide-react';
 
 interface VoiceChatProps {
   onResponse?: (response: string) => void;
@@ -75,54 +76,29 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
     <>
       <div
         className={`${
-          hidden ? 'block' : 'hidden'
-        } w-full mb-4`}
+          hidden ? 'flex md:flex-row-reverse' : 'hidden'
+        } h-full w-full`}
       >
         {loading ? (
-          <div className='rounded-2xl border bg-card text-card-foreground shadow-sm p-5'>
-            <div className='flex items-center gap-4'>
-              <div className='relative flex-shrink-0'>
-                <div className='absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full blur-lg opacity-40 animate-pulse motion-reduce:animate-none' />
-                <div className='relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/25'>
-                  <Loader2 className='w-5 h-5 text-white animate-spin motion-reduce:animate-none' aria-hidden='true' />
-                </div>
-              </div>
-              <div className='min-w-0'>
-                <p className='text-sm font-semibold leading-none tracking-tight text-card-foreground'>
-                  Procesando con IA
-                </p>
-                <p className='text-sm text-muted-foreground mt-1'>
-                  Analizando tu mensaje de voz{'\u2026'}
-                </p>
-              </div>
+          <div className='flex w-full items-center justify-center m-10'>
+            <div className='relative'>
+              <div className='absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full blur-xl opacity-30 animate-pulse' />
+              <CircularProgress sx={{ color: '#10b981' }} />
             </div>
           </div>
         ) : (
-          <button
+          <Button
             onClick={() => setHidden(false)}
-            className='group card-hover w-full rounded-2xl border-2 border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 text-card-foreground shadow-sm p-5 text-left focus-ring transition-all duration-300'
+            className='w-full md:w-1/4 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-lg shadow-violet-500/25 m-4 md:mx-0'
           >
-            <div className='flex items-center gap-4'>
-              <div className='relative flex-shrink-0'>
-                <div className='absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full blur-lg opacity-20 transition-opacity duration-300 group-hover:opacity-40 motion-reduce:transition-none' />
-                <div className='relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/25'>
-                  <Sparkles className='w-5 h-5 text-white' aria-hidden='true' />
-                </div>
-              </div>
-              <div className='min-w-0 flex-1'>
-                <p className='text-sm font-semibold leading-none tracking-tight text-card-foreground'>
-                  Generar con IA
-                </p>
-                <p className='text-sm text-muted-foreground mt-1'>
-                  Dicta tu transacción por voz
-                </p>
-              </div>
-              <ChevronRight className='w-5 h-5 text-muted-foreground transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none' aria-hidden='true' />
-            </div>
-          </button>
+            <svg className='w-4 h-4 mr-2' fill='none' stroke='currentColor' viewBox='0 0 24 24' aria-hidden='true'>
+              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z' />
+            </svg>
+            Generar con IA
+          </Button>
         )}
       </div>
-      <div className={`${hidden ? 'hidden' : 'flex'} fixed inset-0 z-50 h-full w-full`}>
+      <div className={`${hidden ? 'hidden' : 'flex'} h-full w-full`}>
         <MicrophoneComponent
           transcript={transcript}
           setTranscript={setTranscript}
