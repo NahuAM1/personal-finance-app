@@ -205,7 +205,7 @@ export function MicrophoneComponent({
   }, []);
 
   return (
-    <div className='flex flex-col items-center justify-between h-full w-full relative bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] overflow-hidden'>
+    <div className='flex flex-col items-center justify-between h-[100dvh] w-full relative bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] overflow-hidden overscroll-contain'>
       {/* Decorative background blobs — same style as dashboard */}
       <div className='absolute inset-0 overflow-hidden pointer-events-none'>
         <div className={`absolute -top-40 -right-40 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl transition-opacity duration-1000 motion-reduce:transition-none ${isRecording ? 'opacity-60' : 'opacity-30'}`} />

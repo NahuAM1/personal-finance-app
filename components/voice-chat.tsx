@@ -63,6 +63,17 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
   };
 
   useEffect(() => {
+    if (!hidden) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [hidden]);
+
+  useEffect(() => {
     const handleTranscript = async () => {
       if (transcript && transcriptDone) {
         await sendToOpenAI(transcript);
@@ -122,7 +133,7 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
           </button>
         )}
       </div>
-      <div className={`${hidden ? 'hidden' : 'flex'} fixed inset-0 z-50 h-full w-full`}>
+      <div className={`${hidden ? 'hidden' : 'flex'} fixed inset-0 z-50`}>
         <MicrophoneComponent
           transcript={transcript}
           setTranscript={setTranscript}
