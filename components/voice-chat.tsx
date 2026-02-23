@@ -8,7 +8,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { useToast } from '@/hooks/use-toast';
 
 interface VoiceChatProps {
-  onResponse?: (response: any) => void;
+  onResponse?: (response: string) => void;
 }
 
 export default function VoiceChat({ onResponse }: VoiceChatProps) {
