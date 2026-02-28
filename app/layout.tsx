@@ -4,6 +4,7 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { Toaster } from 'sonner';
 import { FormProvider } from '@/contexts/form-context';
+import { AuthProvider } from '@/contexts/auth-context';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -35,6 +36,7 @@ export default function RootLayout({
   return (
     <html lang='es' className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <body className={GeistSans.className}>
+        <AuthProvider>
         <FormProvider>
           {children}
           <Toaster
@@ -46,6 +48,7 @@ export default function RootLayout({
             }}
           />
         </FormProvider>
+        </AuthProvider>
       </body>
     </html>
   );

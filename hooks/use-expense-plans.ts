@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 // import { ExpensePlanService } from "@/components/expense-plans" // TODO: This service doesn't exist
-import { useAuth } from "./use-auth"
+import { useAuth } from "@/contexts/auth-context"
 import type { ExpensePlan } from "@/types/database"
 
 export function useExpensePlans() {
