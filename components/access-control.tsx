@@ -1,11 +1,11 @@
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
-import type { UserRole } from "@/types/database";
+import type { UserRoleValue, USER_ROLES } from "@/types/database";
 import type { ReactNode } from "react";
 
 interface AccessControlProps {
-  allowedRoles: UserRole[];
+  allowedRoles: UserRoleValue[];
   children: ReactNode;
   fallback?: ReactNode;
 }
@@ -15,7 +15,12 @@ export function AccessControl({
   children,
   fallback = null,
 }: AccessControlProps) {
-  const { hasRole } = useAuth();
+  const { hasRole, isAdmin } = useAuth();
+
+  // Admin always has access
+  if (isAdmin) {
+    return <>{children}</>;
+  }
 
   if (!hasRole(allowedRoles)) {
     return <>{fallback}</>;

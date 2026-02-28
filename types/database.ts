@@ -236,6 +236,15 @@ export interface Database {
 
 export type UserRole = 'admin' | 'premium' | 'free';
 
+export const USER_ROLES = {
+  ADMIN: 'admin',
+  PREMIUM: 'premium',
+  FREE: 'free',
+} as const;
+
+export type UserRoleKey = keyof typeof USER_ROLES;
+export type UserRoleValue = typeof USER_ROLES[UserRoleKey];
+
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"]
 export type ExpensePlan = Database["public"]["Tables"]["expense_plans"]["Row"]
 export type CreditPurchase = Database["public"]["Tables"]["credit_purchases"]["Row"]
