@@ -11,10 +11,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Settings, User, CreditCard } from 'lucide-react';
+import { LogOut, Settings, User, Crown, Star } from 'lucide-react';
+import { USER_ROLES } from '@/types/database';
 
 export function UserProfile() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, role } = useAuth();
 
   if (!user) {
     return null;
@@ -32,6 +33,31 @@ export function UserProfile() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const getRoleBadge = () => {
+    switch (role) {
+      case USER_ROLES.ADMIN:
+        return (
+          <span className="flex items-center justify-center gap-1 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-full">
+            <Crown className="w-3 h-3" />
+            Admin
+          </span>
+        );
+      case USER_ROLES.PREMIUM:
+        return (
+          <span className="flex items-center justify-center gap-1 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 px-2 py-0.5 rounded-full">
+            <Star className="w-3 h-3" />
+            Premium
+          </span>
+        );
+      default:
+        return (
+          <span className="flex items-center justify-center gap-1 text-xs bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 px-2 py-0.5 rounded-full">
+            Free
+          </span>
+        );
+    }
   };
 
   return (
@@ -55,7 +81,7 @@ export function UserProfile() {
               <div className='text-sm font-medium'>
                 {user.user_metadata?.full_name || 'Usuario'}
               </div>
-              <div className='text-xs text-gray-500'>{user.email}</div>
+              {getRoleBadge()}
             </div>
           </div>
         </Button>
@@ -69,6 +95,9 @@ export function UserProfile() {
             <p className='text-xs leading-none text-muted-foreground'>
               {user.email}
             </p>
+            <div className='pt-1'>
+              {getRoleBadge()}
+            </div>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
