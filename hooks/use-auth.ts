@@ -4,11 +4,33 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import type { UserRole } from "@/types/database";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<UserRole>('free');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Helper to extract role from user metadata
+  const getRoleFromUser = (userData: User | null): UserRole => {
+    if (!userData) return 'free';
+    // Supabase stores role in app_metadata
+    const userRole = (userData as any).app_metadata?.role;
+    if (userRole === 'admin' || userRole === 'premium' || userRole === 'free') {
+      return userRole;
+    }
+    return 'free';
+  };
+
+  // Helper methods
+  const hasRole = (roles: UserRole[]): boolean => {
+    return roles.includes(role);
+  };
+
+  const isAdmin = role === 'admin';
+  const isPremium = role === 'premium';
+  const isFree = role === 'free';
 
   useEffect(() => {
     let mounted = true;
@@ -20,7 +42,15 @@ export function useAuth() {
         } = await supabase.auth.getSession();
 
         if (mounted) {
-          setUser(session?.user ?? null);
+          // Get fresh user data to get updated role from database
+          if (session?.user) {
+            const { data: { user: freshUser } } = await supabase.auth.getUser();
+            setUser(freshUser);
+            setRole(getRoleFromUser(freshUser));
+          } else {
+            setUser(null);
+            setRole('free');
+          }
           setLoading(false);
         }
       } catch (error) {
@@ -36,7 +66,15 @@ export function useAuth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (mounted) {
-        setUser(session?.user ?? null);
+        // Get fresh user data to get updated role from database
+        if (session?.user) {
+          const { data: { user: freshUser } } = await supabase.auth.getUser();
+          setUser(freshUser);
+          setRole(getRoleFromUser(freshUser));
+        } else {
+          setUser(null);
+          setRole('free');
+        }
         setLoading(false);
         if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
           router.refresh();
@@ -98,6 +136,11 @@ export function useAuth() {
   return {
     user,
     loading,
+    role,
+    hasRole,
+    isAdmin,
+    isPremium,
+    isFree,
     signIn,
     signUp,
     signOut,

@@ -34,13 +34,14 @@ import { AuthGuard } from '@/components/auth-guard';
 import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
+import { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, USER_ROLES } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
 import Logo from '../assets/images/logo.svg';
 import { useFormContext } from '@/contexts/form-context';
 import VoiceChat from '@/components/voice-chat';
 import { Loader } from '@/components/loader';
+import { AccessControl } from '@/components/access-control';
 
 function FinanceAppContent() {
   const { user } = useAuth();
@@ -553,7 +554,9 @@ function FinanceAppContent() {
           </TabsContent>
 
           <TabsContent value='expenses'>
-            {user?.id && ["dbf7a94b-204a-482f-8e8c-f2d6a5e470b5", "23b75632-f264-4f50-ba4f-d395650e68df", "57de73bb-2059-4d6b-9d6a-b8f05b74b0f2"].includes(user?.id) && <VoiceChat onResponse={(data) => transcriptionHandler(data)} />}
+            <AccessControl allowedRoles={[USER_ROLES.PREMIUM]}>
+              <VoiceChat onResponse={(data) => transcriptionHandler(data)} />
+            </AccessControl>
             <div className='grid gap-6 md:grid-cols-2'>
               <Card>
                 <CardHeader>
