@@ -234,6 +234,8 @@ export interface Database {
   }
 }
 
+export type UserRole = 'admin' | 'premium' | 'free';
+
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"]
 export type ExpensePlan = Database["public"]["Tables"]["expense_plans"]["Row"]
 export type CreditPurchase = Database["public"]["Tables"]["credit_purchases"]["Row"]
