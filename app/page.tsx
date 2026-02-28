@@ -29,12 +29,13 @@ import {
   ClipboardList,
   TrendingUp,
 } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
 import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
-import { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, USER_ROLES } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
+import { USER_ROLES } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
 import Logo from '../assets/images/logo.svg';

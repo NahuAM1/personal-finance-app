@@ -1,7 +1,7 @@
 'use client';
 
 import type React from 'react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-context';
 import { LoginForm } from './login-form';
 import { Loader } from '@/components/loader';
 

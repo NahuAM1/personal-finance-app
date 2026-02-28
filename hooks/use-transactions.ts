@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { TransactionService } from "@/lib/transactions"
-import { useAuth } from "./use-auth"
+import { useAuth } from "@/contexts/auth-context"
 import type { Transaction } from "@/types/database"
 
 export function useTransactions() {

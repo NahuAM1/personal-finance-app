@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogIn, Shield, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-context';
 import Image from 'next/image';
 import Logo from '../assets/images/logo.svg';
 import GoogleLogo from '../assets/images/googleLogo.svg';
