@@ -8,6 +8,7 @@ export enum OpenAIModels {
   QWEN_VL = "qwen/qwen3-vl-235b-a22b-thinking",
   NVIDIA = "nvidia/nemotron-3-nano-30b-a3b:free",
   ARCEE = "arcee-ai/trinity-large-preview:free",
+  GEMINI_2_5_FLASH = "gemini-2.5-flash",
 }
 
 export enum TransactionsTypes {

@@ -2,35 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { USER_ROLES, type UserRole } from "@/types/database";
 import { OpenAIModels } from "@/public/enums";
-import OpenAI from "openai";
+import { scanReceiptPrompt } from "@/public/promts/scan-receipt";
+import { GoogleGenAI } from "@google/genai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_API_BASE_URL,
+const genai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
 });
-
-const SCAN_PROMPT = `Eres un experto en OCR de tickets de compra. Analiza la imagen del ticket y extrae la información en formato JSON estricto.
-
-Responde SOLO con un JSON válido, sin markdown ni texto adicional:
-
-{
-  "store_name": "Nombre de la tienda/supermercado",
-  "ticket_date": "YYYY-MM-DD",
-  "items": [
-    {
-      "product_name": "Nombre del producto",
-      "quantity": 1,
-      "unit_price": 100.00,
-      "total_price": 100.00,
-      "category": "Categoría"
-    }
-  ],
-  "total": 1000.00
-}
-
-Categorías posibles para items: "Lácteos", "Carnes", "Frutas y Verduras", "Panadería", "Bebidas", "Limpieza", "Higiene", "Snacks", "Congelados", "Condimentos", "Almacén", "Otros".
-
-Si no puedes leer algún campo, usa valores razonables basados en el contexto. La fecha debe estar en formato YYYY-MM-DD. Los precios deben ser números decimales.`;
 
 export async function POST(request: NextRequest) {
   const supabase = createSupabaseServerClient();
@@ -60,7 +37,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
-    // Convert image to base64 for Gemini
     const bytes = await imageFile.arrayBuffer();
     const base64Image = Buffer.from(bytes).toString("base64");
     const mimeType = imageFile.type || "image/jpeg";
@@ -85,27 +61,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call Gemini via OpenRouter for OCR
-    const response = await openai.chat.completions.create({
-      model: OpenAIModels.QWEN_VL,
-      messages: [
+    // Call Gemini for OCR
+    const response = await genai.models.generateContent({
+      model: OpenAIModels.GEMINI_2_5_FLASH,
+      contents: [
         {
-          role: "user",
-          content: [
-            { type: "text", text: SCAN_PROMPT },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${base64Image}`,
-              },
-            },
-          ],
+          inlineData: {
+            data: base64Image,
+            mimeType,
+          },
         },
+        scanReceiptPrompt,
       ],
-      temperature: 0.1,
+      config: {
+        temperature: 0.1,
+      },
     });
 
-    const rawContent = response.choices[0]?.message?.content || "";
+    const rawContent = response.text ?? "";
 
     // Parse the JSON response
     const jsonMatch =

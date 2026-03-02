@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { USER_ROLES, type UserRole } from "@/types/database";
 import { OpenAIModels } from "@/public/enums";
-import OpenAI from "openai";
+import { shoppingRecommendationsPrompt } from "@/public/promts/shopping-recommendations";
+import { GoogleGenAI } from "@google/genai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_API_BASE_URL,
+const genai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
 export async function POST(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   if (!authorizedRoles.includes(userRole)) {
     return NextResponse.json(
       { error: "Forbidden: Premium required" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -58,66 +58,60 @@ export async function POST(request: NextRequest) {
 
     if (lastYearError) throw lastYearError;
 
-    if ((!recentTickets || recentTickets.length === 0) && (!lastYearTickets || lastYearTickets.length === 0)) {
+    if (
+      (!recentTickets || recentTickets.length === 0) &&
+      (!lastYearTickets || lastYearTickets.length === 0)
+    ) {
       return NextResponse.json({
         recommendations: [],
-        message: "No hay suficientes datos para generar recomendaciones. Escanea más tickets.",
+        message:
+          "No hay suficientes datos para generar recomendaciones. Escanea más tickets.",
       });
     }
 
     // Build context for AI
     const recentItems = (recentTickets || []).flatMap((t) =>
-      ((t as Record<string, unknown>).ticket_items as Array<Record<string, unknown>> || []).map((item) => ({
+      (
+        ((t as Record<string, unknown>).ticket_items as Array<
+          Record<string, unknown>
+        >) || []
+      ).map((item) => ({
         product: item.product_name,
         quantity: item.quantity,
         price: item.total_price,
         category: item.category,
         date: (t as Record<string, unknown>).ticket_date,
         store: (t as Record<string, unknown>).store_name,
-      }))
+      })),
     );
 
     const lastYearItems = (lastYearTickets || []).flatMap((t) =>
-      ((t as Record<string, unknown>).ticket_items as Array<Record<string, unknown>> || []).map((item) => ({
+      (
+        ((t as Record<string, unknown>).ticket_items as Array<
+          Record<string, unknown>
+        >) || []
+      ).map((item) => ({
         product: item.product_name,
         quantity: item.quantity,
         price: item.total_price,
         category: item.category,
-      }))
+      })),
     );
 
-    const prompt = `Eres un asistente de compras inteligente. Analiza el historial de compras del usuario y genera una lista de compras recomendada.
+    const prompt = shoppingRecommendationsPrompt(
+      JSON.stringify(recentItems, null, 2),
+      JSON.stringify(lastYearItems, null, 2),
+    );
 
-Compras recientes (últimos 10 tickets):
-${JSON.stringify(recentItems, null, 2)}
-
-Compras del mismo mes del año pasado:
-${JSON.stringify(lastYearItems, null, 2)}
-
-Genera una lista de compras recomendada en formato JSON. Responde SOLO con JSON válido, sin markdown:
-
-{
-  "recommendations": [
-    {
-      "product_name": "Nombre del producto",
-      "suggested_quantity": 1,
-      "estimated_price": 100.00,
-      "frequency": "Semanal",
-      "reason": "Razón breve de la recomendación"
-    }
-  ],
-  "insights": "Un párrafo breve con insights sobre los patrones de compra del usuario"
-}
-
-Incluye entre 10 y 20 productos. Prioriza productos que el usuario compra frecuentemente. Estima precios basándote en los datos históricos.`;
-
-    const response = await openai.chat.completions.create({
-      model: OpenAIModels.GEMMA_3,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
+    const response = await genai.models.generateContent({
+      model: OpenAIModels.GEMINI_2_5_FLASH,
+      contents: [prompt],
+      config: {
+        temperature: 0.3,
+      },
     });
 
-    const rawContent = response.choices[0]?.message?.content || "";
+    const rawContent = response.text ?? "";
 
     const jsonMatch =
       rawContent.match(/```json([\s\S]*?)```/) ||
@@ -135,7 +129,7 @@ Incluye entre 10 y 20 productos. Prioriza productos que el usuario compra frecue
     console.error("Error generating recommendations:", error);
     return NextResponse.json(
       { error: "Error generating recommendations" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

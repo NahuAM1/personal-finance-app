@@ -1,5 +1,5 @@
-import { transcriptionPromt } from '../promts/transcriptions';
+import { transcriptionPrompt } from '../promts/transcriptions';
 
 export function replaceTranscriptionPlaceholder(transcription: string): string {
-  return transcriptionPromt.replace('<TRANSCRIPTION/>', transcription);
+  return transcriptionPrompt.replace('<TRANSCRIPTION/>', transcription);
 }

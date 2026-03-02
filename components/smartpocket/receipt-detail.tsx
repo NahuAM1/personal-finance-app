@@ -112,18 +112,19 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Ticket image */}
-        <Card className="border-purple-200 dark:border-purple-800">
+        <Card className="border-purple-200 dark:border-purple-800 overflow-hidden">
           <CardHeader>
             <CardTitle className="text-lg">Imagen del Ticket</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-6">
             {imageUrl ? (
-              <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden border border-purple-100 dark:border-purple-800">
+              <div className="max-h-[70vh] overflow-auto rounded-lg border border-purple-100 dark:border-purple-800">
                 <Image
                   src={imageUrl}
                   alt={`Ticket de ${ticket.store_name}`}
-                  fill
-                  className="object-contain"
+                  width={400}
+                  height={800}
+                  className="w-full max-w-full h-auto object-contain"
                 />
               </div>
             ) : (

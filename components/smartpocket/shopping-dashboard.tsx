@@ -16,6 +16,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from 'recharts';
 import * as smartpocketApi from '@/lib/smartpocket-api';
 import { useAuth } from '@/contexts/auth-context';
@@ -66,7 +67,11 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
       });
     }
     return Array.from(productCounts.entries())
-      .map(([name, data]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), ...data }))
+      .map(([name, data]) => {
+        const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
+        const truncated = capitalized.length > 18 ? capitalized.slice(0, 16) + '...' : capitalized;
+        return { name: truncated, fullName: capitalized, ...data };
+      })
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
   }, [allItems]);
@@ -227,19 +232,23 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
               <CardDescription>Productos más comprados por cantidad</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-72">
+              <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topProducts} layout="vertical" margin={{ left: 20 }}>
+                  <BarChart data={topProducts} layout="vertical" margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
+                    <XAxis type="number" allowDecimals={false} />
                     <YAxis
                       type="category"
                       dataKey="name"
-                      width={100}
+                      width={120}
                       tick={{ fontSize: 11 }}
                     />
                     <Tooltip
                       formatter={(value: number) => [`${value} unidades`, 'Cantidad']}
+                      labelFormatter={(label: string) => {
+                        const item = topProducts.find(p => p.name === label);
+                        return item?.fullName || label;
+                      }}
                     />
                     <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
                   </BarChart>
@@ -257,7 +266,7 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
               <CardDescription>Distribución de gasto en productos</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-72">
+              <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -265,11 +274,15 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={({ name, percent }) =>
-                        `${name} ${(percent * 100).toFixed(0)}%`
-                      }
+                      cy="45%"
+                      outerRadius={70}
+                      innerRadius={30}
+                      label={({ name, percent }) => {
+                        const pct = percent * 100;
+                        if (pct < 8) return '';
+                        return `${name} ${pct.toFixed(0)}%`;
+                      }}
+                      labelLine={false}
                     >
                       {categorySpending.map((_entry, index) => (
                         <Cell key={index} fill={COLORS[index % COLORS.length]} />
@@ -280,6 +293,18 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
                         `$${value.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
                         'Gasto',
                       ]}
+                    />
+                    <Legend
+                      layout="horizontal"
+                      verticalAlign="bottom"
+                      align="center"
+                      wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                      formatter={(value: string) => {
+                        const total = categorySpending.reduce((sum, c) => sum + c.value, 0);
+                        const item = categorySpending.find(c => c.name === value);
+                        const pct = item && total > 0 ? ((item.value / total) * 100).toFixed(0) : '0';
+                        return `${value} (${pct}%)`;
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
