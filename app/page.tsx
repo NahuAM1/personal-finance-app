@@ -28,6 +28,7 @@ import {
   MapPin,
   ClipboardList,
   TrendingUp,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
@@ -38,6 +39,7 @@ import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Inves
 import { USER_ROLES } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
+import Link from 'next/link';
 import Logo from '../assets/images/logo.svg';
 import { useFormContext } from '@/contexts/form-context';
 import VoiceChat from '@/components/voice-chat';
@@ -507,7 +509,18 @@ function FinanceAppContent() {
               Personal Wallet
             </h1>
           </div>
-          <UserProfile />
+          <div className="flex items-center gap-2">
+            <AccessControl allowedRoles={[USER_ROLES.PREMIUM, USER_ROLES.ADMIN]}>
+              <Link
+                href="/smartpocket"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full bg-gradient-to-r from-purple-600 to-violet-600 text-white hover:from-purple-700 hover:to-violet-700 transition-all shadow-sm"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span className="hidden sm:inline">SmartPocket</span>
+              </Link>
+            </AccessControl>
+            <UserProfile />
+          </div>
         </div>
 
         <Tabs defaultValue='dashboard' className='space-y-6'>
