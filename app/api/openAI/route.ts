@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
   const authorizedRoles: UserRole[] = [USER_ROLES.PREMIUM, USER_ROLES.ADMIN];
   const userRole = user.app_metadata?.role;
 
-
   if (!authorizedRoles.includes(userRole)) {
     return NextResponse.json(
       { error: "Forbidden: Premium required" },
