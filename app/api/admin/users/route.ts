@@ -56,6 +56,98 @@ export async function GET() {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  const { user, error } = await getAuthenticatedAdmin();
+
+  if (error === 'Unauthorized') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (error === 'Forbidden' || !user) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    const { userId, email, full_name, password } = body as {
+      userId: string;
+      email?: string;
+      full_name?: string;
+      password?: string;
+    };
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    if (userId === user.id) {
+      return NextResponse.json(
+        { error: 'No podés editarte a vos mismo desde el panel de admin' },
+        { status: 400 }
+      );
+    }
+
+    const updateData: { email?: string; password?: string; user_metadata?: { full_name: string } } = {};
+    if (email) updateData.email = email;
+    if (password) updateData.password = password;
+    if (full_name !== undefined) updateData.user_metadata = { full_name };
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    const adminClient = createSupabaseAdminClient();
+    const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, updateData);
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('Error updating user:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const { user, error } = await getAuthenticatedAdmin();
+
+  if (error === 'Unauthorized') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (error === 'Forbidden' || !user) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    if (userId === user.id) {
+      return NextResponse.json(
+        { error: 'No podés eliminarte a vos mismo' },
+        { status: 400 }
+      );
+    }
+
+    const adminClient = createSupabaseAdminClient();
+    const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: NextRequest) {
   const { user, error } = await getAuthenticatedAdmin();
 
