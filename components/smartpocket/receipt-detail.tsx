@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Trash2, Pencil, Save, X, Store, Calendar, Loader2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Pencil, Save, X, Store, Calendar, Loader2, ZoomIn } from 'lucide-react';
 import type { Ticket, TicketItem } from '@/types/database';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -104,13 +105,13 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-full overflow-hidden">
       <Button variant="ghost" onClick={onBack} className="mb-2">
         <ArrowLeft className="h-4 w-4 mr-2" />
         Volver a la lista
       </Button>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 min-w-0">
         {/* Ticket image */}
         <Card className="border-purple-200 dark:border-purple-800 overflow-hidden">
           <CardHeader>
@@ -118,15 +119,43 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
           </CardHeader>
           <CardContent className="p-3 sm:p-6">
             {imageUrl ? (
-              <div className="max-h-[70vh] overflow-auto rounded-lg border border-purple-100 dark:border-purple-800">
-                <Image
-                  src={imageUrl}
-                  alt={`Ticket de ${ticket.store_name}`}
-                  width={400}
-                  height={800}
-                  className="w-full max-w-full h-auto object-contain"
-                />
-              </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <div className="relative max-h-[200px] overflow-hidden rounded-lg border border-purple-100 dark:border-purple-800 cursor-pointer group">
+                    <Image
+                      src={imageUrl}
+                      alt={`Ticket de ${ticket.store_name}`}
+                      width={400}
+                      height={800}
+                      className="w-full max-w-full h-auto object-contain"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <div className="bg-white/90 dark:bg-gray-800/90 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                        <ZoomIn className="h-5 w-5 text-purple-600" />
+                      </div>
+                    </div>
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/50 to-transparent p-2 text-center">
+                      <span className="text-white text-xs font-medium">Toca para ampliar</span>
+                    </div>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="max-w-[95vw] max-h-[90vh] p-2 sm:p-4 border-purple-200 dark:border-purple-800 bg-white dark:bg-gray-900">
+                  <DialogHeader>
+                    <DialogTitle className="text-sm text-purple-700 dark:text-purple-300">
+                      Ticket de {ticket.store_name}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="overflow-auto max-h-[80vh] rounded-lg">
+                    <Image
+                      src={imageUrl}
+                      alt={`Ticket de ${ticket.store_name}`}
+                      width={800}
+                      height={1600}
+                      className="w-full h-auto object-contain"
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
             ) : (
               <div className="flex items-center justify-center h-64 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                 <p className="text-gray-500">Cargando imagen...</p>
@@ -136,8 +165,8 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
         </Card>
 
         {/* Ticket details */}
-        <div className="space-y-4">
-          <Card className="border-purple-200 dark:border-purple-800">
+        <div className="space-y-4 min-w-0">
+          <Card className="border-purple-200 dark:border-purple-800 overflow-hidden">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -155,7 +184,7 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
               </div>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
                   {format(new Date(ticket.ticket_date + 'T12:00:00'), "dd 'de' MMMM, yyyy", { locale: es })}
@@ -168,7 +197,7 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
           </Card>
 
           {/* Items table */}
-          <Card className="border-purple-200 dark:border-purple-800">
+          <Card className="border-purple-200 dark:border-purple-800 overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg">
                 Items ({items.length})
