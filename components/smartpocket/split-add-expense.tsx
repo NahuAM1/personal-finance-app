@@ -167,7 +167,8 @@ export function SplitAddExpense({
               id="expense-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="ej: Cena en el restaurante"
+              placeholder="ej: Cena en el restaurante\u2026"
+              className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
             />
           </div>
 
@@ -180,13 +181,14 @@ export function SplitAddExpense({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
+              className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="expense-payer">Pagó</Label>
             <Select value={paidByMemberId} onValueChange={setPaidByMemberId}>
-              <SelectTrigger id="expense-payer">
+              <SelectTrigger id="expense-payer" className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20">
                 <SelectValue placeholder="¿Quién pagó?" />
               </SelectTrigger>
               <SelectContent>
@@ -206,6 +208,7 @@ export function SplitAddExpense({
               type="date"
               value={expenseDate}
               onChange={(e) => setExpenseDate(e.target.value)}
+              className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
             />
           </div>
 
@@ -215,14 +218,15 @@ export function SplitAddExpense({
               id="expense-category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="ej: Comida, Transporte"
+              placeholder="ej: Comida, Transporte\u2026"
+              className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Cómo dividir</Label>
+            <Label htmlFor="expense-split-method">Cómo dividir</Label>
             <Select value={splitMethod} onValueChange={(v) => setSplitMethod(v as 'equal' | 'custom' | 'percentage')}>
-              <SelectTrigger>
+              <SelectTrigger id="expense-split-method" className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -235,7 +239,7 @@ export function SplitAddExpense({
 
           {splitMethod === 'equal' && amount && (
             <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-sm">
-              <p className="text-purple-700 dark:text-purple-300">
+              <p className="text-purple-700 dark:text-purple-300 tabular-nums">
                 Cada persona paga: ${(parseFloat(amount) / acceptedMembers.length).toFixed(2)}
               </p>
             </div>
@@ -249,8 +253,9 @@ export function SplitAddExpense({
                   <Input
                     type="number"
                     step="0.01"
-                    className="w-28"
+                    className="w-28 hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
                     placeholder={splitMethod === 'percentage' ? '%' : '$'}
+                    aria-label={`${splitMethod === 'percentage' ? 'Porcentaje' : 'Monto'} para ${member.display_name}`}
                     value={customAmounts[member.id] || ''}
                     onChange={(e) =>
                       setCustomAmounts({ ...customAmounts, [member.id]: e.target.value })
@@ -271,7 +276,7 @@ export function SplitAddExpense({
           >
             {saving ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                 Guardando...
               </>
             ) : (

@@ -1,5 +1,8 @@
 'use client';
 
+import { Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Receipt, ShoppingCart, Users } from 'lucide-react';
 import { AuthGuard } from '@/components/auth-guard';
@@ -14,11 +17,22 @@ import { SplitGroups } from '@/components/smartpocket/split-groups';
 import { SplitGroupDetail } from '@/components/smartpocket/split-group-detail';
 import { useTickets } from '@/hooks/use-tickets';
 import { useSplitGroups } from '@/hooks/use-split-groups';
-import { useState } from 'react';
 import { Loader } from '@/components/loader';
 import type { Ticket } from '@/types/database';
+import SmartPocketLogo from '@/assets/images/smartPocketLogo.svg';
+
+const VALID_TABS = ['tickets', 'shopping', 'split'] as const;
+type TabValue = (typeof VALID_TABS)[number];
 
 function SmartPocketContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const rawTab = searchParams.get('tab');
+  const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue)
+    ? (rawTab as TabValue)
+    : 'tickets';
+
   const {
     tickets,
     loading: ticketsLoading,
@@ -38,35 +52,39 @@ function SmartPocketContent() {
     refetchGroups,
   } = useSplitGroups();
 
-  const [activeTab, setActiveTab] = useState('tickets');
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   if (ticketsLoading || groupsLoading) {
     return <Loader />;
   }
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
       <div className="flex items-center justify-center">
         <TabsList className="w-full max-w-lg justify-around bg-purple-100/50 dark:bg-purple-900/20">
           <TabsTrigger
             value="tickets"
-            className="flex items-center gap-2 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300"
+            className="flex items-center gap-2 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 focus-visible:ring-purple-500"
           >
-            <Receipt className="h-4 w-4" />
+            <Receipt className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">Tickets</span>
           </TabsTrigger>
           <TabsTrigger
             value="shopping"
-            className="flex items-center gap-2 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300"
+            className="flex items-center gap-2 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 focus-visible:ring-purple-500"
           >
-            <ShoppingCart className="h-4 w-4" />
+            <ShoppingCart className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">Compras Inteligentes</span>
           </TabsTrigger>
           <TabsTrigger
             value="split"
-            className="flex items-center gap-2 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300"
+            className="flex items-center gap-2 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 focus-visible:ring-purple-500"
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">Dividir Gastos</span>
           </TabsTrigger>
         </TabsList>
@@ -128,7 +146,7 @@ function SmartPocketPremiumGate() {
       fallback={
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
           <div className="w-20 h-20 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-6">
-            <Receipt className="h-10 w-10 text-purple-600 dark:text-purple-400" />
+            <Image src={SmartPocketLogo} alt="" width={48} height={48} aria-hidden="true" className="h-12 w-12" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             SmartPocket es Premium
@@ -146,7 +164,9 @@ function SmartPocketPremiumGate() {
         </div>
       }
     >
-      <SmartPocketContent />
+      <Suspense fallback={<Loader />}>
+        <SmartPocketContent />
+      </Suspense>
     </AccessControl>
   );
 }

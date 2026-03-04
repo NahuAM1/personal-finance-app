@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, ShoppingBag, TrendingUp, Receipt, Loader2 } from 'lucide-react';
+import { BarChart3, ShoppingBag, TrendingUp, Receipt } from 'lucide-react';
 import type { Ticket, TicketItem } from '@/types/database';
+import { Loader } from '@/components/loader';
 import {
   BarChart,
   Bar,
@@ -69,7 +70,7 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
     return Array.from(productCounts.entries())
       .map(([name, data]) => {
         const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
-        const truncated = capitalized.length > 18 ? capitalized.slice(0, 16) + '...' : capitalized;
+        const truncated = capitalized.length > 18 ? capitalized.slice(0, 16) + '\u2026' : capitalized;
         return { name: truncated, fullName: capitalized, ...data };
       })
       .sort((a, b) => b.count - a.count)
@@ -135,20 +136,14 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
   }, [tickets]);
 
   if (loading) {
-    return (
-      <Card className="border-purple-200 dark:border-purple-800">
-        <CardContent className="py-12 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-        </CardContent>
-      </Card>
-    );
+    return <Loader />;
   }
 
   if (tickets.length === 0) {
     return (
       <Card className="border-purple-200 dark:border-purple-800">
         <CardContent className="py-12 text-center">
-          <BarChart3 className="h-12 w-12 text-purple-300 dark:text-purple-700 mx-auto mb-4" />
+          <BarChart3 className="h-12 w-12 text-purple-300 dark:text-purple-700 mx-auto mb-4" aria-hidden="true" />
           <p className="text-gray-500 dark:text-gray-400">
             Escanea tickets para ver tu dashboard de compras inteligente.
           </p>
@@ -165,11 +160,11 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                <Receipt className="h-5 w-5 text-purple-600" />
+                <Receipt className="h-5 w-5 text-purple-600" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Tickets</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">{tickets.length}</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{tickets.length}</p>
               </div>
             </div>
           </CardContent>
@@ -179,11 +174,11 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                <ShoppingBag className="h-5 w-5 text-purple-600" />
+                <ShoppingBag className="h-5 w-5 text-purple-600" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Productos</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">{allItems.length}</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{allItems.length}</p>
               </div>
             </div>
           </CardContent>
@@ -193,11 +188,11 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-purple-600" />
+                <TrendingUp className="h-5 w-5 text-purple-600" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Promedio/Ticket</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                <p className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">
                   ${avgTicketAmount.toLocaleString('es-AR')}
                 </p>
               </div>
@@ -209,11 +204,11 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-purple-600" />
+                <BarChart3 className="h-5 w-5 text-purple-600" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Frecuencia</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                <p className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">
                   {shoppingFrequency > 0 ? `Cada ${shoppingFrequency} días` : '-'}
                 </p>
               </div>

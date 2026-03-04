@@ -3,6 +3,16 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -27,6 +37,8 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<TicketItem>>({});
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [ticketToDelete, setTicketToDelete] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -107,7 +119,7 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
   return (
     <div className="space-y-4 max-w-full overflow-hidden">
       <Button variant="ghost" onClick={onBack} className="mb-2">
-        <ArrowLeft className="h-4 w-4 mr-2" />
+        <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
         Volver a la lista
       </Button>
 
@@ -131,7 +143,7 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                       <div className="bg-white/90 dark:bg-gray-800/90 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                        <ZoomIn className="h-5 w-5 text-purple-600" />
+                        <ZoomIn className="h-5 w-5 text-purple-600" aria-hidden="true" />
                       </div>
                     </div>
                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/50 to-transparent p-2 text-center">
@@ -158,7 +170,7 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
               </Dialog>
             ) : (
               <div className="flex items-center justify-center h-64 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <p className="text-gray-500">Cargando imagen...</p>
+                <p className="text-gray-500">Cargando imagen\u2026</p>
               </div>
             )}
           </CardContent>
@@ -170,26 +182,27 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Store className="h-5 w-5 text-purple-600" />
+                  <Store className="h-5 w-5 text-purple-600" aria-hidden="true" />
                   {ticket.store_name}
                 </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
+                  aria-label="Eliminar ticket"
                   className="text-red-500 hover:text-red-700"
-                  onClick={() => onDelete(ticket.id)}
+                  onClick={() => setTicketToDelete(true)}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="h-4 w-4" aria-hidden="true" />
                   {format(new Date(ticket.ticket_date + 'T12:00:00'), "dd 'de' MMMM, yyyy", { locale: es })}
                 </div>
-                <Badge className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-0">
+                <Badge className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-0 tabular-nums">
                   Total: ${ticket.total_amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                 </Badge>
               </div>
@@ -206,7 +219,7 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+                  <Loader2 className="h-6 w-6 animate-spin text-purple-600" aria-hidden="true" />
                 </div>
               ) : items.length === 0 ? (
                 <p className="text-center text-gray-500 py-4">No se encontraron items</p>
@@ -222,28 +235,33 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
                           <Input
                             value={editValues.product_name || ''}
                             onChange={(e) => setEditValues({ ...editValues, product_name: e.target.value })}
-                            placeholder="Producto"
-                            className="col-span-2"
+                            placeholder="Producto\u2026"
+                            aria-label="Nombre del producto"
+                            className="col-span-2 hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
                           />
                           <Input
                             type="number"
                             value={editValues.quantity || 0}
                             onChange={(e) => setEditValues({ ...editValues, quantity: parseFloat(e.target.value) })}
                             placeholder="Cantidad"
+                            aria-label="Cantidad"
+                            className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
                           />
                           <Input
                             type="number"
                             value={editValues.unit_price || 0}
                             onChange={(e) => setEditValues({ ...editValues, unit_price: parseFloat(e.target.value), total_price: parseFloat(e.target.value) * (editValues.quantity || 1) })}
                             placeholder="Precio unitario"
+                            aria-label="Precio unitario"
+                            className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
                           />
                           <div className="col-span-2 flex gap-2">
                             <Button size="sm" onClick={() => saveItem(item.id)} className="bg-purple-600 hover:bg-purple-700 text-white">
-                              <Save className="h-3 w-3 mr-1" />
+                              <Save className="h-3 w-3 mr-1" aria-hidden="true" />
                               Guardar
                             </Button>
                             <Button size="sm" variant="ghost" onClick={cancelEditing}>
-                              <X className="h-3 w-3 mr-1" />
+                              <X className="h-3 w-3 mr-1" aria-hidden="true" />
                               Cancelar
                             </Button>
                           </div>
@@ -254,7 +272,7 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
                             <p className="font-medium text-sm text-gray-900 dark:text-white truncate">
                               {item.product_name}
                             </p>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <div className="flex items-center gap-2 text-xs text-gray-500 tabular-nums">
                               <span>{item.quantity} x ${item.unit_price.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                               {item.category && (
                                 <Badge variant="outline" className="text-xs py-0 px-1.5">
@@ -263,15 +281,15 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
                               )}
                             </div>
                           </div>
-                          <span className="font-semibold text-sm text-purple-700 dark:text-purple-300">
+                          <span className="font-semibold text-sm text-purple-700 dark:text-purple-300 tabular-nums">
                             ${item.total_price.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                           </span>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => startEditing(item)} className="h-7 w-7 p-0">
-                              <Pencil className="h-3 w-3" />
+                            <Button variant="ghost" size="sm" onClick={() => startEditing(item)} className="h-7 w-7 p-0" aria-label={`Editar ${item.product_name}`}>
+                              <Pencil className="h-3 w-3" aria-hidden="true" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => deleteItem(item.id)} className="h-7 w-7 p-0 text-red-500 hover:text-red-700">
-                              <Trash2 className="h-3 w-3" />
+                            <Button variant="ghost" size="sm" onClick={() => setItemToDelete(item.id)} className="h-7 w-7 p-0 text-red-500 hover:text-red-700" aria-label={`Eliminar ${item.product_name}`}>
+                              <Trash2 className="h-3 w-3" aria-hidden="true" />
                             </Button>
                           </div>
                         </>
@@ -284,6 +302,53 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
           </Card>
         </div>
       </div>
+
+      {/* Delete ticket confirmation */}
+      <AlertDialog open={ticketToDelete} onOpenChange={setTicketToDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar ticket</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará el ticket de {ticket.store_name} y todos sus items asociados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => onDelete(ticket.id)}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete item confirmation */}
+      <AlertDialog open={itemToDelete !== null} onOpenChange={(open) => { if (!open) setItemToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará este item del ticket.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (itemToDelete) {
+                  await deleteItem(itemToDelete);
+                  setItemToDelete(null);
+                }
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -5,15 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   ArrowLeft,
   Plus,
   UserPlus,
-  Loader2,
   Trash2,
   ArrowRightLeft,
   Users,
   Receipt,
 } from 'lucide-react';
+import { Loader } from '@/components/loader';
 import type {
   SplitGroup,
   SplitGroupMember,
@@ -46,6 +56,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [activeView, setActiveView] = useState<'expenses' | 'settlements'>('expenses');
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -136,20 +147,14 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
   };
 
   if (loading) {
-    return (
-      <Card className="border-purple-200 dark:border-purple-800">
-        <CardContent className="py-12 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-        </CardContent>
-      </Card>
-    );
+    return <Loader />;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
           Volver
         </Button>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">{group.name}</h2>
@@ -161,7 +166,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4 text-purple-600" />
+              <Users className="h-4 w-4 text-purple-600" aria-hidden="true" />
               Miembros ({members.length})
             </CardTitle>
             <Button
@@ -170,7 +175,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
               onClick={() => setShowInvite(true)}
               className="border-purple-200"
             >
-              <UserPlus className="h-4 w-4 mr-1" />
+              <UserPlus className="h-4 w-4 mr-1" aria-hidden="true" />
               Invitar
             </Button>
           </div>
@@ -196,7 +201,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
                     </div>
                   </div>
                   <span
-                    className={`text-sm font-semibold ${
+                    className={`text-sm font-semibold tabular-nums ${
                       balance > 0.01
                         ? 'text-green-600'
                         : balance < -0.01
@@ -220,7 +225,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
       {/* Total & Action buttons */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-4">
-          <Badge className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-0 text-sm py-1 px-3">
+          <Badge className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-0 text-sm py-1 px-3 tabular-nums">
             Total: ${totalGroupSpending.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
           </Badge>
           <div className="flex gap-1">
@@ -230,7 +235,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
               onClick={() => setActiveView('expenses')}
               className={activeView === 'expenses' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'border-purple-200'}
             >
-              <Receipt className="h-4 w-4 mr-1" />
+              <Receipt className="h-4 w-4 mr-1" aria-hidden="true" />
               Gastos
             </Button>
             <Button
@@ -239,7 +244,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
               onClick={() => setActiveView('settlements')}
               className={activeView === 'settlements' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'border-purple-200'}
             >
-              <ArrowRightLeft className="h-4 w-4 mr-1" />
+              <ArrowRightLeft className="h-4 w-4 mr-1" aria-hidden="true" />
               Deudas
             </Button>
           </div>
@@ -248,7 +253,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
           onClick={() => setShowAddExpense(true)}
           className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
           Agregar Gasto
         </Button>
       </div>
@@ -259,7 +264,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
           <CardContent className="pt-6">
             {expenses.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                <Receipt className="h-10 w-10 mx-auto mb-3 text-purple-300" />
+                <Receipt className="h-10 w-10 mx-auto mb-3 text-purple-300" aria-hidden="true" />
                 <p>No hay gastos en este grupo todavía</p>
               </div>
             ) : (
@@ -290,16 +295,17 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="font-semibold text-purple-700 dark:text-purple-300">
+                      <span className="font-semibold text-purple-700 dark:text-purple-300 tabular-nums">
                         ${expense.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </span>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteExpense(expense.id)}
+                        aria-label={`Eliminar gasto: ${expense.description}`}
+                        onClick={() => setExpenseToDelete(expense.id)}
                         className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -315,6 +321,32 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
           onSettle={loadData}
         />
       )}
+
+      {/* Delete expense confirmation */}
+      <AlertDialog open={expenseToDelete !== null} onOpenChange={(open) => { if (!open) setExpenseToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar gasto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará el gasto y todas las divisiones asociadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (expenseToDelete) {
+                  await handleDeleteExpense(expenseToDelete);
+                  setExpenseToDelete(null);
+                }
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add Expense Dialog */}
       {showAddExpense && (

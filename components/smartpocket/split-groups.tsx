@@ -88,7 +88,7 @@ export function SplitGroups({ groups, onSelectGroup, onGroupCreated }: SplitGrou
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-purple-600" />
+              <Users className="h-5 w-5 text-purple-600" aria-hidden="true" />
               Dividir Gastos
             </CardTitle>
             <CardDescription>
@@ -98,7 +98,7 @@ export function SplitGroups({ groups, onSelectGroup, onGroupCreated }: SplitGrou
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white">
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                 Nuevo Grupo
               </Button>
             </DialogTrigger>
@@ -116,7 +116,8 @@ export function SplitGroups({ groups, onSelectGroup, onGroupCreated }: SplitGrou
                     id="group-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="ej: Viaje a la costa"
+                    placeholder="ej: Viaje a la costa\u2026"
+                    className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
                   />
                 </div>
                 <div className="space-y-2">
@@ -125,14 +126,14 @@ export function SplitGroups({ groups, onSelectGroup, onGroupCreated }: SplitGrou
                     id="group-desc"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="ej: Gastos del viaje de vacaciones"
+                    placeholder="ej: Gastos del viaje de vacaciones\u2026"
                     rows={2}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="group-currency">Moneda</Label>
                   <Select value={currency} onValueChange={setCurrency}>
-                    <SelectTrigger id="group-currency">
+                    <SelectTrigger id="group-currency" className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -157,7 +158,7 @@ export function SplitGroups({ groups, onSelectGroup, onGroupCreated }: SplitGrou
       <CardContent>
         {groups.length === 0 ? (
           <div className="text-center py-12">
-            <Users className="h-12 w-12 text-purple-300 dark:text-purple-700 mx-auto mb-4" />
+            <Users className="h-12 w-12 text-purple-300 dark:text-purple-700 mx-auto mb-4" aria-hidden="true" />
             <p className="text-gray-500 dark:text-gray-400">
               No tienes grupos todavía. Crea uno para empezar a dividir gastos.
             </p>
@@ -165,10 +166,11 @@ export function SplitGroups({ groups, onSelectGroup, onGroupCreated }: SplitGrou
         ) : (
           <div className="space-y-3">
             {groups.map((group) => (
-              <div
+              <button
+                type="button"
                 key={group.id}
                 onClick={() => onSelectGroup(group)}
-                className="flex items-center justify-between p-4 rounded-xl border border-purple-100 dark:border-purple-800 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 cursor-pointer transition-all"
+                className="w-full text-left flex items-center justify-between p-4 rounded-xl border border-purple-100 dark:border-purple-800 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 cursor-pointer transition-colors hover:shadow-md hover:shadow-purple-100/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -197,8 +199,8 @@ export function SplitGroups({ groups, onSelectGroup, onGroupCreated }: SplitGrou
                     Creado {format(new Date(group.created_at), "dd MMM yyyy", { locale: es })}
                   </p>
                 </div>
-                <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
-              </div>
+                <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" aria-hidden="true" />
+              </button>
             ))}
           </div>
         )}

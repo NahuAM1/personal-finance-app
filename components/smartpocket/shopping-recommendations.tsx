@@ -90,7 +90,7 @@ export function ShoppingRecommendations() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-purple-600" />
+              <Sparkles className="h-5 w-5 text-purple-600" aria-hidden="true" />
               Lista de Compras IA
             </CardTitle>
             <CardDescription>
@@ -103,12 +103,13 @@ export function ShoppingRecommendations() {
                 variant="outline"
                 size="sm"
                 onClick={copyList}
+                aria-label="Copiar lista de compras"
                 className="border-purple-200"
               >
                 {copied ? (
-                  <Check className="h-4 w-4 mr-1 text-green-600" />
+                  <Check className="h-4 w-4 mr-1 text-green-600" aria-hidden="true" />
                 ) : (
-                  <Copy className="h-4 w-4 mr-1" />
+                  <Copy className="h-4 w-4 mr-1" aria-hidden="true" />
                 )}
                 {copied ? 'Copiado' : 'Copiar'}
               </Button>
@@ -136,8 +137,8 @@ export function ShoppingRecommendations() {
       <CardContent>
         {!data ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <ShoppingCart className="h-10 w-10 mx-auto mb-3 text-purple-300" />
-            <p>Presiona "Generar lista" para crear tu lista de compras inteligente</p>
+            <ShoppingCart className="h-10 w-10 mx-auto mb-3 text-purple-300" aria-hidden="true" />
+            <p>Presiona &ldquo;Generar lista&rdquo; para crear tu lista de compras inteligente</p>
           </div>
         ) : data.recommendations?.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
@@ -148,7 +149,7 @@ export function ShoppingRecommendations() {
             {/* Insights */}
             {data.insights && (
               <div className="flex gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
-                <Lightbulb className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                <Lightbulb className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
                 <p className="text-sm text-purple-800 dark:text-purple-200">
                   {data.insights}
                 </p>
@@ -177,7 +178,7 @@ export function ShoppingRecommendations() {
                       <span className="hidden sm:inline text-gray-400">{rec.reason}</span>
                     </div>
                   </div>
-                  <span className="font-semibold text-sm text-purple-700 dark:text-purple-300">
+                  <span className="font-semibold text-sm text-purple-700 dark:text-purple-300 tabular-nums">
                     ~${rec.estimated_price.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -189,7 +190,7 @@ export function ShoppingRecommendations() {
               <span className="font-medium text-purple-800 dark:text-purple-200">
                 Total estimado
               </span>
-              <span className="text-xl font-bold text-purple-700 dark:text-purple-300">
+              <span className="text-xl font-bold text-purple-700 dark:text-purple-300 tabular-nums">
                 ~${estimatedTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
               </span>
             </div>

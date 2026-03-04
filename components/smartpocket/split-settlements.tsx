@@ -25,7 +25,7 @@ export function SplitSettlements({ settlements, members }: SplitSettlementsProps
     return (
       <Card className="border-purple-200 dark:border-purple-800">
         <CardContent className="py-12 text-center">
-          <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+          <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" aria-hidden="true" />
           <p className="text-gray-600 dark:text-gray-400 font-medium">
             Todas las deudas están saldadas
           </p>
@@ -41,7 +41,7 @@ export function SplitSettlements({ settlements, members }: SplitSettlementsProps
     <Card className="border-purple-200 dark:border-purple-800">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <ArrowRightLeft className="h-4 w-4 text-purple-600" />
+          <ArrowRightLeft className="h-4 w-4 text-purple-600" aria-hidden="true" />
           Transferencias para saldar deudas
         </CardTitle>
       </CardHeader>
@@ -65,7 +65,7 @@ export function SplitSettlements({ settlements, members }: SplitSettlementsProps
                   </span>
                 </div>
 
-                <ArrowRight className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                <ArrowRight className="h-4 w-4 text-purple-500 flex-shrink-0" aria-hidden="true" />
 
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-sm font-bold text-green-700 dark:text-green-300">
@@ -77,7 +77,7 @@ export function SplitSettlements({ settlements, members }: SplitSettlementsProps
                 </div>
               </div>
 
-              <Badge className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-0 text-sm">
+              <Badge className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-0 text-sm tabular-nums">
                 ${settlement.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
               </Badge>
             </div>

@@ -98,7 +98,7 @@ export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteD
         <DialogHeader>
           <DialogTitle>Invitar miembro</DialogTitle>
           <DialogDescription>
-            Invita a alguien al grupo "{group.name}"
+            Invita a alguien al grupo &ldquo;{group.name}&rdquo;
           </DialogDescription>
         </DialogHeader>
 
@@ -109,7 +109,8 @@ export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteD
               id="invite-name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Nombre del invitado"
+              placeholder="Nombre del invitado\u2026"
+              className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
             />
           </div>
 
@@ -121,6 +122,10 @@ export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteD
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="email@ejemplo.com"
+              spellCheck={false}
+              autoComplete="email"
+              inputMode="email"
+              className="hover:border-purple-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/20"
             />
           </div>
 
@@ -131,12 +136,12 @@ export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteD
           >
             {sending ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                 Enviando...
               </>
             ) : (
               <>
-                <Send className="h-4 w-4 mr-2" />
+                <Send className="h-4 w-4 mr-2" aria-hidden="true" />
                 Enviar invitación
               </>
             )}
@@ -145,7 +150,7 @@ export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteD
           {inviteLink && (
             <div className="space-y-2 mt-4 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
               <div className="flex items-center gap-2">
-                <Link className="h-4 w-4 text-purple-600" />
+                <Link className="h-4 w-4 text-purple-600" aria-hidden="true" />
                 <Label className="text-sm font-medium text-purple-700 dark:text-purple-300">
                   Link de invitación
                 </Label>
@@ -160,12 +165,13 @@ export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteD
                   variant="outline"
                   size="sm"
                   onClick={copyLink}
+                  aria-label="Copiar link de invitación"
                   className="flex-shrink-0"
                 >
                   {copied ? (
-                    <Check className="h-4 w-4 text-green-600" />
+                    <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
                   ) : (
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-4 w-4" aria-hidden="true" />
                   )}
                 </Button>
               </div>

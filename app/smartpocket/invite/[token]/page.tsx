@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, Check, X, Loader2, Sparkles } from 'lucide-react';
+import { Users, Check, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
 import * as smartpocketApi from '@/lib/smartpocket-api';
 import { useToast } from '@/hooks/use-toast';
 import type { SplitGroup, SplitGroupMember } from '@/types/database';
+import SmartPocketLogo from '@/assets/images/smartPocketLogo.svg';
 
 function InviteContent() {
   const params = useParams();
@@ -146,7 +148,7 @@ function InviteContent() {
       <Card className="max-w-md w-full border-purple-200 dark:border-purple-800">
         <CardHeader className="text-center">
           <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mx-auto mb-3">
-            <Users className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+            <Image src={SmartPocketLogo} alt="" width={40} height={40} aria-hidden="true" className="h-10 w-10" />
           </div>
           <CardTitle>Invitación a grupo</CardTitle>
           <CardDescription>
@@ -156,7 +158,7 @@ function InviteContent() {
         <CardContent className="space-y-6">
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center gap-2">
-              <Sparkles className="h-5 w-5 text-purple-600" />
+              <Image src={SmartPocketLogo} alt="" width={20} height={20} aria-hidden="true" className="h-5 w-5" />
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                 {group.name}
               </h3>

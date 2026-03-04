@@ -91,7 +91,7 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
     <Card className="border-purple-200 dark:border-purple-800">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ScanLine className="h-5 w-5 text-purple-600" />
+          <ScanLine className="h-5 w-5 text-purple-600" aria-hidden="true" />
           Scanner de Tickets
         </CardTitle>
         <CardDescription>
@@ -110,13 +110,14 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
           />
 
           {!preview ? (
-            <div
+            <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-purple-300 dark:border-purple-700 rounded-xl p-8 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-all"
+              className="w-full text-left border-2 border-dashed border-purple-300 dark:border-purple-700 rounded-xl p-8 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             >
               <div className="flex flex-col items-center gap-3">
-                <div className="w-14 h-14 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                  <Camera className="h-7 w-7 text-purple-600 dark:text-purple-400" />
+                <div className="w-14 h-14 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                  <Camera className="h-7 w-7 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" aria-hidden="true" />
                 </div>
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">
@@ -126,12 +127,12 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
                     JPG, PNG - Máximo 10MB
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="mt-2">
-                  <Upload className="h-4 w-4 mr-2" />
+                <span className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background h-9 px-3 mt-2 pointer-events-none">
+                  <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
                   Seleccionar archivo
-                </Button>
+                </span>
               </div>
-            </div>
+            </button>
           ) : (
             <div className="space-y-4">
               <div className="relative w-full max-w-sm mx-auto aspect-[3/4] rounded-xl overflow-hidden border border-purple-200 dark:border-purple-800">
@@ -157,12 +158,12 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
                 >
                   {scanning ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                       Escaneando...
                     </>
                   ) : (
                     <>
-                      <ScanLine className="h-4 w-4 mr-2" />
+                      <ScanLine className="h-4 w-4 mr-2" aria-hidden="true" />
                       Escanear con IA
                     </>
                   )}
