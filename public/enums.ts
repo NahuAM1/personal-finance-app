@@ -4,9 +4,11 @@ export enum OpenAIModels {
   GPT_3_5_TURBO = "openai/gpt-3.5-turbo",
   GPT_4 = "openai/gpt-4",
   GPT_5_2 = "openai/gpt-5.2",
-  GEMINI_2 = "google/gemini-2.0-flash-exp:free",
+  GEMMA_3 = "google/gemma-3-27b-it:free",
+  QWEN_VL = "qwen/qwen3-vl-235b-a22b-thinking",
   NVIDIA = "nvidia/nemotron-3-nano-30b-a3b:free",
   ARCEE = "arcee-ai/trinity-large-preview:free",
+  GEMINI_2_5_FLASH = "gemini-2.5-flash",
 }
 
 export enum TransactionsTypes {
