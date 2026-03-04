@@ -17,6 +17,7 @@ export interface Database {
           parent_transaction_id: string | null
           due_date: string | null
           balance_total: number | null
+          ticket_id: string | null
           created_at: string
           updated_at: string
         }
@@ -35,6 +36,7 @@ export interface Database {
           parent_transaction_id?: string | null
           due_date?: string | null
           balance_total?: number | null
+          ticket_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -53,6 +55,7 @@ export interface Database {
           parent_transaction_id?: string | null
           due_date?: string | null
           balance_total?: number | null
+          ticket_id?: string | null
           created_at?: string
           updated_at?: string
         }

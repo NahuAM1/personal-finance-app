@@ -5,7 +5,7 @@
 
 -- Add the balance_total column (nullable to support existing records)
 ALTER TABLE transactions
-ADD COLUMN balance_total DECIMAL(10, 2) DEFAULT NULL;
+ADD COLUMN balance_total DECIMAL(14, 2) DEFAULT NULL;
 
 -- Add comment to document the column purpose
 COMMENT ON COLUMN transactions.balance_total IS

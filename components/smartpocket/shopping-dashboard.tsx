@@ -70,9 +70,10 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
     return Array.from(storeMap.entries())
       .map(([name, data]) => {
         const truncated = name.length > 18 ? name.slice(0, 16) + '\u2026' : name;
-        return { name: truncated, fullName: name, ...data };
+        const avgSpent = Math.round((data.totalSpent / data.visits) * 100) / 100;
+        return { name: truncated, fullName: name, ...data, avgSpent };
       })
-      .sort((a, b) => b.totalSpent - a.totalSpent)
+      .sort((a, b) => b.avgSpent - a.avgSpent)
       .slice(0, 10);
   }, [tickets]);
 
@@ -225,7 +226,7 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
           <Card className="border-purple-200 dark:border-purple-800">
             <CardHeader>
               <CardTitle className="text-base">Top Tiendas</CardTitle>
-              <CardDescription>Tiendas donde más gastás</CardDescription>
+              <CardDescription>Promedio de gasto por visita</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-80">
@@ -242,14 +243,14 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
                     <Tooltip
                       formatter={(value: number) => [
                         `$${value.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
-                        'Gasto total',
+                        'Promedio por visita',
                       ]}
                       labelFormatter={(label: string) => {
                         const store = topStores.find(s => s.name === label);
                         return store ? `${store.fullName} (${store.visits} visitas)` : label;
                       }}
                     />
-                    <Bar dataKey="totalSpent" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="avgSpent" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
