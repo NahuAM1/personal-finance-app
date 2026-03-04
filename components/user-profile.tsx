@@ -13,6 +13,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, Settings, User, Crown, Star } from 'lucide-react';
 import { USER_ROLES } from '@/types/database';
+import Image from 'next/image';
+import Link from 'next/link';
 
 export function UserProfile() {
   const { user, signOut, role } = useAuth();
@@ -101,6 +103,20 @@ export function UserProfile() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {(role === USER_ROLES.PREMIUM || role === USER_ROLES.ADMIN) && (
+          <DropdownMenuItem asChild>
+            <Link href="/smartpocket" className="flex items-center cursor-pointer">
+              <Image
+                src="/images/smartPocketLogo.svg"
+                alt="SmartPocket"
+                width={16}
+                height={16}
+                className="mr-2 h-4 w-4"
+              />
+              <span>SmartPocket</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem>
           <Settings className='mr-2 h-4 w-4' />
           <span>Preferencias</span>

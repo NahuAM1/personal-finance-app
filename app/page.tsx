@@ -28,7 +28,6 @@ import {
   MapPin,
   ClipboardList,
   TrendingUp,
-  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
@@ -504,23 +503,12 @@ function FinanceAppContent() {
       <div className='container mx-auto p-4 max-w-7xl'>
         <div className='flex items-center justify-between py-3 px-6 mb-6 bg-white rounded-full shadow-md'>
           <div className='flex items-center justify-center gap-2'>
-            <Image src={Logo} width={60} height={60} alt='Personal Wallet logo' />
+            <Image src={Logo} width={60} height={60} alt='Personal Wallet logo' className='shrink-0 w-10 h-10 lg:w-[60px] lg:h-[60px]' />
             <h1 className='text-xl lg:text-3xl font-bold text-[#466E45] dark:text-white'>
               Personal Wallet
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <AccessControl allowedRoles={[USER_ROLES.PREMIUM, USER_ROLES.ADMIN]}>
-              <Link
-                href="/smartpocket"
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full bg-gradient-to-r from-purple-600 to-violet-600 text-white hover:from-purple-700 hover:to-violet-700 transition-all shadow-sm"
-              >
-                <Sparkles className="h-4 w-4" />
-                <span className="hidden sm:inline">SmartPocket</span>
-              </Link>
-            </AccessControl>
-            <UserProfile />
-          </div>
+          <UserProfile />
         </div>
 
         <Tabs defaultValue='dashboard' className='space-y-6'>
