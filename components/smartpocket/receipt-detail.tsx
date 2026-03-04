@@ -309,7 +309,7 @@ export function ReceiptDetail({ ticket, onBack, onDelete, onUpdate }: ReceiptDet
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar ticket</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará el ticket de {ticket.store_name} y todos sus items asociados.
+              Esta acción no se puede deshacer. Se eliminará el ticket de {ticket.store_name}, todos sus items asociados y el gasto registrado en tu billetera (si existe).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

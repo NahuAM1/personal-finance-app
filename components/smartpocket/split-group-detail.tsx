@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,7 +58,7 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
   const [activeView, setActiveView] = useState<'expenses' | 'settlements'>('expenses');
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [membersData, expensesData] = await Promise.all([
@@ -76,20 +76,15 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
     } finally {
       setLoading(false);
     }
-  };
+  }, [group.id, toast]);
 
   useEffect(() => {
     loadData();
-  }, [group.id]);
+  }, [loadData]);
 
   const currentMember = useMemo(
     () => members.find((m) => m.user_id === user?.id),
     [members, user]
-  );
-
-  const isGroupAdmin = useMemo(
-    () => group.created_by === user?.id || currentMember?.is_admin,
-    [group, user, currentMember]
   );
 
   // Calculate balance per member

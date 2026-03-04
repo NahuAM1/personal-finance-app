@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
         category: string;
       }[];
       total: number;
+      summary: string;
     };
 
     try {
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
           total_amount: parsed.total,
           ticket_date: parsed.ticket_date,
           image_path: storagePath,
+          notes: parsed.summary || null,
         },
       ])
       .select()

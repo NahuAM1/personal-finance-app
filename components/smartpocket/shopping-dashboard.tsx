@@ -56,37 +56,39 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
     loadItems();
   }, [user]);
 
-  // Top 10 most purchased products
-  const topProducts = useMemo(() => {
-    const productCounts = new Map<string, { count: number; totalSpent: number }>();
-    for (const item of allItems) {
-      const name = item.product_name.toLowerCase().trim();
-      const existing = productCounts.get(name) || { count: 0, totalSpent: 0 };
-      productCounts.set(name, {
-        count: existing.count + item.quantity,
-        totalSpent: existing.totalSpent + item.total_price,
+  // Top stores by spending
+  const topStores = useMemo(() => {
+    const storeMap = new Map<string, { visits: number; totalSpent: number }>();
+    for (const ticket of tickets) {
+      const name = ticket.store_name.trim();
+      const existing = storeMap.get(name) || { visits: 0, totalSpent: 0 };
+      storeMap.set(name, {
+        visits: existing.visits + 1,
+        totalSpent: existing.totalSpent + ticket.total_amount,
       });
     }
-    return Array.from(productCounts.entries())
+    return Array.from(storeMap.entries())
       .map(([name, data]) => {
-        const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
-        const truncated = capitalized.length > 18 ? capitalized.slice(0, 16) + '\u2026' : capitalized;
-        return { name: truncated, fullName: capitalized, ...data };
+        const truncated = name.length > 18 ? name.slice(0, 16) + '\u2026' : name;
+        const avgSpent = Math.round((data.totalSpent / data.visits) * 100) / 100;
+        return { name: truncated, fullName: name, ...data, avgSpent };
       })
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => b.avgSpent - a.avgSpent)
       .slice(0, 10);
-  }, [allItems]);
+  }, [tickets]);
 
   // Spending by category
-  const categorySpending = useMemo(() => {
+  const { categorySpending, categoryTotal } = useMemo(() => {
     const categories = new Map<string, number>();
     for (const item of allItems) {
       const cat = item.category || 'Otros';
       categories.set(cat, (categories.get(cat) || 0) + item.total_price);
     }
-    return Array.from(categories.entries())
+    const spending = Array.from(categories.entries())
       .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
       .sort((a, b) => b.value - a.value);
+    const total = spending.reduce((sum, c) => sum + c.value, 0);
+    return { categorySpending: spending, categoryTotal: total };
   }, [allItems]);
 
   // Average ticket amount
@@ -99,15 +101,15 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
   // Shopping frequency (avg days between tickets)
   const shoppingFrequency = useMemo(() => {
     if (tickets.length < 2) return 0;
-    const sorted = [...tickets].sort(
-      (a, b) => new Date(a.ticket_date).getTime() - new Date(b.ticket_date).getTime()
-    );
-    let totalDays = 0;
-    for (let i = 1; i < sorted.length; i++) {
-      const diff = new Date(sorted[i].ticket_date).getTime() - new Date(sorted[i - 1].ticket_date).getTime();
-      totalDays += diff / (1000 * 60 * 60 * 24);
+    let minTime = Infinity;
+    let maxTime = -Infinity;
+    for (const t of tickets) {
+      const time = new Date(t.ticket_date).getTime();
+      if (time < minTime) minTime = time;
+      if (time > maxTime) maxTime = time;
     }
-    return Math.round(totalDays / (sorted.length - 1));
+    const totalDays = (maxTime - minTime) / (1000 * 60 * 60 * 24);
+    return Math.round(totalDays / (tickets.length - 1));
   }, [tickets]);
 
   // Monthly comparison (current month vs same month last year)
@@ -219,19 +221,19 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
 
       {/* Charts */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Top Products */}
-        {topProducts.length > 0 && (
+        {/* Top Stores */}
+        {topStores.length > 0 && (
           <Card className="border-purple-200 dark:border-purple-800">
             <CardHeader>
-              <CardTitle className="text-base">Top 10 Productos</CardTitle>
-              <CardDescription>Productos más comprados por cantidad</CardDescription>
+              <CardTitle className="text-base">Top Tiendas</CardTitle>
+              <CardDescription>Promedio de gasto por visita</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topProducts} layout="vertical" margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
+                  <BarChart data={topStores} layout="vertical" margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" allowDecimals={false} />
+                    <XAxis type="number" />
                     <YAxis
                       type="category"
                       dataKey="name"
@@ -239,13 +241,16 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
                       tick={{ fontSize: 11 }}
                     />
                     <Tooltip
-                      formatter={(value: number) => [`${value} unidades`, 'Cantidad']}
+                      formatter={(value: number) => [
+                        `$${value.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
+                        'Promedio por visita',
+                      ]}
                       labelFormatter={(label: string) => {
-                        const item = topProducts.find(p => p.name === label);
-                        return item?.fullName || label;
+                        const store = topStores.find(s => s.name === label);
+                        return store ? `${store.fullName} (${store.visits} visitas)` : label;
                       }}
                     />
-                    <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="avgSpent" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -295,9 +300,8 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
                       align="center"
                       wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
                       formatter={(value: string) => {
-                        const total = categorySpending.reduce((sum, c) => sum + c.value, 0);
                         const item = categorySpending.find(c => c.name === value);
-                        const pct = item && total > 0 ? ((item.value / total) * 100).toFixed(0) : '0';
+                        const pct = item && categoryTotal > 0 ? ((item.value / categoryTotal) * 100).toFixed(0) : '0';
                         return `${value} (${pct}%)`;
                       }}
                     />
@@ -315,21 +319,30 @@ export function ShoppingDashboard({ tickets }: ShoppingDashboardProps) {
             <CardDescription>Gasto del mes actual vs mismo mes del año pasado</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyComparison}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number) => [
-                      `$${value.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
-                      'Total',
-                    ]}
-                  />
-                  <Bar dataKey="total" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="grid grid-cols-2 gap-6">
+              {monthlyComparison.map((item) => {
+                const isCurrentMonth = item.name === 'Este mes';
+                return (
+                  <div key={item.name} className="text-center space-y-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{item.name}</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
+                      ${item.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </p>
+                    {isCurrentMonth && monthlyComparison[0].total > 0 && (
+                      <Badge
+                        className={`${
+                          item.total > monthlyComparison[0].total
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                        } border-0`}
+                      >
+                        {item.total > monthlyComparison[0].total ? '+' : ''}
+                        {(((item.total - monthlyComparison[0].total) / monthlyComparison[0].total) * 100).toFixed(0)}%
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

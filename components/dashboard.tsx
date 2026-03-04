@@ -336,7 +336,7 @@ export function Dashboard({
             </p>
             {totalPlannedSavings > 0 && (
               <p className='text-xs text-cyan-200/70 mt-1 tabular-nums'>
-                {formatAmount(totalPlannedSavings)} destinado a planes de gastos
+                {formatAmount(totalPlannedSavings)} destinado a metas de ahorros
               </p>
             )}
           </CardContent>
@@ -447,8 +447,8 @@ export function Dashboard({
       <div className='grid gap-6 md:grid-cols-2'>
         <Card>
           <CardHeader>
-            <CardTitle>Planes de Gastos</CardTitle>
-            <CardDescription>Progreso de ahorro hacia tus planes</CardDescription>
+            <CardTitle>Metas de Ahorros</CardTitle>
+            <CardDescription>Progreso de ahorro hacia tus metas</CardDescription>
           </CardHeader>
           <CardContent className='space-y-4'>
             {expensePlans.length > 0 ? (

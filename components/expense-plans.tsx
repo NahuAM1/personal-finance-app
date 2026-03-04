@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import {
   PlusCircle,
-  MapPin,
+  PiggyBank,
   Calendar,
   Plane,
   Car,
@@ -59,7 +59,7 @@ const planCategories = [
   { value: 'Vehículo', label: 'Vehículo', icon: Car },
   { value: 'Hogar', label: 'Hogar', icon: Home },
   { value: 'Educación', label: 'Educación', icon: GraduationCap },
-  { value: 'Otros', label: 'Otros', icon: MapPin },
+  { value: 'Otros', label: 'Otros', icon: PiggyBank },
 ];
 
 export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePlan }: ExpensePlansProps) {
@@ -149,7 +149,7 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
 
       <div className='flex justify-between items-center'>
         <div>
-          <h2 className='text-2xl font-bold'>Planes de Gastos</h2>
+          <h2 className='text-2xl font-bold'>Metas de Ahorros</h2>
           <p className='text-gray-600 dark:text-gray-400'>
             Planifica y ahorra para gastos futuros importantes
           </p>
@@ -163,7 +163,7 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Crear Nuevo Plan de Gastos</DialogTitle>
+              <DialogTitle>Crear Nueva Meta de Ahorro</DialogTitle>
               <DialogDescription>
                 Planifica un gasto futuro importante como un viaje o compra
                 grande
@@ -360,9 +360,9 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
       {expensePlans.length === 0 && (
         <Card>
           <CardContent className='text-center py-12'>
-            <MapPin className='h-16 w-16 text-gray-400 mx-auto mb-4' aria-hidden="true" />
+            <PiggyBank className='h-16 w-16 text-gray-400 mx-auto mb-4' aria-hidden="true" />
             <h3 className='text-xl font-medium text-gray-900 dark:text-gray-100 mb-2'>
-              No tienes planes de gastos
+              No tienes metas de ahorros
             </h3>
             <p className='text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto'>
               Crea planes para gastos futuros importantes como viajes, compras
@@ -384,7 +384,7 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
         <CardHeader>
           <CardTitle className='text-emerald-800 dark:text-emerald-200 flex items-center gap-2'>
             <span className='text-2xl'>💡</span>
-            Consejos para tus planes
+            Consejos para tus metas
           </CardTitle>
         </CardHeader>
         <CardContent className='text-emerald-700 dark:text-emerald-300'>
