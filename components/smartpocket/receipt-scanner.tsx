@@ -160,8 +160,6 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
         throw new Error('La respuesta del servidor no es válida. Intentá de nuevo.');
       }
 
-      const data = await response.json();
-
       toast({
         title: 'Ticket escaneado',
         description: 'Los items fueron extraídos correctamente',
