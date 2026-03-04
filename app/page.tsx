@@ -25,7 +25,7 @@ import {
   BarChart3,
   PlusCircle,
   CreditCard,
-  MapPin,
+  PiggyBank,
   ClipboardList,
   TrendingUp,
 } from 'lucide-react';
@@ -534,8 +534,8 @@ function FinanceAppContent() {
                 <span className='hidden sm:inline'>Inversiones</span>
               </TabsTrigger>
               <TabsTrigger value='plans' className='flex items-center gap-2'>
-                <MapPin className='h-4 w-4' />
-                <span className='hidden sm:inline'>Planes de Gastos</span>
+                <PiggyBank className='h-4 w-4' />
+                <span className='hidden sm:inline'>Metas de Ahorros</span>
               </TabsTrigger>
 
               <TabsTrigger value='history' className='flex items-center gap-2'>

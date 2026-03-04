@@ -12,7 +12,7 @@ import {
   PlusCircle,
   TrendingUp,
   CreditCard,
-  MapPin,
+  PiggyBank,
   DollarSign,
 } from 'lucide-react';
 
@@ -40,9 +40,9 @@ export function QuickActions() {
       href: '#credit',
     },
     {
-      title: 'Planes de Gastos',
+      title: 'Metas de Ahorros',
       description: 'Planifica y ahorra para gastos futuros',
-      icon: MapPin,
+      icon: PiggyBank,
       color: 'bg-orange-500 hover:bg-orange-600',
       href: '#plans',
     },
