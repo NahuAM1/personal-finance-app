@@ -17,6 +17,7 @@ import { AdminUsersDialog } from '@/components/admin-users-dialog';
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import SmartPocketLogo from '@/assets/images/smartPocketLogo.svg';
 
 export function UserProfile() {
   const { user, signOut, role, isAdmin } = useAuth();
@@ -118,7 +119,7 @@ export function UserProfile() {
           <DropdownMenuItem asChild>
             <Link href="/smartpocket" className="flex items-center cursor-pointer">
               <Image
-                src="/images/smartPocketLogo.svg"
+                src={SmartPocketLogo}
                 alt="SmartPocket"
                 width={16}
                 height={16}

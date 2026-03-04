@@ -18,7 +18,7 @@ import { SplitGroupDetail } from '@/components/smartpocket/split-group-detail';
 import { useTickets } from '@/hooks/use-tickets';
 import { useSplitGroups } from '@/hooks/use-split-groups';
 import { Loader } from '@/components/loader';
-import type { Ticket } from '@/types/database';
+
 import SmartPocketLogo from '@/assets/images/smartPocketLogo.svg';
 
 const VALID_TABS = ['tickets', 'shopping', 'split'] as const;
@@ -33,6 +33,7 @@ function SmartPocketContent() {
     ? (rawTab as TabValue)
     : 'tickets';
 
+  const ticketsEnabled = activeTab === 'tickets' || activeTab === 'shopping';
   const {
     tickets,
     loading: ticketsLoading,
@@ -41,7 +42,7 @@ function SmartPocketContent() {
     clearSelectedTicket,
     refetchTickets,
     deleteTicket,
-  } = useTickets();
+  } = useTickets(ticketsEnabled);
 
   const {
     groups,
@@ -50,7 +51,7 @@ function SmartPocketContent() {
     selectGroup,
     clearSelectedGroup,
     refetchGroups,
-  } = useSplitGroups();
+  } = useSplitGroups(activeTab === 'split');
 
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -58,7 +59,8 @@ function SmartPocketContent() {
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
-  if (ticketsLoading || groupsLoading) {
+  const isLoading = (ticketsEnabled && ticketsLoading) || (activeTab === 'split' && groupsLoading);
+  if (isLoading) {
     return <Loader />;
   }
 
@@ -106,7 +108,7 @@ function SmartPocketContent() {
             <ReceiptScanner onScanComplete={refetchTickets} />
             <ReceiptList
               tickets={tickets}
-              onSelectTicket={(ticket: Ticket) => selectTicket(ticket)}
+              onSelectTicket={selectTicket}
               onDelete={deleteTicket}
             />
           </div>

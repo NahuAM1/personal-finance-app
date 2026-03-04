@@ -6,12 +6,13 @@ import { useToast } from '@/hooks/use-toast';
 import type { SplitGroup } from '@/types/database';
 import * as smartpocketApi from '@/lib/smartpocket-api';
 
-export function useSplitGroups() {
+export function useSplitGroups(enabled = true) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [groups, setGroups] = useState<SplitGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState<SplitGroup | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
 
   const fetchGroups = useCallback(async () => {
     if (!user) return;
@@ -20,6 +21,7 @@ export function useSplitGroups() {
       setLoading(true);
       const data = await smartpocketApi.getSplitGroups(user.id);
       setGroups(data || []);
+      setHasFetched(true);
     } catch (error) {
       toast({
         title: 'Error',
@@ -32,8 +34,10 @@ export function useSplitGroups() {
   }, [user, toast]);
 
   useEffect(() => {
-    fetchGroups();
-  }, [fetchGroups]);
+    if (enabled && !hasFetched) {
+      fetchGroups();
+    }
+  }, [enabled, hasFetched, fetchGroups]);
 
   const selectGroup = useCallback((group: SplitGroup) => {
     setSelectedGroup(group);
