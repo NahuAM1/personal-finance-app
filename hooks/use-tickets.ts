@@ -6,12 +6,13 @@ import { useToast } from '@/hooks/use-toast';
 import type { Ticket } from '@/types/database';
 import * as smartpocketApi from '@/lib/smartpocket-api';
 
-export function useTickets() {
+export function useTickets(enabled = true) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
 
   const fetchTickets = useCallback(async () => {
     if (!user) return;
@@ -20,6 +21,7 @@ export function useTickets() {
       setLoading(true);
       const data = await smartpocketApi.getTickets(user.id);
       setTickets(data || []);
+      setHasFetched(true);
     } catch (error) {
       toast({
         title: 'Error',
@@ -32,8 +34,10 @@ export function useTickets() {
   }, [user, toast]);
 
   useEffect(() => {
-    fetchTickets();
-  }, [fetchTickets]);
+    if (enabled && !hasFetched) {
+      fetchTickets();
+    }
+  }, [enabled, hasFetched, fetchTickets]);
 
   const deleteTicket = useCallback(
     async (ticketId: string) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -79,10 +79,13 @@ export function ShoppingRecommendations() {
     });
   };
 
-  const estimatedTotal = data?.recommendations?.reduce(
-    (sum, r) => sum + r.estimated_price * r.suggested_quantity,
-    0
-  ) || 0;
+  const estimatedTotal = useMemo(
+    () => data?.recommendations?.reduce(
+      (sum, r) => sum + r.estimated_price * r.suggested_quantity,
+      0
+    ) || 0,
+    [data?.recommendations]
+  );
 
   return (
     <Card className="border-purple-200 dark:border-purple-800">
