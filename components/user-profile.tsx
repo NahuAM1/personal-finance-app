@@ -11,13 +11,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Settings, User, Crown, Star } from 'lucide-react';
+import { LogOut, Settings, User, Crown, Star, Users } from 'lucide-react';
 import { USER_ROLES } from '@/types/database';
+import { AdminUsersDialog } from '@/components/admin-users-dialog';
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
 export function UserProfile() {
-  const { user, signOut, role } = useAuth();
+  const { user, signOut, role, isAdmin } = useAuth();
+  const [showAdminDialog, setShowAdminDialog] = useState(false);
 
   if (!user) {
     return null;
@@ -63,6 +66,8 @@ export function UserProfile() {
   };
 
   return (
+    <>
+    <AdminUsersDialog open={showAdminDialog} onOpenChange={setShowAdminDialog} />
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
@@ -103,6 +108,12 @@ export function UserProfile() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isAdmin && (
+          <DropdownMenuItem onClick={() => setShowAdminDialog(true)}>
+            <Users className='mr-2 h-4 w-4' />
+            <span>Gestionar Usuarios</span>
+          </DropdownMenuItem>
+        )}
         {(role === USER_ROLES.PREMIUM || role === USER_ROLES.ADMIN) && (
           <DropdownMenuItem asChild>
             <Link href="/smartpocket" className="flex items-center cursor-pointer">
@@ -117,10 +128,6 @@ export function UserProfile() {
             </Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem>
-          <Settings className='mr-2 h-4 w-4' />
-          <span>Preferencias</span>
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className='text-red-600'>
           <LogOut className='mr-2 h-4 w-4' />
@@ -128,5 +135,6 @@ export function UserProfile() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    </>
   );
 }
