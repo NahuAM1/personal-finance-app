@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Camera, Upload, Loader2, ScanLine, ShoppingCart, Store, CalendarDays, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
@@ -19,6 +20,7 @@ interface ScannedTicket {
   store_name: string;
   total_amount: number;
   ticket_date: string;
+  notes: string | null;
 }
 
 interface ReceiptScannerProps {
@@ -31,6 +33,7 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
   const [scanning, setScanning] = useState(false);
   const [pendingTicket, setPendingTicket] = useState<ScannedTicket | null>(null);
   const [expenseCategory, setExpenseCategory] = useState('Compras');
+  const [expenseDescription, setExpenseDescription] = useState('');
   const [savingExpense, setSavingExpense] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -90,6 +93,11 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
 
       setPendingTicket(data.ticket);
       setExpenseCategory('Compras');
+      setExpenseDescription(
+        data.ticket.notes
+          ? `${data.ticket.store_name}: ${data.ticket.notes}`
+          : `Compra en ${data.ticket.store_name}`
+      );
     } catch (error) {
       toast({
         title: 'Error',
@@ -119,7 +127,7 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
         type: 'expense',
         amount: pendingTicket.total_amount,
         category: expenseCategory,
-        description: `Compra en ${pendingTicket.store_name}`,
+        description: expenseDescription,
         date: pendingTicket.ticket_date,
         is_recurring: null,
         installments: null,
@@ -273,6 +281,15 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
                 <span className="text-gray-500 dark:text-gray-400">Monto:</span>
                 <span className="font-semibold text-lg">${pendingTicket.total_amount.toLocaleString()}</span>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Descripción</label>
+              <Input
+                value={expenseDescription}
+                onChange={(e) => setExpenseDescription(e.target.value)}
+                placeholder="Descripción del gasto"
+              />
             </div>
 
             <div className="space-y-2">

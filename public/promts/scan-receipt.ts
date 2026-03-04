@@ -16,9 +16,12 @@ Responde SOLO con un JSON válido, sin markdown ni texto adicional:
       "category": "Categoría"
     }
   ],
-  "total": 1000.00
+  "total": 1000.00,
+  "summary": "Breve resumen de la compra (máximo 60 caracteres)"
 }
 
 Categorías posibles para items: ${formatCategories(ticketItemCategories)}.
+
+Para el campo "summary": genera un resumen corto y natural de la compra, sin listar todos los productos. Ejemplos: "Compra semanal de alimentos y limpieza", "Bebidas y snacks", "Productos de higiene y limpieza". Máximo 60 caracteres.
 
 Si no puedes leer algún campo, usa valores razonables basados en el contexto. La fecha debe estar en formato YYYY-MM-DD. Los precios deben ser números decimales.`;
