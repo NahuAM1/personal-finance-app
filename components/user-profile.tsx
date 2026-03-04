@@ -15,6 +15,8 @@ import { LogOut, Settings, User, Crown, Star, Users } from 'lucide-react';
 import { USER_ROLES } from '@/types/database';
 import { AdminUsersDialog } from '@/components/admin-users-dialog';
 import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 
 export function UserProfile() {
   const { user, signOut, role, isAdmin } = useAuth();
@@ -110,6 +112,20 @@ export function UserProfile() {
           <DropdownMenuItem onClick={() => setShowAdminDialog(true)}>
             <Users className='mr-2 h-4 w-4' />
             <span>Gestionar Usuarios</span>
+          </DropdownMenuItem>
+        )}
+        {(role === USER_ROLES.PREMIUM || role === USER_ROLES.ADMIN) && (
+          <DropdownMenuItem asChild>
+            <Link href="/smartpocket" className="flex items-center cursor-pointer">
+              <Image
+                src="/images/smartPocketLogo.svg"
+                alt="SmartPocket"
+                width={16}
+                height={16}
+                className="mr-2 h-4 w-4"
+              />
+              <span>SmartPocket</span>
+            </Link>
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />

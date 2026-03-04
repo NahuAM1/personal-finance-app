@@ -38,6 +38,7 @@ import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Inves
 import { USER_ROLES } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
+import Link from 'next/link';
 import Logo from '../assets/images/logo.svg';
 import { useFormContext } from '@/contexts/form-context';
 import VoiceChat from '@/components/voice-chat';
@@ -502,7 +503,7 @@ function FinanceAppContent() {
       <div className='container mx-auto p-4 max-w-7xl'>
         <div className='flex items-center justify-between py-3 px-6 mb-6 bg-white rounded-full shadow-md'>
           <div className='flex items-center justify-center gap-2'>
-            <Image src={Logo} width={60} height={60} alt='Personal Wallet logo' />
+            <Image src={Logo} width={60} height={60} alt='Personal Wallet logo' className='shrink-0 w-10 h-10 lg:w-[60px] lg:h-[60px]' />
             <h1 className='text-xl lg:text-3xl font-bold text-[#466E45] dark:text-white'>
               Personal Wallet
             </h1>
