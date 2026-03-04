@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -27,6 +27,64 @@ interface ReceiptScannerProps {
   onScanComplete: () => void;
 }
 
+const MAX_IMAGE_WIDTH = 1920;
+const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
+
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    if (file.size <= MAX_IMAGE_SIZE_BYTES && !file.type.includes('heic') && !file.type.includes('heif')) {
+      resolve(file);
+      return;
+    }
+
+    const img = document.createElement('img');
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      let { width, height } = img;
+      if (width > MAX_IMAGE_WIDTH) {
+        height = Math.round((height * MAX_IMAGE_WIDTH) / width);
+        width = MAX_IMAGE_WIDTH;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+          const compressedFile = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          });
+          resolve(compressedFile);
+        },
+        'image/jpeg',
+        0.8
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('No se pudo procesar la imagen'));
+    };
+
+    img.src = url;
+  });
+}
+
 export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -39,11 +97,12 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|heic|heif|webp)$/i.test(file.name);
+    if (!isImage) {
       toast({
         title: 'Error',
         description: 'Solo se permiten archivos de imagen',
@@ -52,13 +111,23 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
       return;
     }
 
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setPreview(ev.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
+    try {
+      const compressed = await compressImage(file);
+      setSelectedFile(compressed);
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setPreview(ev.target?.result as string);
+      };
+      reader.readAsDataURL(compressed);
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'No se pudo procesar la imagen. Intentá con otra foto.',
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
 
   const handleScan = async () => {
     if (!selectedFile) return;
@@ -74,8 +143,21 @@ export function ReceiptScanner({ onScanComplete }: ReceiptScannerProps) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al escanear el ticket');
+        let errorMessage = 'Error al escanear el ticket';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Response wasn't valid JSON (common on iOS Safari timeouts)
+        }
+        throw new Error(errorMessage);
+      }
+
+      let data: { ticket: ScannedTicket; items: { product_name: string; quantity: number; unit_price: number; total_price: number; category: string }[] };
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error('La respuesta del servidor no es válida. Intentá de nuevo.');
       }
 
       const data = await response.json();
