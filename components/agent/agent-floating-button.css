@@ -1,5 +1,5 @@
 .breathing-button {
-  animation: breathing 5s ease-out infinite normal;
+  animation: breathing 3s ease-out infinite normal;
 }
 
 @keyframes breathing {
@@ -8,7 +8,7 @@
   }
 
   25% {
-    transform: scale(1);
+    transform: scale(1.05);
   }
 
   60% {

@@ -83,6 +83,12 @@ export type AgentPayload =
   | MarketQueryPayload
   | GeneralQuestionPayload;
 
+// --- Conversation History (for multi-turn) ---
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 // --- Messages ---
 export interface AgentMessage {
   id: string;
@@ -100,7 +106,7 @@ export interface AgentClassification {
 
 // --- Strategy ---
 export interface AgentStrategy {
-  buildPrompt: (transcription: string, context?: string) => string;
+  buildPrompt: (transcription: string, context?: string, conversationHistory?: ConversationMessage[]) => string;
   parseResponse: (raw: string) => AgentPayload;
   needsUserData?: boolean;
   needsMarketData?: boolean;
@@ -110,12 +116,14 @@ export interface AgentStrategy {
 export interface AgentClassifyRequest {
   transcription: string;
   step: 'classify';
+  conversationHistory?: ConversationMessage[];
 }
 
 export interface AgentExecuteRequest {
   transcription: string;
   step: 'execute';
   action: AgentActionType;
+  conversationHistory?: ConversationMessage[];
 }
 
 export type AgentApiRequest = AgentClassifyRequest | AgentExecuteRequest;

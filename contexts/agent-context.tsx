@@ -11,6 +11,7 @@ import type {
   CreateSavingsGoalPayload,
   CreditPurchasePayload,
   CreateInvestmentPayload,
+  ConversationMessage,
 } from '@/types/agent';
 import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
 import { classifyIntent, executeStrategy } from '@/lib/agent/agent-service';
@@ -98,13 +99,18 @@ export function AgentProvider({ children }: AgentProviderProps) {
     addMessage('user', text);
     setStatus('classifying');
 
+    // Build recent conversation history for multi-turn context
+    const recentHistory: ConversationMessage[] = messages
+      .slice(-10)
+      .map(m => ({ role: m.role, content: m.content }));
+
     try {
-      // Step 1: Classify intent
-      const classification = await classifyIntent(text);
+      // Step 1: Classify intent (with conversation history)
+      const classification = await classifyIntent(text, recentHistory);
       setStatus('executing');
 
-      // Step 2: Execute strategy
-      const result = await executeStrategy(classification.action, text);
+      // Step 2: Execute strategy (with conversation history)
+      const result = await executeStrategy(classification.action, text, recentHistory);
 
       // Step 3: Handle result based on action type
       if (DB_ACTIONS.has(classification.action)) {
@@ -129,7 +135,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
       addMessage('assistant', errorMessage);
       setStatus('error');
     }
-  }, [addMessage, speakIfEnabled]);
+  }, [addMessage, speakIfEnabled, messages]);
 
   const confirmAction = useCallback(async () => {
     if (!pendingPayload || !user) return;

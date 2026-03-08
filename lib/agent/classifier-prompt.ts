@@ -1,4 +1,30 @@
-export function buildClassifierPrompt(transcription: string): string {
+import type { ConversationMessage } from '@/types/agent';
+
+function serializeHistory(history: ConversationMessage[]): string {
+  return history
+    .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`)
+    .join('\n');
+}
+
+export function buildClassifierPrompt(
+  transcription: string,
+  conversationHistory?: ConversationMessage[],
+): string {
+  const historySection = conversationHistory && conversationHistory.length > 0
+    ? `
+CONTEXTO DE CONVERSACIÓN PREVIA:
+Usá esta conversación para entender mejor la intención del usuario:
+- Si el asistente sugirió crear una meta de ahorro y el usuario dice "sí, dale" o "creala" → "create_savings_goal"
+- Si el asistente sugirió registrar un gasto/ingreso y el usuario acepta → "add_expense" o "add_income"
+- Si el asistente sugirió registrar una inversión y el usuario acepta → "create_investment"
+- Si el asistente habló de un tema y el usuario pide más detalles → "general_question"
+- Si el usuario cambia de tema, clasificá según el nuevo tema ignorando el historial
+
+Conversación previa:
+${serializeHistory(conversationHistory)}
+`
+    : '';
+
   return `Sos un clasificador de intenciones financieras. Analizá la siguiente transcripción de voz de un usuario argentino y clasificala en una de estas acciones:
 
 - "add_expense": El usuario quiere REGISTRAR un gasto concreto que ya realizó (compra, pago, etc.)
@@ -28,7 +54,7 @@ Palabras clave por categoría:
 - DÓLAR: cotización del dólar, dólar hoy, a cuánto está el dólar, tipo de cambio del dólar
 - MERCADO: precio del bitcoin, a cuánto está el bitcoin/ethereum/crypto, cotización de acciones/bonos/cedears
 - GENERAL: en qué gasté, mis gastos, recomendame, análisis, consejo, cómo puedo, qué me conviene, resumen
-
+${historySection}
 Transcripción: "${transcription}"
 
 Respondé ÚNICAMENTE con un JSON válido (sin markdown, sin texto extra):
