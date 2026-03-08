@@ -152,14 +152,20 @@ export function AgentMicrophone({ onTranscription, disabled }: AgentMicrophonePr
 
   return (
     <div className="flex items-center gap-3 w-full">
-      <div className="flex-1 min-h-[40px] px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl text-sm text-gray-600 dark:text-gray-400 overflow-hidden">
+      <div className={`flex-1 min-h-[40px] px-4 py-2 rounded-full text-sm overflow-hidden backdrop-blur-sm ${
+        isRecording
+          ? 'bg-purple-100/60 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+          : 'bg-white/90 dark:bg-gray-800/90 text-gray-500 dark:text-gray-400'
+      }`}>
         {interimText || (isRecording ? 'Escuchando...' : 'Toca el micrófono para hablar')}
       </div>
       <Button
         size="icon"
         variant={isRecording ? 'destructive' : 'default'}
-        className={`rounded-full w-12 h-12 shrink-0 ${
-          isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-500 hover:bg-purple-600'
+        className={`rounded-full w-12 h-12 shrink-0 shadow-md ${
+          isRecording
+            ? 'bg-red-500 hover:bg-red-600'
+            : 'bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700'
         }`}
         onClick={handleToggle}
         disabled={disabled}
