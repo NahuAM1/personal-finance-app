@@ -7,7 +7,6 @@ import type {
   AgentStatus,
   AgentMessage,
   AgentPayload,
-  TTSEngine,
   AddTransactionPayload,
   CreateSavingsGoalPayload,
   CreditPurchasePayload,
@@ -26,14 +25,12 @@ interface AgentContextType {
   messages: AgentMessage[];
   pendingPayload: AgentPayload | null;
   voiceEnabled: boolean;
-  ttsEngine: TTSEngine;
   isSpeaking: boolean;
   sendTranscription: (text: string) => Promise<void>;
   confirmAction: () => Promise<void>;
   cancelAction: () => void;
   toggleDrawer: () => void;
   toggleVoice: () => void;
-  setTTSEngine: (engine: TTSEngine) => void;
   setOnActionCompleted: (callback: () => void) => void;
 }
 
@@ -63,7 +60,6 @@ export function AgentProvider({ children }: AgentProviderProps) {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [pendingPayload, setPendingPayload] = useState<AgentPayload | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [ttsEngine, setTtsEngine] = useState<TTSEngine>('browser');
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const onActionCompletedRef = useRef<(() => void) | null>(null);
@@ -71,13 +67,13 @@ export function AgentProvider({ children }: AgentProviderProps) {
 
   const getTTSService = useCallback((): TTSService => {
     if (!ttsServiceRef.current) {
-      ttsServiceRef.current = createTTSService(ttsEngine, {
+      ttsServiceRef.current = createTTSService({
         onStart: () => setIsSpeaking(true),
         onEnd: () => setIsSpeaking(false),
       });
     }
     return ttsServiceRef.current;
-  }, [ttsEngine]);
+  }, []);
 
   const speakIfEnabled = useCallback((text: string) => {
     if (voiceEnabled) {
@@ -271,14 +267,6 @@ export function AgentProvider({ children }: AgentProviderProps) {
     });
   }, []);
 
-  const handleSetTTSEngine = useCallback((engine: TTSEngine) => {
-    if (ttsServiceRef.current) {
-      ttsServiceRef.current.stop();
-    }
-    ttsServiceRef.current = null;
-    setTtsEngine(engine);
-  }, []);
-
   const setOnActionCompleted = useCallback((callback: () => void) => {
     onActionCompletedRef.current = callback;
   }, []);
@@ -289,19 +277,17 @@ export function AgentProvider({ children }: AgentProviderProps) {
     messages,
     pendingPayload,
     voiceEnabled,
-    ttsEngine,
     isSpeaking,
     sendTranscription,
     confirmAction,
     cancelAction,
     toggleDrawer,
     toggleVoice,
-    setTTSEngine: handleSetTTSEngine,
     setOnActionCompleted,
   }), [
-    isOpen, status, messages, pendingPayload, voiceEnabled, ttsEngine, isSpeaking,
+    isOpen, status, messages, pendingPayload, voiceEnabled, isSpeaking,
     sendTranscription, confirmAction, cancelAction, toggleDrawer, toggleVoice,
-    handleSetTTSEngine, setOnActionCompleted,
+    setOnActionCompleted,
   ]);
 
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;

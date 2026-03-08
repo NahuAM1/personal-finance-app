@@ -17,9 +17,6 @@ export type AgentActionType = typeof AgentAction[keyof typeof AgentAction];
 // --- Status ---
 export type AgentStatus = 'idle' | 'listening' | 'classifying' | 'executing' | 'confirming' | 'done' | 'error';
 
-// --- TTS ---
-export type TTSEngine = 'genai' | 'browser';
-
 // --- Payloads (discriminated union) ---
 export interface AddTransactionPayload {
   action: typeof AgentAction.ADD_EXPENSE | typeof AgentAction.ADD_INCOME;

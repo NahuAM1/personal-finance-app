@@ -12,7 +12,7 @@ interface ConfirmSavingsGoalProps {
 
 export function ConfirmSavingsGoal({ payload, onConfirm, onCancel }: ConfirmSavingsGoalProps) {
   return (
-    <Card className="border-2 border-emerald-200 dark:border-emerald-800">
+    <Card className="border-2 border-purple-200 dark:border-purple-800">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Confirmar Meta de Ahorro</CardTitle>
       </CardHeader>
@@ -38,7 +38,7 @@ export function ConfirmSavingsGoal({ payload, onConfirm, onCancel }: ConfirmSavi
         <Button variant="outline" size="sm" onClick={onCancel} className="flex-1">
           Cancelar
         </Button>
-        <Button size="sm" onClick={onConfirm} className="flex-1 bg-emerald-500 hover:bg-emerald-600">
+        <Button size="sm" onClick={onConfirm} className="flex-1 bg-purple-500 hover:bg-purple-600">
           Confirmar
         </Button>
       </CardFooter>

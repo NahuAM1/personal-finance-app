@@ -159,7 +159,7 @@ export function AgentMicrophone({ onTranscription, disabled }: AgentMicrophonePr
         size="icon"
         variant={isRecording ? 'destructive' : 'default'}
         className={`rounded-full w-12 h-12 shrink-0 ${
-          isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'
+          isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-purple-500 hover:bg-purple-600'
         }`}
         onClick={handleToggle}
         disabled={disabled}

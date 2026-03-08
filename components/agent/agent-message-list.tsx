@@ -33,7 +33,7 @@ export function AgentMessageList({ messages }: AgentMessageListProps) {
           <div
             className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
               message.role === 'user'
-                ? 'bg-emerald-500 text-white rounded-br-md'
+                ? 'bg-purple-500 text-white rounded-br-md'
                 : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-md shadow-sm border border-gray-100 dark:border-gray-700'
             }`}
           >

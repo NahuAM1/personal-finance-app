@@ -57,31 +57,20 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
-        levitate: {
-          "0%, 100%": {
-            transform: "scale(1)",
-            boxShadow: "0 0 0 0 rgba(16, 185, 129, 0.1)",
-          },
-          "50%": {
-            transform: "scale(1.02)",
-            boxShadow: "0 0 14px 2px rgba(16, 185, 129, 0.15)",
-          },
-        },
         "agent-pulse": {
           "0%, 100%": {
             transform: "scale(1)",
-            boxShadow: "0 0 0 0 rgba(16, 185, 129, 0.4)",
+            boxShadow: "0 0 0 0 rgba(139, 92, 246, 0.3)",
           },
           "50%": {
-            transform: "scale(1.08)",
-            boxShadow: "0 0 20px 4px rgba(16, 185, 129, 0.3)",
+            transform: "scale(1.05)",
+            boxShadow: "0 0 16px 3px rgba(139, 92, 246, 0.25)",
           },
         },
       },
       animation: {
-        levitate: "levitate 6s ease-in-out infinite",
         "agent-pulse":
-          "agent-pulse 5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite",
+          "agent-pulse 3s ease-in-out infinite",
       },
     },
   },

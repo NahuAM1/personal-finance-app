@@ -20,8 +20,8 @@ export class GenaiTTSService implements TTSService {
       });
 
       if (!response.ok) {
-        console.warn('GenAI TTS failed, falling back to browser TTS');
-        this.fallbackBrowserTTS(text);
+        console.error('GenAI TTS failed:', response.status);
+        this.callbacks.onEnd();
         return;
       }
 
@@ -47,8 +47,8 @@ export class GenaiTTSService implements TTSService {
 
       await this.audio.play();
     } catch (error) {
-      console.warn('GenAI TTS error, falling back to browser TTS:', error);
-      this.fallbackBrowserTTS(text);
+      console.error('GenAI TTS error:', error);
+      this.callbacks.onEnd();
     }
   }
 
@@ -59,30 +59,6 @@ export class GenaiTTSService implements TTSService {
       this.audio = null;
       this.callbacks.onEnd();
     }
-  }
-
-  private fallbackBrowserTTS(text: string): void {
-    if (!window.speechSynthesis) {
-      this.callbacks.onEnd();
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'es-AR';
-    utterance.rate = 1.0;
-
-    const voices = window.speechSynthesis.getVoices();
-    const spanishVoice = voices.find(v => v.lang.startsWith('es-AR'))
-      ?? voices.find(v => v.lang.startsWith('es'));
-    if (spanishVoice) {
-      utterance.voice = spanishVoice;
-    }
-
-    utterance.onstart = () => this.callbacks.onStart();
-    utterance.onend = () => this.callbacks.onEnd();
-    utterance.onerror = () => this.callbacks.onEnd();
-
-    window.speechSynthesis.speak(utterance);
   }
 
   private base64ToBlob(base64: string, mimeType: string): Blob {

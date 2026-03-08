@@ -8,6 +8,34 @@ const genai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
+// Gemini TTS returns raw PCM (s16le, 24kHz, mono).
+// Browsers can't play raw PCM, so we prepend a WAV header.
+function pcmToWav(pcmBuffer: Buffer, sampleRate: number, numChannels: number, bitsPerSample: number): Buffer {
+  const dataLength = pcmBuffer.length;
+  const header = Buffer.alloc(44);
+
+  // RIFF header
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataLength, 4);
+  header.write('WAVE', 8);
+
+  // fmt subchunk
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); // subchunk size
+  header.writeUInt16LE(1, 20);  // PCM format
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * numChannels * (bitsPerSample / 8), 28); // byte rate
+  header.writeUInt16LE(numChannels * (bitsPerSample / 8), 32); // block align
+  header.writeUInt16LE(bitsPerSample, 34);
+
+  // data subchunk
+  header.write('data', 36);
+  header.writeUInt32LE(dataLength, 40);
+
+  return Buffer.concat([header, pcmBuffer]);
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -31,12 +59,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Missing text' }, { status: 400 });
     }
 
-    // Use Gemini's native TTS model for audio generation
     const response = await genai.models.generateContent({
       model: 'gemini-2.5-flash-preview-tts',
-      contents: [
-        `Decí en español argentino de forma natural y amigable: ${text}`,
-      ],
+      contents: [{ parts: [{ text: `Decí de forma natural y amigable: ${text}` }] }],
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: {
@@ -49,24 +74,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    const parts = response.candidates?.[0]?.content?.parts;
+    const data = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
-    if (!parts || parts.length === 0) {
-      console.error('TTS: No parts in response');
+    if (!data) {
+      console.error('TTS: No audio data in response');
       return NextResponse.json({ error: 'No audio generated' }, { status: 500 });
     }
 
-    for (const part of parts) {
-      if (part.inlineData?.data && part.inlineData.mimeType) {
-        return NextResponse.json({
-          audio: part.inlineData.data,
-          mimeType: part.inlineData.mimeType,
-        });
-      }
-    }
+    // data is base64-encoded raw PCM (s16le, 24kHz, mono)
+    const pcmBuffer = Buffer.from(data, 'base64');
+    const wavBuffer = pcmToWav(pcmBuffer, 24000, 1, 16);
+    const wavBase64 = wavBuffer.toString('base64');
 
-    console.error('TTS: No audio part found');
-    return NextResponse.json({ error: 'No audio generated' }, { status: 500 });
+    return NextResponse.json({
+      audio: wavBase64,
+      mimeType: 'audio/wav',
+    });
   } catch (error) {
     console.error('TTS API error:', error);
     return NextResponse.json(

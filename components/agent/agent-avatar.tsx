@@ -11,7 +11,7 @@ interface AgentAvatarProps {
 export function AgentAvatar({ isSpeaking, size = 64 }: AgentAvatarProps) {
   return (
     <div
-      className={`rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg ${
+      className={`rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg ${
         isSpeaking ? 'animate-agent-pulse' : ''
       }`}
       style={{ width: size, height: size }}

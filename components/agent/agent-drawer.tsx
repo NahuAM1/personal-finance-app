@@ -85,7 +85,7 @@ export function AgentDrawer() {
             {/* Loading indicator */}
             {isProcessing && (
               <div className="flex justify-center py-2">
-                <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+                <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
               </div>
             )}
 
