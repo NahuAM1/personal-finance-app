@@ -17,6 +17,8 @@ const strategyRegistry: Record<AgentActionType, AgentStrategy> = {
   [AgentAction.DOLLAR_RATE]: dollarRateStrategy,
   [AgentAction.MARKET_QUERY]: marketQueryStrategy,
   [AgentAction.GENERAL_QUESTION]: generalQuestionStrategy,
+  // Clarification is handled before strategy execution; this entry satisfies the Record type
+  [AgentAction.CLARIFICATION]: generalQuestionStrategy,
 };
 
 export function getStrategy(action: AgentActionType): AgentStrategy {

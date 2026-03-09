@@ -7,6 +7,7 @@ import type {
   AgentStatus,
   AgentMessage,
   AgentPayload,
+  AgentClarificationPayload,
   AddTransactionPayload,
   CreateSavingsGoalPayload,
   CreditPurchasePayload,
@@ -113,7 +114,13 @@ export function AgentProvider({ children }: AgentProviderProps) {
       const result = await executeStrategy(classification.action, text, recentHistory);
 
       // Step 3: Handle result based on action type
-      if (DB_ACTIONS.has(classification.action)) {
+      if (result.payload.action === AgentAction.CLARIFICATION) {
+        // Clarification needed - add as assistant message and wait for user input
+        const clarification = result.payload as AgentClarificationPayload;
+        addMessage('assistant', clarification.question);
+        speakIfEnabled(clarification.question);
+        setStatus('idle');
+      } else if (DB_ACTIONS.has(classification.action)) {
         // Needs confirmation
         setPendingPayload(result.payload);
         addMessage('assistant', result.message, result.payload);

@@ -1,26 +1,34 @@
-import type { Investment } from '@/types/database';
+import type { Investment } from "@/types/database";
 
 // --- Action enum ---
 export const AgentAction = {
-  ADD_EXPENSE: 'add_expense',
-  ADD_INCOME: 'add_income',
-  CREATE_SAVINGS_GOAL: 'create_savings_goal',
-  CREDIT_PURCHASE: 'credit_purchase',
-  CREATE_INVESTMENT: 'create_investment',
-  DOLLAR_RATE: 'dollar_rate',
-  MARKET_QUERY: 'market_query',
-  GENERAL_QUESTION: 'general_question',
+  ADD_EXPENSE: "add_expense",
+  ADD_INCOME: "add_income",
+  CREATE_SAVINGS_GOAL: "create_savings_goal",
+  CREDIT_PURCHASE: "credit_purchase",
+  CREATE_INVESTMENT: "create_investment",
+  DOLLAR_RATE: "dollar_rate",
+  MARKET_QUERY: "market_query",
+  GENERAL_QUESTION: "general_question",
+  CLARIFICATION: "clarification",
 } as const;
 
-export type AgentActionType = typeof AgentAction[keyof typeof AgentAction];
+export type AgentActionType = (typeof AgentAction)[keyof typeof AgentAction];
 
 // --- Status ---
-export type AgentStatus = 'idle' | 'listening' | 'classifying' | 'executing' | 'confirming' | 'done' | 'error';
+export type AgentStatus =
+  | "idle"
+  | "listening"
+  | "classifying"
+  | "executing"
+  | "confirming"
+  | "done"
+  | "error";
 
 // --- Payloads (discriminated union) ---
 export interface AddTransactionPayload {
   action: typeof AgentAction.ADD_EXPENSE | typeof AgentAction.ADD_INCOME;
-  type: 'income' | 'expense';
+  type: "income" | "expense";
   amount: number;
   category: string;
   description: string;
@@ -46,7 +54,7 @@ export interface CreditPurchasePayload {
 
 export interface CreateInvestmentPayload {
   action: typeof AgentAction.CREATE_INVESTMENT;
-  investmentType: Investment['investment_type'];
+  investmentType: Investment["investment_type"];
   amount: number;
   description: string;
   startDate: string;
@@ -74,6 +82,12 @@ export interface GeneralQuestionPayload {
   answer: string;
 }
 
+export interface AgentClarificationPayload {
+  action: typeof AgentAction.CLARIFICATION;
+  question: string;
+  originalAction: AgentActionType;
+}
+
 export type AgentPayload =
   | AddTransactionPayload
   | CreateSavingsGoalPayload
@@ -81,18 +95,19 @@ export type AgentPayload =
   | CreateInvestmentPayload
   | DollarRatePayload
   | MarketQueryPayload
-  | GeneralQuestionPayload;
+  | GeneralQuestionPayload
+  | AgentClarificationPayload;
 
 // --- Conversation History (for multi-turn) ---
 export interface ConversationMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
 // --- Messages ---
 export interface AgentMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   payload?: AgentPayload;
   timestamp: Date;
@@ -106,7 +121,11 @@ export interface AgentClassification {
 
 // --- Strategy ---
 export interface AgentStrategy {
-  buildPrompt: (transcription: string, context?: string, conversationHistory?: ConversationMessage[]) => string;
+  buildPrompt: (
+    transcription: string,
+    context?: string,
+    conversationHistory?: ConversationMessage[],
+  ) => string;
   parseResponse: (raw: string) => AgentPayload;
   needsUserData?: boolean;
   needsMarketData?: boolean;
@@ -115,13 +134,13 @@ export interface AgentStrategy {
 // --- API Types ---
 export interface AgentClassifyRequest {
   transcription: string;
-  step: 'classify';
+  step: "classify";
   conversationHistory?: ConversationMessage[];
 }
 
 export interface AgentExecuteRequest {
   transcription: string;
-  step: 'execute';
+  step: "execute";
   action: AgentActionType;
   conversationHistory?: ConversationMessage[];
 }

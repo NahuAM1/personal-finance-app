@@ -42,6 +42,7 @@ IMPORTANTE para distinguir entre acciones:
 - Si pregunta por precio de bitcoin, ethereum, acciones, bonos → "market_query" (NO general_question)
 - Si pregunta por dólar específicamente → "dollar_rate"
 - "en qué gasté", "cuánto gasté", "mis gastos del mes", "recomendame", "análisis" → "general_question"
+- Si el usuario pregunta por la cotización del dólar Y también hace otra consulta financiera, clasificar como "general_question" (el dólar se incluirá en los datos de mercado)
 - "compré bitcoin", "invertí en crypto" → "create_investment"
 - "a cuánto está el bitcoin", "precio del bitcoin" → "market_query"
 
@@ -51,9 +52,9 @@ Palabras clave por categoría:
 - META DE AHORRO: meta, ahorro, ahorrar, juntar plata, objetivo, plan de ahorro
 - TARJETA/CUOTAS: cuotas, tarjeta, crédito, financiar, en X cuotas
 - INVERSIÓN: invertí, compré (+ activo financiero), registrar inversión
-- DÓLAR: cotización del dólar, dólar hoy, a cuánto está el dólar, tipo de cambio del dólar
-- MERCADO: precio del bitcoin, a cuánto está el bitcoin/ethereum/crypto, cotización de acciones/bonos/cedears
-- GENERAL: en qué gasté, mis gastos, recomendame, análisis, consejo, cómo puedo, qué me conviene, resumen
+- DÓLAR: cotización del dólar, dólar hoy, a cuánto está el dólar, tipo de cambio del dólar, dólar blue, blue, dólar oficial, dólar MEP, MEP, contado con liqui, CCL
+- MERCADO: precio del bitcoin, a cuánto está el bitcoin/ethereum/crypto, cotización de acciones/bonos/cedears, plazo fijo (precio/tasa), tasa, rendimiento, letras, LECAPs, cuánto rinde
+- GENERAL: en qué gasté, mis gastos, recomendame, análisis, consejo, cómo puedo, qué me conviene, resumen, cómo estoy, salud financiera
 ${historySection}
 Transcripción: "${transcription}"
 
