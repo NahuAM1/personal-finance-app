@@ -1,3 +1,4 @@
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
@@ -8,8 +9,15 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: ['edge-tts-universal', 'ws'],
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push(
+        { 'ws': 'commonjs ws' },
+        { 'bufferutil': 'commonjs bufferutil' },
+        { 'utf-8-validate': 'commonjs utf-8-validate' },
+      );
+    }
+    return config;
   },
 }
 
