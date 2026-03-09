@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, MicOff, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface SpeechRecognitionResult {
@@ -40,10 +40,12 @@ interface AgentMicrophoneProps {
 export function AgentMicrophone({ onTranscription, disabled }: AgentMicrophoneProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [interimText, setInterimText] = useState('');
+  const [textInput, setTextInput] = useState('');
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const accumulatedRef = useRef('');
   const lastInterimRef = useRef('');
   const isRecordingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const getRecognition = useCallback((): SpeechRecognitionInstance | null => {
     if (recognitionRef.current) return recognitionRef.current;
@@ -141,6 +143,21 @@ export function AgentMicrophone({ onTranscription, disabled }: AgentMicrophonePr
     }
   }, [isRecording, startRecording, stopRecording]);
 
+  const handleSendText = useCallback(() => {
+    const trimmed = textInput.trim();
+    if (trimmed) {
+      onTranscription(trimmed);
+      setTextInput('');
+    }
+  }, [textInput, onTranscription]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendText();
+    }
+  }, [handleSendText]);
+
   useEffect(() => {
     return () => {
       if (recognitionRef.current) {
@@ -151,14 +168,36 @@ export function AgentMicrophone({ onTranscription, disabled }: AgentMicrophonePr
   }, []);
 
   return (
-    <div className="flex items-center gap-3 w-full">
-      <div className={`flex-1 min-h-[40px] px-4 py-2 rounded-full text-sm overflow-hidden backdrop-blur-sm ${
-        isRecording
-          ? 'bg-purple-100/60 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-          : 'bg-white/90 dark:bg-gray-800/90 text-gray-500 dark:text-gray-400'
-      }`}>
-        {interimText || (isRecording ? 'Escuchando...' : 'Toca el micrófono para hablar')}
-      </div>
+    <div className="flex items-center gap-2 w-full">
+      {isRecording ? (
+        <div className="flex-1 min-h-[40px] px-4 py-2 rounded-full text-sm overflow-hidden backdrop-blur-sm bg-purple-100/60 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+          {interimText || 'Escuchando...'}
+        </div>
+      ) : (
+        <>
+          <input
+            ref={inputRef}
+            type="text"
+            value={textInput}
+            onChange={e => setTextInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Escribí tu mensaje..."
+            disabled={disabled}
+            className="flex-1 min-h-[40px] px-4 py-2 rounded-full text-sm bg-white/90 dark:bg-gray-800/90 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+          />
+          {textInput.trim() && (
+            <Button
+              size="icon"
+              className="rounded-full w-10 h-10 shrink-0 shadow-md bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700"
+              onClick={handleSendText}
+              disabled={disabled}
+              aria-label="Enviar mensaje"
+            >
+              <Send className="w-4 h-4 text-white" />
+            </Button>
+          )}
+        </>
+      )}
       <Button
         size="icon"
         variant={isRecording ? 'destructive' : 'default'}

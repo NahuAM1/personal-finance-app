@@ -45,7 +45,7 @@ export function AgentDrawer() {
       />
 
       {/* Drawer */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center">
+      <div className="fixed px-4 bottom-0 left-0 right-0 z-50 flex justify-center">
         <div className="w-full max-w-lg max-h-[85vh] bg-gray-50 dark:bg-gray-900 rounded-t-2xl shadow-2xl flex flex-col animate-in slide-in-from-bottom duration-300">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
