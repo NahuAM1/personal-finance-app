@@ -8,6 +8,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    serverComponentsExternalPackages: ['edge-tts-universal', 'ws'],
+  },
 }
 
 export default nextConfig

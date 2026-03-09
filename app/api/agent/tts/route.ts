@@ -1,54 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { USER_ROLES } from '@/types/database';
-import type { UserRole } from '@/types/database';
-import { GoogleGenAI } from '@google/genai';
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { USER_ROLES } from "@/types/database";
+import type { UserRole } from "@/types/database";
+import { EdgeTTS } from "edge-tts-universal";
 
-const genai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
-
-// Gemini TTS returns raw PCM (s16le, 24kHz, mono).
-// Browsers can't play raw PCM, so we prepend a WAV header.
-function pcmToWav(pcmBuffer: Buffer, sampleRate: number, numChannels: number, bitsPerSample: number): Buffer {
-  const dataLength = pcmBuffer.length;
-  const header = Buffer.alloc(44);
-
-  // RIFF header
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + dataLength, 4);
-  header.write('WAVE', 8);
-
-  // fmt subchunk
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16); // subchunk size
-  header.writeUInt16LE(1, 20);  // PCM format
-  header.writeUInt16LE(numChannels, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(sampleRate * numChannels * (bitsPerSample / 8), 28); // byte rate
-  header.writeUInt16LE(numChannels * (bitsPerSample / 8), 32); // block align
-  header.writeUInt16LE(bitsPerSample, 34);
-
-  // data subchunk
-  header.write('data', 36);
-  header.writeUInt32LE(dataLength, 40);
-
-  return Buffer.concat([header, pcmBuffer]);
-}
+const VOICE_ID = "es-CL-CatalinaNeural";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const supabase = createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const authorizedRoles: UserRole[] = [USER_ROLES.PREMIUM, USER_ROLES.ADMIN];
   const userRole = user.app_metadata?.role;
 
   if (!authorizedRoles.includes(userRole)) {
-    return NextResponse.json({ error: 'Forbidden: Premium required' }, { status: 403 });
+    return NextResponse.json(
+      { error: "Forbidden: Premium required" },
+      { status: 403 },
+    );
   }
 
   try {
@@ -56,44 +31,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { text } = body;
 
     if (!text) {
-      return NextResponse.json({ error: 'Missing text' }, { status: 400 });
+      return NextResponse.json({ error: "Missing text" }, { status: 400 });
     }
 
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-tts',
-      contents: [{ parts: [{ text: `Decí de forma natural y amigable: ${text}` }] }],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: 'Kore',
-            },
-          },
-        },
-      },
+    const tts = new EdgeTTS(text, VOICE_ID, {
+      rate: "+0%",
+      volume: "+0%",
+      pitch: "+0Hz",
     });
 
-    const data = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    const result = await tts.synthesize();
+    const audioBuffer = Buffer.from(await result.audio.arrayBuffer());
+    const audioBase64 = audioBuffer.toString("base64");
 
-    if (!data) {
-      console.error('TTS: No audio data in response');
-      return NextResponse.json({ error: 'No audio generated' }, { status: 500 });
+    if (!audioBase64) {
+      console.error("TTS: No audio data generated");
+      return NextResponse.json(
+        { error: "No audio generated" },
+        { status: 500 },
+      );
     }
-
-    // data is base64-encoded raw PCM (s16le, 24kHz, mono)
-    const pcmBuffer = Buffer.from(data, 'base64');
-    const wavBuffer = pcmToWav(pcmBuffer, 24000, 1, 16);
-    const wavBase64 = wavBuffer.toString('base64');
 
     return NextResponse.json({
-      audio: wavBase64,
-      mimeType: 'audio/wav',
+      audio: audioBase64,
+      mimeType: "audio/mp3",
     });
   } catch (error) {
-    console.error('TTS API error:', error);
+    console.error("TTS API error:", error);
     return NextResponse.json(
-      { error: 'Error generating speech' },
+      { error: "Error generating speech" },
       { status: 500 },
     );
   }
