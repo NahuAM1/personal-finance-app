@@ -5,6 +5,7 @@ import { GeistMono } from 'geist/font/mono';
 import { Toaster } from 'sonner';
 import { FormProvider } from '@/contexts/form-context';
 import { AuthProvider } from '@/contexts/auth-context';
+import { AgentProvider } from '@/contexts/agent-context';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className={GeistSans.className}>
         <AuthProvider>
         <FormProvider>
+        <AgentProvider>
           {children}
           <Toaster
             richColors
@@ -47,6 +49,7 @@ export default function RootLayout({
               'aria-live': 'polite',
             }}
           />
+        </AgentProvider>
         </FormProvider>
         </AuthProvider>
       </body>

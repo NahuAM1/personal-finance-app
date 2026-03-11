@@ -44,10 +44,13 @@ import { useFormContext } from '@/contexts/form-context';
 import VoiceChat from '@/components/voice-chat';
 import { Loader } from '@/components/loader';
 import { AccessControl } from '@/components/access-control';
+import { AgentFloatingButton } from '@/components/agent/agent-floating-button';
+import { useAgentContext } from '@/contexts/agent-context';
 
 function FinanceAppContent() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { setOnActionCompleted } = useAgentContext();
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [expensePlans, setExpensePlans] = useState<ExpensePlan[]>([]);
@@ -96,6 +99,10 @@ function FinanceAppContent() {
   useEffect(() => {
     loadData();
   }, [user]);
+
+  useEffect(() => {
+    setOnActionCompleted(loadData);
+  }, [setOnActionCompleted]);
 
   const addTransaction = async (
     transaction: Omit<
@@ -712,6 +719,8 @@ function FinanceAppContent() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <AgentFloatingButton />
     </div>
   );
 }
