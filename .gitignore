@@ -35,6 +35,10 @@ yarn-error.log*
 claude.*
 .agents/
 
+# Ignorar todos los markdown
+*.md
+!README.md
+
 # vercel
 .vercel
 
