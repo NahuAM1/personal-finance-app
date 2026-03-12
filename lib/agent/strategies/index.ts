@@ -7,6 +7,8 @@ import { createInvestmentStrategy } from './create-investment';
 import { dollarRateStrategy } from './dollar-rate';
 import { marketQueryStrategy } from './market-query';
 import { generalQuestionStrategy } from './general-question';
+import { dataQueryParamStrategy } from './data-query';
+import { scanReceiptStrategy } from './scan-receipt';
 
 const strategyRegistry: Record<AgentActionType, AgentStrategy> = {
   [AgentAction.ADD_EXPENSE]: addTransactionStrategy,
@@ -17,6 +19,8 @@ const strategyRegistry: Record<AgentActionType, AgentStrategy> = {
   [AgentAction.DOLLAR_RATE]: dollarRateStrategy,
   [AgentAction.MARKET_QUERY]: marketQueryStrategy,
   [AgentAction.GENERAL_QUESTION]: generalQuestionStrategy,
+  [AgentAction.DATA_QUERY]: dataQueryParamStrategy,
+  [AgentAction.SCAN_RECEIPT]: scanReceiptStrategy,
   // Clarification is handled before strategy execution; this entry satisfies the Record type
   [AgentAction.CLARIFICATION]: generalQuestionStrategy,
 };

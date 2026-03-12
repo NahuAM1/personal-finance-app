@@ -12,6 +12,7 @@ import type {
   CreateSavingsGoalPayload,
   CreditPurchasePayload,
   CreateInvestmentPayload,
+  ScanReceiptPayload,
   ConversationMessage,
 } from '@/types/agent';
 import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
@@ -21,6 +22,19 @@ import type { TTSService } from '@/lib/agent/tts/tts-service';
 import { useAuth } from '@/contexts/auth-context';
 import * as api from '@/lib/database-api';
 
+interface ScanCompleteData {
+  storeName: string;
+  totalAmount: number;
+  ticketDate: string;
+  ticketId: string;
+  notes: string | null;
+}
+
+interface SessionPreferences {
+  lastUsedCategories: string[];
+  frequentDescriptions: string[];
+}
+
 interface AgentContextType {
   isOpen: boolean;
   status: AgentStatus;
@@ -28,12 +42,15 @@ interface AgentContextType {
   pendingPayload: AgentPayload | null;
   voiceEnabled: boolean;
   isSpeaking: boolean;
+  scannerActive: boolean;
   sendTranscription: (text: string) => Promise<void>;
   confirmAction: () => Promise<void>;
   cancelAction: () => void;
   toggleDrawer: () => void;
   toggleVoice: () => void;
   setOnActionCompleted: (callback: () => void) => void;
+  onScanComplete: (data: ScanCompleteData) => void;
+  onScanCancel: () => void;
 }
 
 const AgentContext = createContext<AgentContextType | null>(null);
@@ -55,6 +72,14 @@ const DB_ACTIONS: Set<AgentActionType> = new Set([
   AgentAction.CREATE_INVESTMENT,
 ]);
 
+// Actions that are display-only (no confirmation needed)
+const DISPLAY_ACTIONS: Set<AgentActionType> = new Set([
+  AgentAction.GENERAL_QUESTION,
+  AgentAction.MARKET_QUERY,
+  AgentAction.DOLLAR_RATE,
+  AgentAction.DATA_QUERY,
+]);
+
 export function AgentProvider({ children }: AgentProviderProps) {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -63,9 +88,15 @@ export function AgentProvider({ children }: AgentProviderProps) {
   const [pendingPayload, setPendingPayload] = useState<AgentPayload | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [scannerActive, setScannerActive] = useState(false);
+  const [pendingSequenceCount, setPendingSequenceCount] = useState(0);
 
   const onActionCompletedRef = useRef<(() => void) | null>(null);
   const ttsServiceRef = useRef<TTSService | null>(null);
+  const sessionPrefsRef = useRef<SessionPreferences>({
+    lastUsedCategories: [],
+    frequentDescriptions: [],
+  });
 
   const getTTSService = useCallback((): TTSService => {
     if (!ttsServiceRef.current) {
@@ -96,9 +127,36 @@ export function AgentProvider({ children }: AgentProviderProps) {
     return message;
   }, []);
 
+  const updateSessionPreferences = useCallback((payload: AgentPayload) => {
+    const prefs = sessionPrefsRef.current;
+
+    if ('category' in payload && typeof payload.category === 'string') {
+      prefs.lastUsedCategories = [
+        payload.category,
+        ...prefs.lastUsedCategories.filter(c => c !== payload.category),
+      ].slice(0, 3);
+    }
+
+    if ('description' in payload && typeof payload.description === 'string') {
+      prefs.frequentDescriptions = [
+        payload.description,
+        ...prefs.frequentDescriptions.filter(d => d !== payload.description),
+      ].slice(0, 5);
+    }
+  }, []);
+
   const sendTranscription = useCallback(async (text: string) => {
     addMessage('user', text);
     setStatus('classifying');
+
+    // Check for multi-step intent (e.g., "agregar 3 gastos")
+    const multiStepMatch = text.match(/(?:agregar|cargar|registrar)\s+(\d+)\s+(?:gastos?|ingresos?|transacciones?)/i);
+    if (multiStepMatch) {
+      const count = parseInt(multiStepMatch[1], 10);
+      if (count > 1 && count <= 10) {
+        setPendingSequenceCount(count);
+      }
+    }
 
     // Build recent conversation history for multi-turn context
     const recentHistory: ConversationMessage[] = messages
@@ -115,27 +173,37 @@ export function AgentProvider({ children }: AgentProviderProps) {
 
       // Step 3: Handle result based on action type
       if (result.payload.action === AgentAction.CLARIFICATION) {
-        // Clarification needed - add as assistant message and wait for user input
         const clarification = result.payload as AgentClarificationPayload;
         addMessage('assistant', clarification.question);
         speakIfEnabled(clarification.question);
         setStatus('idle');
+      } else if (result.payload.action === AgentAction.SCAN_RECEIPT) {
+        // Scan receipt - activate scanner UI
+        addMessage('assistant', 'Abriendo el scanner de tickets...');
+        speakIfEnabled('Abriendo el scanner de tickets');
+        setScannerActive(true);
+        setStatus('scanning');
       } else if (DB_ACTIONS.has(classification.action)) {
         // Needs confirmation
         setPendingPayload(result.payload);
         addMessage('assistant', result.message, result.payload);
         setStatus('confirming');
         speakIfEnabled(result.message + '. ¿Querés confirmar?');
-      } else {
-        // Display-only (dollar rate, market query, general question)
+      } else if (DISPLAY_ACTIONS.has(classification.action)) {
+        // Display-only (dollar rate, market query, general question, data query)
         addMessage('assistant', result.message, result.payload);
         setStatus('done');
 
-        if (classification.action === 'general_question' || classification.action === 'market_query') {
+        if (classification.action === 'general_question' || classification.action === 'market_query' || classification.action === 'data_query') {
           speakIfEnabled((result.payload as { answer: string }).answer);
         } else {
           speakIfEnabled(result.message);
         }
+      } else {
+        // Fallback for any other action
+        addMessage('assistant', result.message, result.payload);
+        setStatus('done');
+        speakIfEnabled(result.message);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error procesando tu solicitud';
@@ -171,6 +239,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
             ticket_id: null,
           };
           await api.addTransaction(transaction);
+          updateSessionPreferences(pendingPayload);
           break;
         }
 
@@ -220,6 +289,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
           }
 
           await api.createCreditPurchase(purchase, installments);
+          updateSessionPreferences(pendingPayload);
           break;
         }
 
@@ -253,17 +323,56 @@ export function AgentProvider({ children }: AgentProviderProps) {
 
       // Refresh data in page
       onActionCompletedRef.current?.();
+
+      // Multi-step sequence handling
+      if (pendingSequenceCount > 1) {
+        setPendingSequenceCount(prev => prev - 1);
+        setTimeout(() => {
+          addMessage('assistant', `¿Cuál es el siguiente? (quedan ${pendingSequenceCount - 1})`);
+          speakIfEnabled(`¿Cuál es el siguiente? Quedan ${pendingSequenceCount - 1}`);
+          setStatus('idle');
+        }, 500);
+      } else if (pendingSequenceCount === 1) {
+        setPendingSequenceCount(0);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error al confirmar la acción';
       addMessage('assistant', errorMessage);
       setStatus('error');
       setPendingPayload(null);
     }
-  }, [pendingPayload, user, addMessage, speakIfEnabled]);
+  }, [pendingPayload, user, addMessage, speakIfEnabled, updateSessionPreferences, pendingSequenceCount]);
 
   const cancelAction = useCallback(() => {
     setPendingPayload(null);
+    setPendingSequenceCount(0);
     addMessage('assistant', 'Acción cancelada.');
+    setStatus('idle');
+  }, [addMessage]);
+
+  const onScanComplete = useCallback((data: ScanCompleteData) => {
+    setScannerActive(false);
+
+    addMessage('assistant', `Ticket de ${data.storeName} por $${data.totalAmount.toLocaleString('es-AR')} escaneado. ¿Querés registrarlo como gasto?`);
+    speakIfEnabled(`Ticket de ${data.storeName} por ${data.totalAmount} pesos escaneado. ¿Querés registrarlo como gasto?`);
+
+    // Pre-populate an add_expense payload with ticket data
+    const expensePayload: AddTransactionPayload = {
+      action: AgentAction.ADD_EXPENSE,
+      type: 'expense',
+      amount: data.totalAmount,
+      category: 'Compras',
+      description: data.notes ? `${data.storeName}: ${data.notes}` : `Compra en ${data.storeName}`,
+      date: data.ticketDate,
+    };
+
+    setPendingPayload(expensePayload);
+    setStatus('confirming');
+  }, [addMessage, speakIfEnabled]);
+
+  const onScanCancel = useCallback(() => {
+    setScannerActive(false);
+    addMessage('assistant', 'Scanner cerrado.');
     setStatus('idle');
   }, [addMessage]);
 
@@ -291,16 +400,19 @@ export function AgentProvider({ children }: AgentProviderProps) {
     pendingPayload,
     voiceEnabled,
     isSpeaking,
+    scannerActive,
     sendTranscription,
     confirmAction,
     cancelAction,
     toggleDrawer,
     toggleVoice,
     setOnActionCompleted,
+    onScanComplete,
+    onScanCancel,
   }), [
-    isOpen, status, messages, pendingPayload, voiceEnabled, isSpeaking,
+    isOpen, status, messages, pendingPayload, voiceEnabled, isSpeaking, scannerActive,
     sendTranscription, confirmAction, cancelAction, toggleDrawer, toggleVoice,
-    setOnActionCompleted,
+    setOnActionCompleted, onScanComplete, onScanCancel,
   ]);
 
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;

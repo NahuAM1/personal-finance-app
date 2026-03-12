@@ -3,11 +3,14 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { USER_ROLES } from '@/types/database';
 import type { UserRole } from '@/types/database';
 import { AgentAction } from '@/types/agent';
-import type { AgentActionType, AgentExecuteResponse, AgentPayload, AgentClarificationPayload, ConversationMessage } from '@/types/agent';
+import type { AgentActionType, AgentExecuteResponse, AgentPayload, AgentClarificationPayload, ConversationMessage, DataQueryParams } from '@/types/agent';
 import OpenAI from 'openai';
 import { OpenAIModels } from '@/public/enums';
 import { buildClassifierPrompt } from '@/lib/agent/classifier-prompt';
 import { getStrategy } from '@/lib/agent/strategies';
+import { fetchDataForQuery } from '@/lib/agent/data-fetcher';
+import { buildDataAnswerPrompt } from '@/lib/agent/strategies/data-query';
+import { detectRecurringPatterns, formatPatterns } from '@/lib/agent/pattern-detector';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -128,7 +131,7 @@ function buildInsightPrompt(
 
   const desc = actionDescriptions[action] ?? 'Acción detectada';
 
-  return `Sos SmartPocket. Generá un mensaje de confirmación breve (1-2 oraciones) para esta acción:
+  return `Sos SmartPocket. Generá un mensaje de confirmación breve (2-3 oraciones) para esta acción:
 
 Acción: ${desc}
 
@@ -138,10 +141,14 @@ ${financialContext}
 Reglas:
 - Confirmá la acción detectada
 - Agregá un insight basado en datos reales (ej: "Ya llevás $X en esa categoría este mes" o "Esto representa el X% de tus ingresos")
+- Si hay metas de ahorro activas, mencioná si este gasto impacta alguna meta (ej: "Esto te aleja X% de tu meta de [nombre]")
+- Si hay patrones recurrentes en la categoría, mencionalo (ej: "Es tu Xto gasto de [categoría] esta semana/mes")
+- Si la categoría está cerca o supera el presupuesto (expense_plan), alertá al usuario
+- Calculá velocidad de gasto: "Llevás $X en Y días, proyectado a $Z a fin de mes"
 - Si no hay datos suficientes para un insight, solo confirmá la acción
 - Español rioplatense, texto plano, sin markdown
 - Montos con formato $X.XXX
-- Máximo 2 oraciones
+- Máximo 3 oraciones
 
 Respondé ÚNICAMENTE con un JSON válido:
 {"message": "tu mensaje acá"}`;
@@ -499,7 +506,34 @@ async function buildUserFinancialContext(
   context += `Inversiones: ${investments.length > 0 ? 'Tiene' : 'No tiene'} (puntos: ${investmentScore}/2)\n`;
   context += `Deuda: ${debtPct}% del ingreso (puntos: ${debtScore}/2)\n`;
   context += `Fondo emergencia: ${hasSavingsGoals ? 'Sí' : 'No'} (puntos: ${emergencyScore}/1)\n`;
-  context += `Score total: ${totalScore}/10\n`;
+  context += `Score total: ${totalScore}/10\n\n`;
+
+  // --- PATRONES RECURRENTES ---
+  const allTransactionsForPatterns = [...transactions, ...prevTransactions];
+  const patterns = detectRecurringPatterns(allTransactionsForPatterns);
+  if (patterns.length > 0) {
+    context += formatPatterns(patterns);
+  }
+
+  // --- ADHERENCIA A PRESUPUESTOS ---
+  if (plans.length > 0 && Object.keys(expensesByCategory).length > 0) {
+    const budgetLines: string[] = [];
+    for (const plan of plans) {
+      const categoryExpense = expensesByCategory[plan.category]?.total ?? 0;
+      if (plan.target_amount > 0) {
+        const pct = Math.round((categoryExpense / plan.target_amount) * 100);
+        let statusLabel = 'En buen camino';
+        if (pct >= 100) statusLabel = 'EXCEDIDO';
+        else if (pct >= 90) statusLabel = 'ALERTA: casi al limite';
+        else if (pct >= 75) statusLabel = 'Atencion';
+        budgetLines.push(`- ${plan.category} (${plan.name}): $${categoryExpense.toLocaleString('es-AR')} / $${plan.target_amount.toLocaleString('es-AR')} (${pct}%) - ${statusLabel}`);
+      }
+    }
+    if (budgetLines.length > 0) {
+      context += '=== ADHERENCIA A PRESUPUESTOS ===\n';
+      context += budgetLines.join('\n') + '\n\n';
+    }
+  }
 
   return context;
 }
@@ -739,6 +773,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const payload = strategy.parseResponse(JSON.stringify(rates));
 
         result = { payload, message: 'Cotización del dólar obtenida' };
+      }
+      // Scan receipt: fast-path, no AI needed
+      else if (action === AgentAction.SCAN_RECEIPT) {
+        return NextResponse.json({
+          action,
+          confidence: classification.confidence,
+          payload: { action: 'scan_receipt', triggerScanner: true },
+          message: 'Abriendo el scanner de tickets...',
+        });
+      }
+      // Data query: two-pass flow (extract params → fetch data → generate answer)
+      else if (action === AgentAction.DATA_QUERY) {
+        // Pass 1: Extract query parameters from natural language
+        const paramStrategy = getStrategy(action);
+        const paramPrompt = paramStrategy.buildPrompt(transcription, undefined, conversationHistory);
+        const rawParams = await executeWithNvidia(paramPrompt, conversationHistory);
+        const cleanParamsJson = parseJsonFromAI(rawParams);
+        const queryParams: DataQueryParams = JSON.parse(cleanParamsJson);
+
+        // Pass 2: Fetch actual data from Supabase
+        const queryResults = await fetchDataForQuery(supabase, user.id, queryParams);
+
+        // Pass 3: Generate natural language answer with real data
+        const answerPrompt = buildDataAnswerPrompt(transcription, queryResults, conversationHistory);
+        const rawAnswer = await executeWithNvidia(answerPrompt, conversationHistory);
+        const cleanAnswerJson = parseJsonFromAI(rawAnswer);
+        const parsed: { answer: string } = JSON.parse(cleanAnswerJson);
+
+        result = {
+          payload: { action: 'data_query', answer: parsed.answer },
+          message: parsed.answer,
+        };
       } else {
         const strategy = getStrategy(action);
 
@@ -807,6 +873,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const strategy = getStrategy(action);
         const payload = strategy.parseResponse(JSON.stringify(rates));
         return NextResponse.json({ payload, message: 'Cotización del dólar obtenida' });
+      }
+
+      // Scan receipt: fast-path, no AI needed
+      if (action === AgentAction.SCAN_RECEIPT) {
+        return NextResponse.json({
+          payload: { action: 'scan_receipt', triggerScanner: true },
+          message: 'Abriendo el scanner de tickets...',
+        });
+      }
+
+      // Data query: two-pass flow (extract params → fetch data → generate answer)
+      if (action === AgentAction.DATA_QUERY) {
+        // Pass 1: Extract query parameters from natural language
+        const paramStrategy = getStrategy(action);
+        const paramPrompt = paramStrategy.buildPrompt(transcription, undefined, conversationHistory);
+        const rawParams = await executeWithNvidia(paramPrompt, conversationHistory);
+        const cleanParamsJson = parseJsonFromAI(rawParams);
+        const queryParams: DataQueryParams = JSON.parse(cleanParamsJson);
+
+        // Pass 2: Fetch actual data from Supabase
+        const queryResults = await fetchDataForQuery(supabase, user.id, queryParams);
+
+        // Pass 3: Generate natural language answer with real data
+        const answerPrompt = buildDataAnswerPrompt(transcription, queryResults, conversationHistory);
+        const rawAnswer = await executeWithNvidia(answerPrompt, conversationHistory);
+        const cleanAnswerJson = parseJsonFromAI(rawAnswer);
+        const parsed: { answer: string } = JSON.parse(cleanAnswerJson);
+
+        return NextResponse.json({
+          payload: { action: 'data_query', answer: parsed.answer },
+          message: parsed.answer,
+        });
       }
 
       const strategy = getStrategy(action);
@@ -887,6 +985,8 @@ async function generateActionMessage(
     [AgentAction.DOLLAR_RATE]: 'Cotización obtenida',
     [AgentAction.MARKET_QUERY]: (payload as { answer: string }).answer,
     [AgentAction.GENERAL_QUESTION]: (payload as { answer: string }).answer,
+    [AgentAction.DATA_QUERY]: (payload as { answer: string }).answer,
+    [AgentAction.SCAN_RECEIPT]: 'Abriendo el scanner de tickets...',
     [AgentAction.CLARIFICATION]: (payload as { question: string }).question,
   };
 
