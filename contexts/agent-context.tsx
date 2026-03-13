@@ -28,6 +28,7 @@ interface ScanCompleteData {
   ticketDate: string;
   ticketId: string;
   notes: string | null;
+  imagePreview: string;
 }
 
 interface SessionPreferences {
@@ -40,6 +41,7 @@ interface AgentContextType {
   status: AgentStatus;
   messages: AgentMessage[];
   pendingPayload: AgentPayload | null;
+  pendingImagePreview: string | null;
   voiceEnabled: boolean;
   isSpeaking: boolean;
   scannerActive: boolean;
@@ -89,6 +91,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
   const [pendingSequenceCount, setPendingSequenceCount] = useState(0);
 
   const onActionCompletedRef = useRef<(() => void) | null>(null);
@@ -319,6 +322,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
       addMessage('assistant', 'Listo, se registró correctamente.');
       speakIfEnabled('Listo, se registró correctamente.');
       setPendingPayload(null);
+      setPendingImagePreview(null);
       setStatus('done');
 
       // Refresh data in page
@@ -340,11 +344,13 @@ export function AgentProvider({ children }: AgentProviderProps) {
       addMessage('assistant', errorMessage);
       setStatus('error');
       setPendingPayload(null);
+      setPendingImagePreview(null);
     }
   }, [pendingPayload, user, addMessage, speakIfEnabled, updateSessionPreferences, pendingSequenceCount]);
 
   const cancelAction = useCallback(() => {
     setPendingPayload(null);
+    setPendingImagePreview(null);
     setPendingSequenceCount(0);
     addMessage('assistant', 'Acción cancelada.');
     setStatus('idle');
@@ -366,6 +372,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
       date: data.ticketDate,
     };
 
+    setPendingImagePreview(data.imagePreview);
     setPendingPayload(expensePayload);
     setStatus('confirming');
   }, [addMessage, speakIfEnabled]);
@@ -398,6 +405,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
     status,
     messages,
     pendingPayload,
+    pendingImagePreview,
     voiceEnabled,
     isSpeaking,
     scannerActive,
@@ -410,7 +418,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
     onScanComplete,
     onScanCancel,
   }), [
-    isOpen, status, messages, pendingPayload, voiceEnabled, isSpeaking, scannerActive,
+    isOpen, status, messages, pendingPayload, pendingImagePreview, voiceEnabled, isSpeaking, scannerActive,
     sendTranscription, confirmAction, cancelAction, toggleDrawer, toggleVoice,
     setOnActionCompleted, onScanComplete, onScanCancel,
   ]);

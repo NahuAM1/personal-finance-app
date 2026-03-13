@@ -7,11 +7,12 @@ import { Badge } from '@/components/ui/badge';
 
 interface ConfirmTransactionProps {
   payload: AddTransactionPayload;
+  imagePreview?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function ConfirmTransaction({ payload, onConfirm, onCancel }: ConfirmTransactionProps) {
+export function ConfirmTransaction({ payload, imagePreview, onConfirm, onCancel }: ConfirmTransactionProps) {
   const isIncome = payload.type === 'income';
 
   return (
@@ -25,6 +26,16 @@ export function ConfirmTransaction({ payload, onConfirm, onCancel }: ConfirmTran
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 text-sm">
+        {imagePreview && (
+          <div className="w-full rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 mb-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imagePreview}
+              alt="Ticket escaneado"
+              className="w-full max-h-32 object-contain"
+            />
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-gray-500">Monto:</span>
           <span className="font-semibold">${payload.amount.toLocaleString('es-AR')}</span>

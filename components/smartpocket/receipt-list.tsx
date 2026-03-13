@@ -56,10 +56,12 @@ export function ReceiptList({ tickets, onSelectTicket, onDelete }: ReceiptListPr
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {tickets.map((ticket) => (
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 key={ticket.id}
                 onClick={() => onSelectTicket(ticket)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectTicket(ticket); } }}
                 className="w-full text-left flex items-center justify-between p-4 rounded-xl border border-purple-100 dark:border-purple-800 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 cursor-pointer transition-colors group hover:shadow-md hover:shadow-purple-100/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
               >
                 <div className="flex-1 min-w-0">
@@ -91,7 +93,7 @@ export function ReceiptList({ tickets, onSelectTicket, onDelete }: ReceiptListPr
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
-              </button>
+              </div>
             ))}
           </div>
         </CardContent>

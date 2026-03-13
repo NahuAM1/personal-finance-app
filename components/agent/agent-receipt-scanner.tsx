@@ -4,7 +4,6 @@ import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, Upload, Loader2, ScanLine, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 
 interface ScanResult {
   storeName: string;
@@ -12,6 +11,7 @@ interface ScanResult {
   ticketDate: string;
   ticketId: string;
   notes: string | null;
+  imagePreview: string;
 }
 
 interface AgentReceiptScannerProps {
@@ -164,6 +164,7 @@ export function AgentReceiptScanner({ onComplete, onCancel }: AgentReceiptScanne
         ticketDate: data.ticket.ticket_date,
         ticketId: data.ticket.id,
         notes: data.ticket.notes,
+        imagePreview: preview!,
       });
     } catch (error) {
       toast({
@@ -238,12 +239,12 @@ export function AgentReceiptScanner({ onComplete, onCancel }: AgentReceiptScanne
         </button>
       ) : (
         <div className="flex-1 flex flex-col gap-3">
-          <div className="relative flex-1 max-h-[40vh] rounded-xl overflow-hidden border border-purple-200 dark:border-purple-800">
-            <Image
+          <div className="flex-1 max-h-[40vh] rounded-xl overflow-hidden border border-purple-200 dark:border-purple-800">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={preview}
               alt="Preview del ticket"
-              fill
-              className="object-contain"
+              className="w-full h-full object-contain"
             />
           </div>
           <div className="flex gap-2 justify-center">

@@ -25,6 +25,7 @@ export function AgentDrawer() {
     status,
     messages,
     pendingPayload,
+    pendingImagePreview,
     isSpeaking,
     scannerActive,
     sendTranscription,
@@ -107,6 +108,7 @@ export function AgentDrawer() {
                     {(pendingPayload.action === 'add_expense' || pendingPayload.action === 'add_income') && (
                       <ConfirmTransaction
                         payload={pendingPayload as AddTransactionPayload}
+                        imagePreview={pendingImagePreview}
                         onConfirm={confirmAction}
                         onCancel={cancelAction}
                       />
