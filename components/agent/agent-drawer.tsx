@@ -7,6 +7,7 @@ import { AgentAvatar } from './agent-avatar';
 import { AgentMicrophone } from './agent-microphone';
 import { AgentMessageList } from './agent-message-list';
 import { AgentTTSToggle } from './agent-tts-toggle';
+import { AgentReceiptScanner } from './agent-receipt-scanner';
 import { ConfirmTransaction } from './confirmation-modals/confirm-transaction';
 import { ConfirmSavingsGoal } from './confirmation-modals/confirm-savings-goal';
 import { ConfirmCreditPurchase } from './confirmation-modals/confirm-credit-purchase';
@@ -24,11 +25,15 @@ export function AgentDrawer() {
     status,
     messages,
     pendingPayload,
+    pendingImagePreview,
     isSpeaking,
+    scannerActive,
     sendTranscription,
     confirmAction,
     cancelAction,
     toggleDrawer,
+    onScanComplete,
+    onScanCancel,
   } = useAgentContext();
 
   if (!isOpen) return null;
@@ -59,6 +64,7 @@ export function AgentDrawer() {
                   {status === 'classifying' && 'Analizando...'}
                   {status === 'executing' && 'Procesando...'}
                   {status === 'confirming' && 'Esperando confirmación'}
+                  {status === 'scanning' && 'Escaneando ticket...'}
                   {status === 'done' && 'Completado'}
                   {status === 'error' && 'Ocurrió un error'}
                 </p>
@@ -78,59 +84,71 @@ export function AgentDrawer() {
             </div>
           </div>
 
-          {/* Messages */}
+          {/* Content - Scanner or Messages */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <AgentMessageList messages={messages} />
+            {scannerActive ? (
+              <AgentReceiptScanner
+                onComplete={onScanComplete}
+                onCancel={onScanCancel}
+              />
+            ) : (
+              <>
+                <AgentMessageList messages={messages} />
 
-            {/* Loading indicator */}
-            {isProcessing && (
-              <div className="flex justify-center py-2">
-                <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
-              </div>
-            )}
+                {/* Loading indicator */}
+                {isProcessing && (
+                  <div className="flex justify-center py-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
+                  </div>
+                )}
 
-            {/* Confirmation Card (overlay at bottom of messages) */}
-            {status === 'confirming' && pendingPayload && (
-              <div className="px-4 pb-2">
-                {(pendingPayload.action === 'add_expense' || pendingPayload.action === 'add_income') && (
-                  <ConfirmTransaction
-                    payload={pendingPayload as AddTransactionPayload}
-                    onConfirm={confirmAction}
-                    onCancel={cancelAction}
-                  />
+                {/* Confirmation Card (overlay at bottom of messages) */}
+                {status === 'confirming' && pendingPayload && (
+                  <div className="px-4 pb-2">
+                    {(pendingPayload.action === 'add_expense' || pendingPayload.action === 'add_income') && (
+                      <ConfirmTransaction
+                        payload={pendingPayload as AddTransactionPayload}
+                        imagePreview={pendingImagePreview}
+                        onConfirm={confirmAction}
+                        onCancel={cancelAction}
+                      />
+                    )}
+                    {pendingPayload.action === 'create_savings_goal' && (
+                      <ConfirmSavingsGoal
+                        payload={pendingPayload as CreateSavingsGoalPayload}
+                        onConfirm={confirmAction}
+                        onCancel={cancelAction}
+                      />
+                    )}
+                    {pendingPayload.action === 'credit_purchase' && (
+                      <ConfirmCreditPurchase
+                        payload={pendingPayload as CreditPurchasePayload}
+                        onConfirm={confirmAction}
+                        onCancel={cancelAction}
+                      />
+                    )}
+                    {pendingPayload.action === 'create_investment' && (
+                      <ConfirmInvestment
+                        payload={pendingPayload as CreateInvestmentPayload}
+                        onConfirm={confirmAction}
+                        onCancel={cancelAction}
+                      />
+                    )}
+                  </div>
                 )}
-                {pendingPayload.action === 'create_savings_goal' && (
-                  <ConfirmSavingsGoal
-                    payload={pendingPayload as CreateSavingsGoalPayload}
-                    onConfirm={confirmAction}
-                    onCancel={cancelAction}
-                  />
-                )}
-                {pendingPayload.action === 'credit_purchase' && (
-                  <ConfirmCreditPurchase
-                    payload={pendingPayload as CreditPurchasePayload}
-                    onConfirm={confirmAction}
-                    onCancel={cancelAction}
-                  />
-                )}
-                {pendingPayload.action === 'create_investment' && (
-                  <ConfirmInvestment
-                    payload={pendingPayload as CreateInvestmentPayload}
-                    onConfirm={confirmAction}
-                    onCancel={cancelAction}
-                  />
-                )}
-              </div>
+              </>
             )}
           </div>
 
-          {/* Footer - Microphone */}
-          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <AgentMicrophone
-              onTranscription={sendTranscription}
-              disabled={isProcessing || status === 'confirming'}
-            />
-          </div>
+          {/* Footer - Microphone (hidden during scanning) */}
+          {!scannerActive && (
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <AgentMicrophone
+                onTranscription={sendTranscription}
+                disabled={isProcessing || status === 'confirming'}
+              />
+            </div>
+          )}
         </div>
       </div>
     </>

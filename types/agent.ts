@@ -10,6 +10,8 @@ export const AgentAction = {
   DOLLAR_RATE: "dollar_rate",
   MARKET_QUERY: "market_query",
   GENERAL_QUESTION: "general_question",
+  DATA_QUERY: "data_query",
+  SCAN_RECEIPT: "scan_receipt",
   CLARIFICATION: "clarification",
 } as const;
 
@@ -22,6 +24,7 @@ export type AgentStatus =
   | "classifying"
   | "executing"
   | "confirming"
+  | "scanning"
   | "done"
   | "error";
 
@@ -82,10 +85,32 @@ export interface GeneralQuestionPayload {
   answer: string;
 }
 
+export interface DataQueryPayload {
+  action: typeof AgentAction.DATA_QUERY;
+  answer: string;
+}
+
+export interface ScanReceiptPayload {
+  action: typeof AgentAction.SCAN_RECEIPT;
+  triggerScanner: true;
+}
+
 export interface AgentClarificationPayload {
   action: typeof AgentAction.CLARIFICATION;
   question: string;
   originalAction: AgentActionType;
+}
+
+// Internal params used only in route.ts for data_query two-pass flow
+export interface DataQueryParams {
+  dateFrom: string;
+  dateTo: string;
+  transactionType: "income" | "expense" | "credit" | "all";
+  category: string;
+  comparisonDateFrom: string | null;
+  comparisonDateTo: string | null;
+  dataScope: "transactions" | "investments" | "credit_purchases" | "savings_goals" | "all";
+  queryIntent: "sum" | "list" | "compare" | "trend" | "detail";
 }
 
 export type AgentPayload =
@@ -96,6 +121,8 @@ export type AgentPayload =
   | DollarRatePayload
   | MarketQueryPayload
   | GeneralQuestionPayload
+  | DataQueryPayload
+  | ScanReceiptPayload
   | AgentClarificationPayload;
 
 // --- Conversation History (for multi-turn) ---
