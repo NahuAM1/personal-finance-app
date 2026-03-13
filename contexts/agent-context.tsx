@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { AgentAction } from '@/types/agent';
 import type {
   AgentActionType,
@@ -93,6 +93,22 @@ export function AgentProvider({ children }: AgentProviderProps) {
   const [scannerActive, setScannerActive] = useState(false);
   const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
   const [pendingSequenceCount, setPendingSequenceCount] = useState(0);
+
+  // Clear conversation and state on sign out
+  useEffect(() => {
+    if (!user) {
+      setIsOpen(false);
+      setStatus('idle');
+      setMessages([]);
+      setPendingPayload(null);
+      setPendingImagePreview(null);
+      setScannerActive(false);
+      setPendingSequenceCount(0);
+      if (ttsServiceRef.current) {
+        ttsServiceRef.current.stop();
+      }
+    }
+  }, [user]);
 
   const onActionCompletedRef = useRef<(() => void) | null>(null);
   const ttsServiceRef = useRef<TTSService | null>(null);
