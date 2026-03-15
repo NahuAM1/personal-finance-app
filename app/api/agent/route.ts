@@ -6,7 +6,7 @@ import { AgentAction } from '@/types/agent';
 import type { AgentActionType, AgentExecuteResponse, AgentPayload, AgentClarificationPayload, ConversationMessage, DataQueryParams } from '@/types/agent';
 import OpenAI from 'openai';
 import { OpenAIModels } from '@/public/enums';
-import { buildClassifierPrompt } from '@/lib/agent/classifier-prompt';
+import { buildClassifierPrompt } from '@/public/promts/classifier-prompt';
 import { getStrategy } from '@/lib/agent/strategies';
 import { fetchDataForQuery } from '@/lib/agent/data-fetcher';
 import { buildDataAnswerPrompt } from '@/lib/agent/strategies/data-query';
@@ -70,6 +70,13 @@ function serializeHistory(history: ConversationMessage[]): string {
   return history
     .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`)
     .join('\n');
+}
+
+const MARKET_KEYWORDS = ['dolar', 'dólar', 'bitcoin', 'btc', 'crypto', 'cripto', 'ethereum', 'accion', 'acciones', 'bono', 'bonos', 'inversion', 'inversión', 'inversiones', 'invertir', 'cedear', 'plazo fijo', 'tasa', 'rendimiento', 'lecap', 'letras', 'merval', 'me conviene', 'blue', 'mep', 'ccl'];
+
+function transcriptionNeedsMarketData(transcription: string): boolean {
+  const lower = transcription.toLowerCase();
+  return MARKET_KEYWORDS.some(kw => lower.includes(kw));
 }
 
 // --- Classify using NVIDIA free model (no quota limits) ---
@@ -836,7 +843,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           context = await buildUserFinancialContext(supabase, user.id);
         }
 
-        if (strategy.needsMarketData) {
+        if (strategy.needsMarketData && (action !== AgentAction.GENERAL_QUESTION || transcriptionNeedsMarketData(transcription))) {
           const baseUrl = request.nextUrl.origin;
           const marketContext = await buildMarketContext(baseUrl, transcription, action);
           context = context ? `${context}\n\n${marketContext}` : marketContext;
@@ -933,7 +940,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (strategy.needsUserData) {
         context = await buildUserFinancialContext(supabase, user.id);
       }
-      if (strategy.needsMarketData) {
+      if (strategy.needsMarketData && (action !== AgentAction.GENERAL_QUESTION || transcriptionNeedsMarketData(transcription))) {
         const baseUrl = request.nextUrl.origin;
         const marketContext = await buildMarketContext(baseUrl, transcription, action);
         context = context ? `${context}\n\n${marketContext}` : marketContext;
