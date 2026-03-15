@@ -5,16 +5,22 @@ import type { UserRole } from '@/types/database';
 import { AgentAction } from '@/types/agent';
 import type { AgentActionType, AgentExecuteResponse, AgentPayload, AgentClarificationPayload, ConversationMessage, DataQueryParams } from '@/types/agent';
 import OpenAI from 'openai';
-import { OpenAIModels } from '@/public/enums';
-import { buildClassifierPrompt } from '@/lib/agent/classifier-prompt';
+import { HuggingFaceModels, OpenRouterModels } from '@/public/enums';
+import { buildClassifierPrompt } from '@/public/promts/classifier-prompt';
 import { getStrategy } from '@/lib/agent/strategies';
 import { fetchDataForQuery } from '@/lib/agent/data-fetcher';
 import { buildDataAnswerPrompt } from '@/lib/agent/strategies/data-query';
 import { detectRecurringPatterns, formatPatterns } from '@/lib/agent/pattern-detector';
+import { serializeHistory } from '@/lib/agent/utils/serialize-history';
 
-const openai = new OpenAI({
+const openrouter = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_API_BASE_URL,
+});
+
+const huggingface = new OpenAI({
+  apiKey: process.env.HUGGING_FACE_KEY,
+  baseURL: process.env.HUGGING_FACE_BASE_URL,
 });
 
 function parseJsonFromAI(raw: string): string {
@@ -66,10 +72,11 @@ interface CreditPurchaseRow {
   installments: number;
 }
 
-function serializeHistory(history: ConversationMessage[]): string {
-  return history
-    .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`)
-    .join('\n');
+const MARKET_KEYWORDS = ['dolar', 'dólar', 'bitcoin', 'btc', 'crypto', 'cripto', 'ethereum', 'accion', 'acciones', 'bono', 'bonos', 'inversion', 'inversión', 'inversiones', 'invertir', 'cedear', 'plazo fijo', 'tasa', 'rendimiento', 'lecap', 'letras', 'merval', 'me conviene', 'blue', 'mep', 'ccl'];
+
+function transcriptionNeedsMarketData(transcription: string): boolean {
+  const lower = transcription.toLowerCase();
+  return MARKET_KEYWORDS.some(kw => lower.includes(kw));
 }
 
 // --- Classify using NVIDIA free model (no quota limits) ---
@@ -79,10 +86,11 @@ async function classifyWithNvidia(
 ): Promise<{ action: AgentActionType; confidence: number }> {
   const prompt = buildClassifierPrompt(transcription, conversationHistory);
 
-  const response = await openai.chat.completions.create({
-    model: OpenAIModels.NVIDIA,
+  const response = await openrouter.chat.completions.create({
+    model: OpenRouterModels.NVIDIA,
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.1,
+    max_tokens: 256,
   });
 
   const rawContent = response.choices[0]?.message?.content ?? '';
@@ -106,10 +114,11 @@ async function executeWithNvidia(
 
   messages.push({ role: 'user', content: prompt });
 
-  const response = await openai.chat.completions.create({
-    model: OpenAIModels.NVIDIA,
+  const response = await huggingface.chat.completions.create({
+    model: HuggingFaceModels.LLAMA_3_1_8B,
     messages,
     temperature: 0.2,
+    max_tokens: 1024,
   });
 
   return response.choices[0]?.message?.content ?? '';
@@ -139,16 +148,15 @@ Datos financieros del usuario:
 ${financialContext}
 
 Reglas:
-- Confirmá la acción detectada
-- Agregá un insight basado en datos reales (ej: "Ya llevás $X en esa categoría este mes" o "Esto representa el X% de tus ingresos")
-- Si hay metas de ahorro activas, mencioná si este gasto impacta alguna meta (ej: "Esto te aleja X% de tu meta de [nombre]")
-- Si hay patrones recurrentes en la categoría, mencionalo (ej: "Es tu Xto gasto de [categoría] esta semana/mes")
-- Si la categoría está cerca o supera el presupuesto (expense_plan), alertá al usuario
-- Calculá velocidad de gasto: "Llevás $X en Y días, proyectado a $Z a fin de mes"
-- Si no hay datos suficientes para un insight, solo confirmá la acción
-- Español rioplatense, texto plano, sin markdown
-- Montos con formato $X.XXX
-- Máximo 3 oraciones
+- Determiná si la acción es POSITIVA (add_income, create_savings_goal, create_investment) o COSTOSA (add_expense, credit_purchase)
+- Para acciones POSITIVAS: empezá con refuerzo positivo. Ej ingreso: "Buen ingreso." Ej inversión: "Copada la decisión."
+- Para acciones COSTOSAS: confirmá con tono neutro. No uses palabras de alerta ("ojo", "cuidado") a menos que el gasto supere el 20% del ingreso mensual.
+- Agregá un insight con datos reales (ej: "Ya llevás $X en esa categoría este mes" o "Esto es el X% de tus ingresos")
+- Mencioná impacto en metas de ahorro solo si el impacto es > 5% de la meta
+- Si la categoría supera el presupuesto (expense_plan), alertá brevemente
+- Si no hay datos suficientes, solo confirmá la acción
+- Español neutro, texto plano, sin markdown, montos $X.XXX
+- Máximo 2 oraciones
 
 Respondé ÚNICAMENTE con un JSON válido:
 {"message": "tu mensaje acá"}`;
@@ -173,7 +181,6 @@ async function buildUserFinancialContext(
     prevTransactionsResult,
     plansResult,
     investmentsResult,
-    unpaidInstallmentsResult,
     creditPurchasesResult,
   ] = await Promise.all([
     supabase
@@ -200,12 +207,6 @@ async function buildUserFinancialContext(
       .eq('user_id', userId)
       .eq('is_liquidated', false),
     supabase
-      .from('credit_installments')
-      .select('installment_number, due_date, amount, credit_purchase_id')
-      .eq('paid', false)
-      .order('due_date', { ascending: true })
-      .limit(10),
-    supabase
       .from('credit_purchases')
       .select('id, description, category, installments')
       .eq('user_id', userId),
@@ -215,8 +216,23 @@ async function buildUserFinancialContext(
   const prevTransactions = (prevTransactionsResult.data ?? []) as TransactionRow[];
   const plans = (plansResult.data ?? []) as ExpensePlanRow[];
   const investments = (investmentsResult.data ?? []) as InvestmentRow[];
-  const unpaidInstallments = (unpaidInstallmentsResult.data ?? []) as CreditInstallmentRow[];
   const creditPurchases = (creditPurchasesResult.data ?? []) as CreditPurchaseRow[];
+
+  // Query installments filtered by user's purchases to ensure proper isolation
+  const purchaseIds = creditPurchases.map(p => p.id);
+  let unpaidInstallments: CreditInstallmentRow[] = [];
+  if (purchaseIds.length > 0) {
+    const todayStr = now.toISOString().split('T')[0];
+    const { data: installmentsData } = await supabase
+      .from('credit_installments')
+      .select('installment_number, due_date, amount, credit_purchase_id')
+      .eq('paid', false)
+      .in('credit_purchase_id', purchaseIds)
+      .gte('due_date', todayStr)
+      .order('due_date', { ascending: true })
+      .limit(30);
+    unpaidInstallments = (installmentsData ?? []) as CreditInstallmentRow[];
+  }
 
   // Current month calculations
   const expenses = transactions.filter(t => t.type === 'expense');
@@ -324,27 +340,40 @@ async function buildUserFinancialContext(
     context += '\n';
   }
 
-  // Upcoming credit installments
+  // Credit installments context grouped by month (already filtered by user's purchases)
   if (unpaidInstallments.length > 0) {
     const purchaseLookup: Record<string, CreditPurchaseRow> = {};
     for (const p of creditPurchases) {
       purchaseLookup[p.id] = p;
     }
 
-    const userInstallments = unpaidInstallments.filter(inst => purchaseLookup[inst.credit_purchase_id]);
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    if (userInstallments.length > 0) {
-      let totalPending = 0;
-      context += '=== PRÓXIMAS CUOTAS A PAGAR ===\n';
-      for (const inst of userInstallments) {
+    const byMonth: Record<string, CreditInstallmentRow[]> = {};
+    for (const inst of unpaidInstallments) {
+      const key = inst.due_date.substring(0, 7);
+      if (!byMonth[key]) byMonth[key] = [];
+      byMonth[key].push(inst);
+    }
+
+    context += '=== CUOTAS DE TARJETA DE CRÉDITO POR MES ===\n';
+    for (const monthKey of Object.keys(byMonth).sort()) {
+      const monthInstallments = byMonth[monthKey];
+      const monthTotal = monthInstallments.reduce((sum, inst) => sum + inst.amount, 0);
+      const [y, m] = monthKey.split('-');
+      const monthLabel = new Date(parseInt(y), parseInt(m) - 1, 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
+      const tag = monthKey === currentMonthKey ? ' (ESTE MES)' : monthKey > currentMonthKey ? ` (mes ${Object.keys(byMonth).sort().indexOf(monthKey) - Object.keys(byMonth).sort().indexOf(currentMonthKey)} hacia adelante)` : '';
+
+      context += `\n${monthLabel.toUpperCase()}${tag}:\n`;
+      for (const inst of monthInstallments) {
         const purchase = purchaseLookup[inst.credit_purchase_id];
         if (purchase) {
           context += `- ${purchase.description}: Cuota ${inst.installment_number}/${purchase.installments} - $${inst.amount.toLocaleString('es-AR')} - Vence ${inst.due_date}\n`;
-          totalPending += inst.amount;
         }
       }
-      context += `Total cuotas pendientes: $${totalPending.toLocaleString('es-AR')}\n\n`;
+      context += `Total ${monthLabel}: $${monthTotal.toLocaleString('es-AR')}\n`;
     }
+    context += '\n';
   }
 
   if (plans.length > 0) {
@@ -741,18 +770,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const classification = await classifyWithNvidia(transcription, conversationHistory);
       const action = classification.action;
 
-      // Low confidence: ask for clarification instead of executing
-      if (classification.confidence < 0.7) {
-        const clarificationPayload: AgentClarificationPayload = {
-          action: AgentAction.CLARIFICATION,
-          question: 'No estoy seguro de lo que querés hacer. ¿Podés ser más específico?',
-          originalAction: classification.action,
-        };
+      // Low confidence: ask for reformulation instead of executing incorrectly
+      if (classification.confidence < 0.65) {
         return NextResponse.json({
-          action: classification.action,
+          action: 'general_question',
           confidence: classification.confidence,
-          payload: clarificationPayload,
-          message: clarificationPayload.question,
+          payload: {
+            action: 'general_question',
+            answer: 'No entendí bien tu consulta. ¿Podés reformularla?',
+          },
+          message: 'No entendí bien tu consulta. ¿Podés reformularla?',
         });
       }
 
@@ -815,7 +842,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           context = await buildUserFinancialContext(supabase, user.id);
         }
 
-        if (strategy.needsMarketData) {
+        if (strategy.needsMarketData && (action !== AgentAction.GENERAL_QUESTION || transcriptionNeedsMarketData(transcription))) {
           const baseUrl = request.nextUrl.origin;
           const marketContext = await buildMarketContext(baseUrl, transcription, action);
           context = context ? `${context}\n\n${marketContext}` : marketContext;
@@ -912,7 +939,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (strategy.needsUserData) {
         context = await buildUserFinancialContext(supabase, user.id);
       }
-      if (strategy.needsMarketData) {
+      if (strategy.needsMarketData && (action !== AgentAction.GENERAL_QUESTION || transcriptionNeedsMarketData(transcription))) {
         const baseUrl = request.nextUrl.origin;
         const marketContext = await buildMarketContext(baseUrl, transcription, action);
         context = context ? `${context}\n\n${marketContext}` : marketContext;
