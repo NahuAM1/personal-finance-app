@@ -173,7 +173,6 @@ async function buildUserFinancialContext(
     prevTransactionsResult,
     plansResult,
     investmentsResult,
-    unpaidInstallmentsResult,
     creditPurchasesResult,
   ] = await Promise.all([
     supabase
@@ -200,12 +199,6 @@ async function buildUserFinancialContext(
       .eq('user_id', userId)
       .eq('is_liquidated', false),
     supabase
-      .from('credit_installments')
-      .select('installment_number, due_date, amount, credit_purchase_id')
-      .eq('paid', false)
-      .order('due_date', { ascending: true })
-      .limit(10),
-    supabase
       .from('credit_purchases')
       .select('id, description, category, installments')
       .eq('user_id', userId),
@@ -215,8 +208,23 @@ async function buildUserFinancialContext(
   const prevTransactions = (prevTransactionsResult.data ?? []) as TransactionRow[];
   const plans = (plansResult.data ?? []) as ExpensePlanRow[];
   const investments = (investmentsResult.data ?? []) as InvestmentRow[];
-  const unpaidInstallments = (unpaidInstallmentsResult.data ?? []) as CreditInstallmentRow[];
   const creditPurchases = (creditPurchasesResult.data ?? []) as CreditPurchaseRow[];
+
+  // Query installments filtered by user's purchases to ensure proper isolation
+  const purchaseIds = creditPurchases.map(p => p.id);
+  let unpaidInstallments: CreditInstallmentRow[] = [];
+  if (purchaseIds.length > 0) {
+    const todayStr = now.toISOString().split('T')[0];
+    const { data: installmentsData } = await supabase
+      .from('credit_installments')
+      .select('installment_number, due_date, amount, credit_purchase_id')
+      .eq('paid', false)
+      .in('credit_purchase_id', purchaseIds)
+      .gte('due_date', todayStr)
+      .order('due_date', { ascending: true })
+      .limit(30);
+    unpaidInstallments = (installmentsData ?? []) as CreditInstallmentRow[];
+  }
 
   // Current month calculations
   const expenses = transactions.filter(t => t.type === 'expense');
@@ -324,27 +332,40 @@ async function buildUserFinancialContext(
     context += '\n';
   }
 
-  // Upcoming credit installments
+  // Credit installments context grouped by month (already filtered by user's purchases)
   if (unpaidInstallments.length > 0) {
     const purchaseLookup: Record<string, CreditPurchaseRow> = {};
     for (const p of creditPurchases) {
       purchaseLookup[p.id] = p;
     }
 
-    const userInstallments = unpaidInstallments.filter(inst => purchaseLookup[inst.credit_purchase_id]);
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    if (userInstallments.length > 0) {
-      let totalPending = 0;
-      context += '=== PRÓXIMAS CUOTAS A PAGAR ===\n';
-      for (const inst of userInstallments) {
+    const byMonth: Record<string, CreditInstallmentRow[]> = {};
+    for (const inst of unpaidInstallments) {
+      const key = inst.due_date.substring(0, 7);
+      if (!byMonth[key]) byMonth[key] = [];
+      byMonth[key].push(inst);
+    }
+
+    context += '=== CUOTAS DE TARJETA DE CRÉDITO POR MES ===\n';
+    for (const monthKey of Object.keys(byMonth).sort()) {
+      const monthInstallments = byMonth[monthKey];
+      const monthTotal = monthInstallments.reduce((sum, inst) => sum + inst.amount, 0);
+      const [y, m] = monthKey.split('-');
+      const monthLabel = new Date(parseInt(y), parseInt(m) - 1, 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
+      const tag = monthKey === currentMonthKey ? ' (ESTE MES)' : monthKey > currentMonthKey ? ` (mes ${Object.keys(byMonth).sort().indexOf(monthKey) - Object.keys(byMonth).sort().indexOf(currentMonthKey)} hacia adelante)` : '';
+
+      context += `\n${monthLabel.toUpperCase()}${tag}:\n`;
+      for (const inst of monthInstallments) {
         const purchase = purchaseLookup[inst.credit_purchase_id];
         if (purchase) {
           context += `- ${purchase.description}: Cuota ${inst.installment_number}/${purchase.installments} - $${inst.amount.toLocaleString('es-AR')} - Vence ${inst.due_date}\n`;
-          totalPending += inst.amount;
         }
       }
-      context += `Total cuotas pendientes: $${totalPending.toLocaleString('es-AR')}\n\n`;
+      context += `Total ${monthLabel}: $${monthTotal.toLocaleString('es-AR')}\n`;
     }
+    context += '\n';
   }
 
   if (plans.length > 0) {

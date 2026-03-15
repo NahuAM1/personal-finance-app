@@ -25,26 +25,38 @@ Por ejemplo:
 `
       : '';
 
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const monthStr = String(month).padStart(2, '0');
+    const startOfMonth = `${year}-${monthStr}-01`;
+    const prevMonthDate = new Date(year, month - 2, 1);
+    const prevYear = prevMonthDate.getFullYear();
+    const prevMonthStr = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
+    const prevMonthLastDay = new Date(year, month - 1, 0).getDate();
+    const prevMonthName = prevMonthDate.toLocaleString('es-AR', { month: 'long' });
+
     return `Sos un parser de consultas financieras. Extrae los parametros de busqueda de la siguiente consulta del usuario.
 
-Fecha actual: 2026-03-12 (jueves)
+Fecha actual: ${todayStr}
 ${historySection}
 REGLAS DE PARSEO DE FECHAS:
-- "enero" / "en enero" → dateFrom: "2026-01-01", dateTo: "2026-01-31"
+- "enero" / "en enero" → dateFrom: "${year}-01-01", dateTo: "${year}-01-31"
 - "enero 2025" → dateFrom: "2025-01-01", dateTo: "2025-01-31"
-- "este mes" → dateFrom: "2026-03-01", dateTo: "2026-03-12"
-- "mes pasado" / "febrero" → dateFrom: "2026-02-01", dateTo: "2026-02-28"
-- "ultimo trimestre" → ultimos 3 meses completos: dateFrom: "2025-12-01", dateTo: "2026-02-28"
-- "este trimestre" → dateFrom: "2026-01-01", dateTo: "2026-03-12"
+- "este mes" → dateFrom: "${startOfMonth}", dateTo: "${todayStr}"
+- "mes pasado" / "${prevMonthName}" → dateFrom: "${prevYear}-${prevMonthStr}-01", dateTo: "${prevYear}-${prevMonthStr}-${prevMonthLastDay}"
+- "ultimo trimestre" → ultimos 3 meses completos
+- "este trimestre" → desde el inicio del trimestre actual hasta hoy
 - "la semana pasada" → lunes a domingo de la semana anterior
 - "hace 3 meses" → desde hace 3 meses hasta hoy
 - "ultimos 6 meses" → desde hace 6 meses hasta hoy
-- "el ano pasado" / "2025" → dateFrom: "2025-01-01", dateTo: "2025-12-31"
-- "este ano" → dateFrom: "2026-01-01", dateTo: "2026-03-12"
+- "el ano pasado" / "${year - 1}" → dateFrom: "${year - 1}-01-01", dateTo: "${year - 1}-12-31"
+- "este ano" → dateFrom: "${year}-01-01", dateTo: "${todayStr}"
 - "desde marzo hasta mayo" → dateFrom del inicio del primer mes, dateTo del fin del ultimo
-- "entre febrero y abril" → dateFrom: "2026-02-01", dateTo: "2026-04-30"
+- "entre febrero y abril" → dateFrom del inicio del primer mes, dateTo del fin del ultimo
 - "compara enero con febrero" → dateFrom/dateTo para febrero, comparisonDateFrom/To para enero
-- "noviembre del ano pasado" → dateFrom: "2025-11-01", dateTo: "2025-11-30"
+- "noviembre del ano pasado" → dateFrom: "${year - 1}-11-01", dateTo: "${year - 1}-11-30"
 
 REGLAS DE TIPO DE TRANSACCION:
 - Si pregunta por gastos → "expense"
