@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { USER_ROLES, type UserRole } from "@/types/database";
-import { OpenAIModels } from "@/public/enums";
+import { GeminiModels } from "@/public/enums";
 import { shoppingRecommendationsPrompt } from "@/public/promts/shopping-recommendations";
 import { GoogleGenAI } from "@google/genai";
 
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     );
 
     const response = await genai.models.generateContent({
-      model: OpenAIModels.GEMINI_2_5_FLASH,
+      model: GeminiModels.GEMINI_2_5_FLASH,
       contents: [prompt],
       config: {
         temperature: 0.3,

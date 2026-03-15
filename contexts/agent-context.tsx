@@ -180,7 +180,16 @@ export function AgentProvider({ children }: AgentProviderProps) {
     // Build recent conversation history for multi-turn context
     const recentHistory: ConversationMessage[] = messages
       .slice(-10)
-      .map(m => ({ role: m.role, content: m.content }));
+      .map(m => {
+        if (m.role === 'assistant' && m.payload) {
+          const actionContext =
+            m.payload.action === AgentAction.CLARIFICATION
+              ? `[Acción en curso: ${(m.payload as AgentClarificationPayload).originalAction}]`
+              : `[Acción realizada: ${m.payload.action}]`;
+          return { role: m.role, content: `${actionContext} ${m.content}` };
+        }
+        return { role: m.role, content: m.content };
+      });
 
     try {
       // Step 1: Classify intent (with conversation history)

@@ -1,13 +1,13 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
-import { OpenAIModels } from "@/public/enums";
+import { HuggingFaceModels } from "@/public/enums";
 import { getMessage } from "@/public/utils/openAI";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { USER_ROLES, UserRole } from "@/types/database";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_API_BASE_URL,
+  apiKey: process.env.HUGGING_FACE_KEY,
+  baseURL: process.env.HUGGING_FACE_BASE_URL,
 });
 
 export async function POST(request: NextRequest) {
@@ -34,9 +34,9 @@ export async function POST(request: NextRequest) {
   const messages = new Array(getMessage(message));
   try {
     const response = await openai.chat.completions.create({
-      model: OpenAIModels.NVIDIA,
+      model: HuggingFaceModels.QWEN_3_5_9B,
       messages,
-      temperature: 0.7,
+      temperature: 0.1,
     });
 
     return new NextResponse(JSON.stringify(response), {
