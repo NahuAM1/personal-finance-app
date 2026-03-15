@@ -29,7 +29,7 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
           'La transacción se esta procesando, por favor aguarde un instante',
         variant: 'info',
       });
-      const response = await fetch('/api/openAI', {
+      const response = await fetch('/api/transcribe-transaction', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
