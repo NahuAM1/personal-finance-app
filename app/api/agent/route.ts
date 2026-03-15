@@ -5,7 +5,7 @@ import type { UserRole } from '@/types/database';
 import { AgentAction } from '@/types/agent';
 import type { AgentActionType, AgentExecuteResponse, AgentPayload, AgentClarificationPayload, ConversationMessage, DataQueryParams } from '@/types/agent';
 import OpenAI from 'openai';
-import { HuggingFaceModels } from '@/public/enums';
+import { HuggingFaceModels, OpenRouterModels } from '@/public/enums';
 import { buildClassifierPrompt } from '@/public/promts/classifier-prompt';
 import { getStrategy } from '@/lib/agent/strategies';
 import { fetchDataForQuery } from '@/lib/agent/data-fetcher';
@@ -13,7 +13,12 @@ import { buildDataAnswerPrompt } from '@/lib/agent/strategies/data-query';
 import { detectRecurringPatterns, formatPatterns } from '@/lib/agent/pattern-detector';
 import { serializeHistory } from '@/lib/agent/utils/serialize-history';
 
-const openai = new OpenAI({
+const openrouter = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_API_BASE_URL,
+});
+
+const huggingface = new OpenAI({
   apiKey: process.env.HUGGING_FACE_KEY,
   baseURL: process.env.HUGGING_FACE_BASE_URL,
 });
@@ -81,8 +86,8 @@ async function classifyWithNvidia(
 ): Promise<{ action: AgentActionType; confidence: number }> {
   const prompt = buildClassifierPrompt(transcription, conversationHistory);
 
-  const response = await openai.chat.completions.create({
-    model: HuggingFaceModels.LLAMA_3_1_8B,
+  const response = await openrouter.chat.completions.create({
+    model: OpenRouterModels.NVIDIA,
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.1,
     max_tokens: 256,
@@ -109,7 +114,7 @@ async function executeWithNvidia(
 
   messages.push({ role: 'user', content: prompt });
 
-  const response = await openai.chat.completions.create({
+  const response = await huggingface.chat.completions.create({
     model: HuggingFaceModels.LLAMA_3_1_8B,
     messages,
     temperature: 0.2,
