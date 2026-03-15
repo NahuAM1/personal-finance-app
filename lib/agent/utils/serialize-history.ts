@@ -9,8 +9,17 @@ export function serializeHistory(history: ConversationMessage[]): string {
 
   // Trim if exceeds token budget (approx 4 chars/token)
   if (serialized.length > MAX_HISTORY_TOKENS_APPROX * 4) {
-    const trimmed = history.slice(-6); // keep last 6 messages
-    return trimmed
+    const budget = MAX_HISTORY_TOKENS_APPROX * 4;
+    const reversed = [...history].reverse();
+    const kept: ConversationMessage[] = [];
+    let accumulated = 0;
+    for (const msg of reversed) {
+      const line = `${msg.role === 'user' ? 'Usuario' : 'Asistente'}: ${msg.content}\n`;
+      if (accumulated + line.length > budget) break;
+      kept.unshift(msg);
+      accumulated += line.length;
+    }
+    return kept
       .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`)
       .join('\n');
   }

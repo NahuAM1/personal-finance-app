@@ -5,7 +5,7 @@ import type { UserRole } from '@/types/database';
 import { AgentAction } from '@/types/agent';
 import type { AgentActionType, AgentExecuteResponse, AgentPayload, AgentClarificationPayload, ConversationMessage, DataQueryParams } from '@/types/agent';
 import OpenAI from 'openai';
-import { OpenAIModels } from '@/public/enums';
+import { HuggingFaceModels } from '@/public/enums';
 import { buildClassifierPrompt } from '@/public/promts/classifier-prompt';
 import { getStrategy } from '@/lib/agent/strategies';
 import { fetchDataForQuery } from '@/lib/agent/data-fetcher';
@@ -14,8 +14,8 @@ import { detectRecurringPatterns, formatPatterns } from '@/lib/agent/pattern-det
 import { serializeHistory } from '@/lib/agent/utils/serialize-history';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_API_BASE_URL,
+  apiKey: process.env.HUGGING_FACE_KEY,
+  baseURL: process.env.HUGGING_FACE_BASE_URL,
 });
 
 function parseJsonFromAI(raw: string): string {
@@ -82,15 +82,11 @@ async function classifyWithNvidia(
   const prompt = buildClassifierPrompt(transcription, conversationHistory);
 
   const response = await openai.chat.completions.create({
-    model: OpenAIModels.NVIDIA,
+    model: HuggingFaceModels.LLAMA_3_1_8B,
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.1,
-    response_format: { type: 'json_object' },
+    max_tokens: 256,
   });
-
-  if (response.choices[0]?.message?.refusal) {
-    throw new Error('Model refused to classify');
-  }
 
   const rawContent = response.choices[0]?.message?.content ?? '';
   const cleanJson = parseJsonFromAI(rawContent);
@@ -114,15 +110,11 @@ async function executeWithNvidia(
   messages.push({ role: 'user', content: prompt });
 
   const response = await openai.chat.completions.create({
-    model: OpenAIModels.NVIDIA,
+    model: HuggingFaceModels.LLAMA_3_1_8B,
     messages,
     temperature: 0.2,
-    response_format: { type: 'json_object' },
+    max_tokens: 1024,
   });
-
-  if (response.choices[0]?.message?.refusal) {
-    throw new Error('Model refused to respond');
-  }
 
   return response.choices[0]?.message?.content ?? '';
 }
@@ -151,16 +143,15 @@ Datos financieros del usuario:
 ${financialContext}
 
 Reglas:
-- Confirmá la acción detectada
-- Agregá un insight basado en datos reales (ej: "Ya llevás $X en esa categoría este mes" o "Esto representa el X% de tus ingresos")
-- Si hay metas de ahorro activas, mencioná si este gasto impacta alguna meta (ej: "Esto te aleja X% de tu meta de [nombre]")
-- Si hay patrones recurrentes en la categoría, mencionalo (ej: "Es tu Xto gasto de [categoría] esta semana/mes")
-- Si la categoría está cerca o supera el presupuesto (expense_plan), alertá al usuario
-- Calculá velocidad de gasto: "Llevás $X en Y días, proyectado a $Z a fin de mes"
-- Si no hay datos suficientes para un insight, solo confirmá la acción
-- Español rioplatense, texto plano, sin markdown
-- Montos con formato $X.XXX
-- Máximo 3 oraciones
+- Determiná si la acción es POSITIVA (add_income, create_savings_goal, create_investment) o COSTOSA (add_expense, credit_purchase)
+- Para acciones POSITIVAS: empezá con refuerzo positivo. Ej ingreso: "Buen ingreso." Ej inversión: "Copada la decisión."
+- Para acciones COSTOSAS: confirmá con tono neutro. No uses palabras de alerta ("ojo", "cuidado") a menos que el gasto supere el 20% del ingreso mensual.
+- Agregá un insight con datos reales (ej: "Ya llevás $X en esa categoría este mes" o "Esto es el X% de tus ingresos")
+- Mencioná impacto en metas de ahorro solo si el impacto es > 5% de la meta
+- Si la categoría supera el presupuesto (expense_plan), alertá brevemente
+- Si no hay datos suficientes, solo confirmá la acción
+- Español neutro, texto plano, sin markdown, montos $X.XXX
+- Máximo 2 oraciones
 
 Respondé ÚNICAMENTE con un JSON válido:
 {"message": "tu mensaje acá"}`;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { USER_ROLES, type UserRole } from "@/types/database";
-import { OpenAIModels } from "@/public/enums";
+import { GeminiModels } from "@/public/enums";
 import { scanReceiptPrompt } from "@/public/promts/scan-receipt";
 import { GoogleGenAI } from "@google/genai";
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     // Call Gemini for OCR
     const response = await genai.models.generateContent({
-      model: OpenAIModels.GEMINI_2_5_FLASH,
+      model: GeminiModels.GEMINI_2_5_FLASH,
       contents: [
         {
           inlineData: {
