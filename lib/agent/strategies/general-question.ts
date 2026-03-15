@@ -1,10 +1,5 @@
 import type { AgentStrategy, GeneralQuestionPayload, ConversationMessage } from '@/types/agent';
-
-function serializeHistory(history: ConversationMessage[]): string {
-  return history
-    .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`)
-    .join('\n');
-}
+import { serializeHistory } from '@/lib/agent/utils/serialize-history';
 
 export const generalQuestionStrategy: AgentStrategy = {
   needsUserData: true,
@@ -24,7 +19,10 @@ IMPORTANTE SOBRE EL CONTEXTO DE CONVERSACIÓN:
 `
       : '';
 
+    const today = new Date().toISOString().split('T')[0];
+
     return `Sos SmartPocket, un asesor financiero personal argentino experto.
+Fecha actual: ${today}
 
 === DATOS DEL USUARIO ===
 ${context ?? 'No hay datos financieros disponibles todavía.'}
@@ -95,12 +93,14 @@ Los datos de cuotas están en la sección "CUOTAS DE TARJETA DE CRÉDITO POR MES
 - Español rioplatense (vos, tenés)
 - Sé DIRECTO: no expliques qué vas a hacer, simplemente hacelo
 - Si el usuario pregunta por el dólar, respondé con cotizaciones de los datos de mercado
-- Referenciá DATOS REALES con montos del usuario
+- Referenciá DATOS REALES con montos del usuario ("Según tus transacciones de [mes]...")
 - Si sugerís crear algo, decile al usuario que te lo pida
 - Si hay conversación previa, continuá sin repetir
 - Máximo 5-6 oraciones DIRECTAS y CONCRETAS
 - Texto plano, sin markdown
 - Montos como $X.XXX (punto para miles)
+- Si un número o dato no está en los datos del usuario provistos, NO lo estimes ni calcules — decí exactamente qué información falta para responder
+- Basá CADA cifra que menciones en los datos reales del usuario
 
 Consulta del usuario: "${transcription}"
 

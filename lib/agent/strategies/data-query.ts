@@ -1,10 +1,5 @@
 import type { AgentStrategy, DataQueryPayload, ConversationMessage } from '@/types/agent';
-
-function serializeHistory(history: ConversationMessage[]): string {
-  return history
-    .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`)
-    .join('\n');
-}
+import { serializeHistory } from '@/lib/agent/utils/serialize-history';
 
 export const dataQueryParamStrategy: AgentStrategy = {
   needsUserData: false,

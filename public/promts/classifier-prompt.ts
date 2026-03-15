@@ -1,10 +1,5 @@
 import type { ConversationMessage } from '@/types/agent';
-
-function serializeHistory(history: ConversationMessage[]): string {
-  return history
-    .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`)
-    .join('\n');
-}
+import { serializeHistory } from '@/lib/agent/utils/serialize-history';
 
 export function buildClassifierPrompt(
   transcription: string,
@@ -80,5 +75,5 @@ ${historySection}
 Transcripción: "${transcription}"
 
 Respondé ÚNICAMENTE con un JSON válido (sin markdown, sin texto extra):
-{"action": "<action>", "confidence": <0.0-1.0>}`;
+{"reasoning": "<1 oración explicando por qué elegiste esa acción>", "action": "<action>", "confidence": <0.0-1.0>}`;
 }

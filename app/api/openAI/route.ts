@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const response = await openai.chat.completions.create({
       model: OpenAIModels.NVIDIA,
       messages,
-      temperature: 0.7,
+      temperature: 0.1,
     });
 
     return new NextResponse(JSON.stringify(response), {

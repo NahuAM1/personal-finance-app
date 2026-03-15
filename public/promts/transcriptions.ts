@@ -31,6 +31,20 @@ Respondé SOLO con un JSON válido, sin markdown, sin explicaciones, sin texto a
   "description": "Compras del supermercado"
 }
 
+## Ejemplos
+
+Transcripción: "gasté un luca en el super"
+{"type": "expense", "amount": 1000, "category": "Compras", "description": "Supermercado"}
+
+Transcripción: "me pagaron dos palos de salario"
+{"type": "income", "amount": 2000000, "category": "Salario", "description": "Salario mensual"}
+
+Transcripción: "cargué nafta por cincuenta lucas"
+{"type": "expense", "amount": 50000, "category": "Auto", "description": "Carga de nafta"}
+
+Transcripción: "pagué el alquiler, cuatro pinos"
+{"type": "expense", "amount": 400000, "category": "Hogar", "description": "Alquiler mensual"}
+
 ## Mensaje transcrito
 
 <TRANSCRIPTION/>`;

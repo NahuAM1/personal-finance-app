@@ -11,6 +11,7 @@ import { getStrategy } from '@/lib/agent/strategies';
 import { fetchDataForQuery } from '@/lib/agent/data-fetcher';
 import { buildDataAnswerPrompt } from '@/lib/agent/strategies/data-query';
 import { detectRecurringPatterns, formatPatterns } from '@/lib/agent/pattern-detector';
+import { serializeHistory } from '@/lib/agent/utils/serialize-history';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -66,12 +67,6 @@ interface CreditPurchaseRow {
   installments: number;
 }
 
-function serializeHistory(history: ConversationMessage[]): string {
-  return history
-    .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`)
-    .join('\n');
-}
-
 const MARKET_KEYWORDS = ['dolar', 'dólar', 'bitcoin', 'btc', 'crypto', 'cripto', 'ethereum', 'accion', 'acciones', 'bono', 'bonos', 'inversion', 'inversión', 'inversiones', 'invertir', 'cedear', 'plazo fijo', 'tasa', 'rendimiento', 'lecap', 'letras', 'merval', 'me conviene', 'blue', 'mep', 'ccl'];
 
 function transcriptionNeedsMarketData(transcription: string): boolean {
@@ -90,7 +85,12 @@ async function classifyWithNvidia(
     model: OpenAIModels.NVIDIA,
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.1,
+    response_format: { type: 'json_object' },
   });
+
+  if (response.choices[0]?.message?.refusal) {
+    throw new Error('Model refused to classify');
+  }
 
   const rawContent = response.choices[0]?.message?.content ?? '';
   const cleanJson = parseJsonFromAI(rawContent);
@@ -117,7 +117,12 @@ async function executeWithNvidia(
     model: OpenAIModels.NVIDIA,
     messages,
     temperature: 0.2,
+    response_format: { type: 'json_object' },
   });
+
+  if (response.choices[0]?.message?.refusal) {
+    throw new Error('Model refused to respond');
+  }
 
   return response.choices[0]?.message?.content ?? '';
 }
@@ -769,18 +774,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const classification = await classifyWithNvidia(transcription, conversationHistory);
       const action = classification.action;
 
-      // Low confidence: ask for clarification instead of executing
-      if (classification.confidence < 0.7) {
-        const clarificationPayload: AgentClarificationPayload = {
-          action: AgentAction.CLARIFICATION,
-          question: 'No estoy seguro de lo que querés hacer. ¿Podés ser más específico?',
-          originalAction: classification.action,
-        };
+      // Low confidence: ask for reformulation instead of executing incorrectly
+      if (classification.confidence < 0.65) {
         return NextResponse.json({
-          action: classification.action,
+          action: 'general_question',
           confidence: classification.confidence,
-          payload: clarificationPayload,
-          message: clarificationPayload.question,
+          payload: {
+            action: 'general_question',
+            answer: 'No entendí bien tu consulta. ¿Podés reformularla?',
+          },
+          message: 'No entendí bien tu consulta. ¿Podés reformularla?',
         });
       }
 
