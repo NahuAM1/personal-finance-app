@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase"
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from "@/types/database"
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment } from "@/types/database"
 
 export async function getTransactions(userId: string) {
   const { data, error } = await supabase
@@ -683,6 +683,242 @@ export async function deleteCreditPurchase(purchaseId: string, userId: string) {
     .from("credit_purchases")
     .delete()
     .eq("id", purchaseId)
+
+  if (deleteError) throw deleteError
+}
+
+// Loan Functions
+
+export async function createLoan(
+  loan: Omit<Loan, "id" | "created_at" | "updated_at" | "transaction_id">,
+  payments: Omit<LoanPayment, "id" | "loan_id" | "created_at" | "updated_at">[]
+): Promise<{ loan: Loan; payments: LoanPayment[]; transaction: Transaction }> {
+  // Create the origination transaction
+  const transactionType = loan.loan_type === "given" ? "expense" : "income"
+  const preposition = loan.loan_type === "given" ? "a" : "de"
+
+  const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
+    user_id: loan.user_id,
+    type: transactionType,
+    amount: loan.total_amount,
+    category: "Prestamo",
+    description: `Prestamo ${preposition} ${loan.counterparty_name}: ${loan.description}`,
+    date: loan.start_date,
+    is_recurring: null,
+    installments: null,
+    current_installment: null,
+    paid: null,
+    parent_transaction_id: null,
+    due_date: null,
+    balance_total: null,
+    ticket_id: null,
+  }
+
+  const transactionData = await addTransaction(transaction)
+
+  // Create the loan record
+  const { data: loanData, error: loanError } = await supabase
+    .from("loans")
+    .insert([{ ...loan, transaction_id: transactionData.id }])
+    .select()
+    .single()
+
+  if (loanError) throw loanError
+
+  // Create all payment records
+  const paymentsWithLoanId = payments.map(p => ({
+    ...p,
+    loan_id: loanData.id
+  }))
+
+  const { data: paymentsData, error: paymentsError } = await supabase
+    .from("loan_payments")
+    .insert(paymentsWithLoanId)
+    .select()
+
+  if (paymentsError) throw paymentsError
+
+  return { loan: loanData, payments: paymentsData, transaction: transactionData }
+}
+
+export async function getLoans(userId: string): Promise<Loan[]> {
+  const { data, error } = await supabase
+    .from("loans")
+    .select("*")
+    .eq("user_id", userId)
+    .order("start_date", { ascending: false })
+
+  if (error) throw error
+  return data
+}
+
+export async function getActiveLoans(userId: string): Promise<Loan[]> {
+  const { data, error } = await supabase
+    .from("loans")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("start_date", { ascending: false })
+
+  if (error) throw error
+  return data
+}
+
+export async function getLoanPayments(loanId: string): Promise<LoanPayment[]> {
+  const { data, error } = await supabase
+    .from("loan_payments")
+    .select("*")
+    .eq("loan_id", loanId)
+    .order("payment_number", { ascending: true })
+
+  if (error) throw error
+  return data
+}
+
+export async function getAllLoanPayments(userId: string): Promise<LoanPayment[]> {
+  const { data: loans, error: loansError } = await supabase
+    .from("loans")
+    .select("id")
+    .eq("user_id", userId)
+
+  if (loansError) throw loansError
+  if (!loans || loans.length === 0) return []
+
+  const loanIds = loans.map(l => l.id)
+
+  const { data, error } = await supabase
+    .from("loan_payments")
+    .select("*")
+    .in("loan_id", loanIds)
+    .order("due_date", { ascending: true })
+
+  if (error) throw error
+  return data || []
+}
+
+export async function payLoanPayment(
+  paymentId: string,
+  userId: string,
+  paidDate: string
+): Promise<{ payment: LoanPayment; transaction: Transaction }> {
+  // Get the payment details with its parent loan
+  const { data: payment, error: fetchError } = await supabase
+    .from("loan_payments")
+    .select(`
+      *,
+      loan:loans(*)
+    `)
+    .eq("id", paymentId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!payment || !payment.loan) throw new Error("Payment not found")
+
+  const loan = Array.isArray(payment.loan) ? payment.loan[0] : payment.loan
+
+  // Create a transaction for this payment
+  const isGiven = loan.loan_type === "given"
+  const transactionType = isGiven ? "income" : "expense"
+  const action = isGiven ? "Cobro prestamo a" : "Pago prestamo de"
+
+  const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
+    user_id: userId,
+    type: transactionType,
+    amount: payment.amount,
+    category: "Prestamo",
+    description: `${action} ${loan.counterparty_name}: Cuota ${payment.payment_number}/${loan.installments_count}`,
+    date: paidDate,
+    is_recurring: null,
+    installments: null,
+    current_installment: null,
+    paid: null,
+    parent_transaction_id: null,
+    due_date: null,
+    balance_total: null,
+    ticket_id: null,
+  }
+
+  const transactionData = await addTransaction(transaction)
+
+  // Update the payment as paid
+  const { data: updatedPayment, error: updateError } = await supabase
+    .from("loan_payments")
+    .update({
+      paid: true,
+      paid_date: paidDate,
+      transaction_id: transactionData.id
+    })
+    .eq("id", paymentId)
+    .select()
+    .single()
+
+  if (updateError) throw updateError
+
+  // Check if all payments for this loan are now paid
+  const { data: allPayments, error: allPaymentsError } = await supabase
+    .from("loan_payments")
+    .select("paid")
+    .eq("loan_id", loan.id)
+
+  if (allPaymentsError) throw allPaymentsError
+
+  const allPaid = allPayments.every(p => p.paid)
+  if (allPaid) {
+    await supabase
+      .from("loans")
+      .update({ status: "completed" })
+      .eq("id", loan.id)
+  }
+
+  return { payment: updatedPayment, transaction: transactionData }
+}
+
+export async function deleteLoan(loanId: string, userId: string): Promise<void> {
+  // Verify ownership
+  const { data: loan, error: fetchError } = await supabase
+    .from("loans")
+    .select("*")
+    .eq("id", loanId)
+    .eq("user_id", userId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!loan) throw new Error("Loan not found")
+
+  // Get all payments to find related transactions
+  const { data: payments, error: paymentsError } = await supabase
+    .from("loan_payments")
+    .select("*")
+    .eq("loan_id", loanId)
+
+  if (paymentsError) throw paymentsError
+
+  // Collect all transaction IDs to delete
+  const transactionIds: string[] = []
+  if (payments) {
+    for (const p of payments) {
+      if (p.transaction_id) transactionIds.push(p.transaction_id)
+    }
+  }
+  if (loan.transaction_id) transactionIds.push(loan.transaction_id)
+
+  // Delete all related transactions
+  if (transactionIds.length > 0) {
+    const { error: deleteTransactionsError } = await supabase
+      .from("transactions")
+      .delete()
+      .in("id", transactionIds)
+
+    if (deleteTransactionsError) {
+      console.error("Error deleting loan transactions:", deleteTransactionsError)
+    }
+  }
+
+  // Delete the loan (payments will cascade delete)
+  const { error: deleteError } = await supabase
+    .from("loans")
+    .delete()
+    .eq("id", loanId)
 
   if (deleteError) throw deleteError
 }

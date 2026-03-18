@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { getMonth, getYear, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan } from '@/types/database';
 
 interface DashboardProps {
   transactions: Transaction[];
@@ -47,6 +47,7 @@ interface DashboardProps {
   creditPurchases: CreditPurchase[];
   creditInstallments: CreditInstallment[];
   investments: Investment[];
+  loans: Loan[];
 }
 
 export function Dashboard({
@@ -55,6 +56,7 @@ export function Dashboard({
   creditPurchases,
   creditInstallments,
   investments,
+  loans,
 }: DashboardProps) {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(getMonth(currentDate));
@@ -132,6 +134,11 @@ export function Dashboard({
     (sum, plan) => sum + plan.current_amount,
     0
   );
+
+  // Calculate active loans given (money lent to others, not yet fully repaid)
+  const activeLoansGivenTotal = loans
+    .filter((loan) => loan.loan_type === 'given' && loan.status === 'active')
+    .reduce((sum, loan) => sum + loan.total_amount, 0);
 
   // Liquid balance = Total balance - Active investments - Reserved in plans
   const liquidBalance = balance - activeInvestmentsTotal - totalPlannedSavings;
@@ -312,6 +319,11 @@ export function Dashboard({
             {activeInvestmentsTotal > 0 && (
               <p className='text-xs text-white/70 mt-1 tabular-nums'>
                 {formatAmount(activeInvestmentsTotal)} invertido
+              </p>
+            )}
+            {activeLoansGivenTotal > 0 && (
+              <p className='text-xs text-white/70 mt-1 tabular-nums'>
+                {formatAmount(activeLoansGivenTotal)} prestado
               </p>
             )}
           </CardContent>
