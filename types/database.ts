@@ -405,6 +405,100 @@ export interface Database {
           updated_at?: string
         }
       }
+      loans: {
+        Row: {
+          id: string
+          user_id: string
+          loan_type: "given" | "received"
+          counterparty_name: string
+          description: string
+          principal_amount: number
+          interest_rate: number
+          total_amount: number
+          payment_mode: "single" | "installments"
+          installments_count: number
+          status: "active" | "completed"
+          start_date: string
+          due_date: string | null
+          transaction_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          loan_type: "given" | "received"
+          counterparty_name: string
+          description: string
+          principal_amount: number
+          interest_rate?: number
+          total_amount: number
+          payment_mode: "single" | "installments"
+          installments_count?: number
+          status?: "active" | "completed"
+          start_date: string
+          due_date?: string | null
+          transaction_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          loan_type?: "given" | "received"
+          counterparty_name?: string
+          description?: string
+          principal_amount?: number
+          interest_rate?: number
+          total_amount?: number
+          payment_mode?: "single" | "installments"
+          installments_count?: number
+          status?: "active" | "completed"
+          start_date?: string
+          due_date?: string | null
+          transaction_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      loan_payments: {
+        Row: {
+          id: string
+          loan_id: string
+          payment_number: number
+          due_date: string
+          amount: number
+          paid: boolean
+          paid_date: string | null
+          transaction_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          loan_id: string
+          payment_number: number
+          due_date: string
+          amount: number
+          paid?: boolean
+          paid_date?: string | null
+          transaction_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          loan_id?: string
+          payment_number?: number
+          due_date?: string
+          amount?: number
+          paid?: boolean
+          paid_date?: string | null
+          transaction_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       split_expense_shares: {
         Row: {
           id: string
@@ -454,3 +548,5 @@ export type SplitGroup = Database["public"]["Tables"]["split_groups"]["Row"]
 export type SplitGroupMember = Database["public"]["Tables"]["split_group_members"]["Row"]
 export type SplitExpense = Database["public"]["Tables"]["split_expenses"]["Row"]
 export type SplitExpenseShare = Database["public"]["Tables"]["split_expense_shares"]["Row"]
+export type Loan = Database["public"]["Tables"]["loans"]["Row"]
+export type LoanPayment = Database["public"]["Tables"]["loan_payments"]["Row"]

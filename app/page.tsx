@@ -20,6 +20,7 @@ import { InvestmentLiquidateForm } from '@/components/investment-liquidate-form'
 import { InvestmentsOverview } from '@/components/investments-overview';
 import { Market } from '@/components/market';
 import { ExpensePlans } from '@/components/expense-plans';
+import { Loans } from '@/components/loans';
 import { History } from '@/components/history';
 import {
   BarChart3,
@@ -28,13 +29,14 @@ import {
   PiggyBank,
   ClipboardList,
   TrendingUp,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
 import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment } from '@/types/database';
 import { USER_ROLES } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import Image from 'next/image';
@@ -57,6 +59,8 @@ function FinanceAppContent() {
   const [creditPurchases, setCreditPurchases] = useState<CreditPurchase[]>([]);
   const [creditInstallments, setCreditInstallments] = useState<CreditInstallment[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loanPayments, setLoanPayments] = useState<LoanPayment[]>([]);
 
   const {
     setIncomeAmount,
@@ -72,12 +76,14 @@ function FinanceAppContent() {
 
     try {
       setLoading(true);
-      const [transactionsData, plansData, purchasesData, installmentsData, investmentsData] = await Promise.all([
+      const [transactionsData, plansData, purchasesData, installmentsData, investmentsData, loansData, loanPaymentsData] = await Promise.all([
         api.getTransactions(user.id),
         api.getExpensePlans(user.id),
         api.getCreditPurchases(user.id),
         api.getAllCreditInstallments(user.id),
         api.getInvestments(user.id),
+        api.getLoans(user.id),
+        api.getAllLoanPayments(user.id),
       ]);
 
       setTransactions(transactionsData || []);
@@ -85,6 +91,8 @@ function FinanceAppContent() {
       setCreditPurchases(purchasesData || []);
       setCreditInstallments(installmentsData || []);
       setInvestments(investmentsData || []);
+      setLoans(loansData || []);
+      setLoanPayments(loanPaymentsData || []);
     } catch (error) {
       toast({
         title: 'Error',
@@ -461,6 +469,87 @@ function FinanceAppContent() {
     }
   };
 
+  const addLoan = async (data: {
+    loan: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'>;
+    payments: Omit<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[];
+  }) => {
+    if (!user) return;
+
+    try {
+      const loanWithUser = {
+        ...data.loan,
+        user_id: user.id,
+      };
+
+      await api.createLoan(loanWithUser, data.payments);
+
+      toast({
+        title: 'Exito',
+        description: 'Prestamo registrado correctamente',
+      });
+
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo registrar el prestamo',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const payLoanPayment = async (paymentId: string) => {
+    if (!user) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      await api.payLoanPayment(paymentId, user.id, today);
+
+      toast({
+        title: 'Exito',
+        description: 'Pago registrado y transaccion creada correctamente',
+      });
+
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo registrar el pago',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const deleteLoan = async (loanId: string) => {
+    if (!user) return;
+
+    try {
+      await api.deleteLoan(loanId, user.id);
+
+      toast({
+        title: 'Exito',
+        description: 'Prestamo eliminado correctamente',
+      });
+
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo eliminar el prestamo',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const transcriptionHandler = (rawResponse: any) => {
     const jsonMatch =
       rawResponse.match?.(/```json([\s\S]*?)```/) ||
@@ -545,6 +634,10 @@ function FinanceAppContent() {
                 <span className='hidden sm:inline'>Metas de Ahorros</span>
               </TabsTrigger>
 
+              <TabsTrigger value='loans' className='flex items-center gap-2'>
+                <ArrowLeftRight className='h-4 w-4' />
+                <span className='hidden sm:inline'>Prestamos</span>
+              </TabsTrigger>
               <TabsTrigger value='history' className='flex items-center gap-2'>
                 <ClipboardList className='h-4 w-4' />
                 <span className='hidden sm:inline'>Historial</span>
@@ -559,6 +652,7 @@ function FinanceAppContent() {
               creditPurchases={creditPurchases}
               creditInstallments={creditInstallments}
               investments={investments}
+              loans={loans}
             />
           </TabsContent>
 
@@ -711,6 +805,16 @@ function FinanceAppContent() {
               onAddPlan={addExpensePlan}
               onUpdatePlan={updateExpensePlan}
               onDeletePlan={deleteExpensePlan}
+            />
+          </TabsContent>
+
+          <TabsContent value='loans'>
+            <Loans
+              loans={loans}
+              loanPayments={loanPayments}
+              onAddLoan={addLoan}
+              onPayLoanPayment={payLoanPayment}
+              onDeleteLoan={deleteLoan}
             />
           </TabsContent>
 
