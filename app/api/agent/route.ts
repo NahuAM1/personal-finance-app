@@ -24,14 +24,50 @@ const huggingface = new OpenAI({
 });
 
 function parseJsonFromAI(raw: string): string {
-  const jsonMatch =
-    raw.match(/```json([\s\S]*?)```/) ||
-    raw.match(/```([\s\S]*?)```/) ||
-    raw.match(/\{[\s\S]*\}/);
+  if (!raw || raw.trim().length === 0) {
+    return '{}';
+  }
 
-  return jsonMatch
-    ? jsonMatch[1]?.trim() || jsonMatch[0].trim()
-    : raw;
+  // Strip thinking tags (e.g. <think>...</think>) that some models emit
+  let cleaned = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+  // Try code fences first
+  const fenceMatch =
+    cleaned.match(/```json\s*([\s\S]*?)```/) ||
+    cleaned.match(/```\s*([\s\S]*?)```/);
+  if (fenceMatch && fenceMatch[1]?.trim()) {
+    cleaned = fenceMatch[1].trim();
+  } else {
+    // Extract the outermost JSON object or array
+    const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (objectMatch) {
+      cleaned = objectMatch[0];
+    } else if (arrayMatch) {
+      cleaned = arrayMatch[0];
+    }
+  }
+
+  // Remove trailing commas before closing braces/brackets (common AI mistake)
+  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+
+  return cleaned;
+}
+
+function safeParseJson<T>(raw: string, fallback: T): T {
+  const cleaned = parseJsonFromAI(raw);
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    // Second attempt: try to fix common issues like unquoted property names
+    try {
+      // Replace single quotes with double quotes
+      const fixedQuotes = cleaned.replace(/'/g, '"');
+      return JSON.parse(fixedQuotes) as T;
+    } catch {
+      return fallback;
+    }
+  }
 }
 
 interface TransactionRow {
@@ -94,8 +130,8 @@ async function classifyWithNvidia(
   });
 
   const rawContent = response.choices[0]?.message?.content ?? '';
-  const cleanJson = parseJsonFromAI(rawContent);
-  return JSON.parse(cleanJson);
+  const defaultClassification = { action: AgentAction.GENERAL_QUESTION as AgentActionType, confidence: 0 };
+  return safeParseJson<{ action: AgentActionType; confidence: number }>(rawContent, defaultClassification);
 }
 
 // --- Execute using NVIDIA free LLM ---
@@ -816,8 +852,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const paramStrategy = getStrategy(action);
         const paramPrompt = paramStrategy.buildPrompt(transcription, undefined, conversationHistory);
         const rawParams = await executeWithNvidia(paramPrompt, conversationHistory);
-        const cleanParamsJson = parseJsonFromAI(rawParams);
-        const queryParams: DataQueryParams = JSON.parse(cleanParamsJson);
+                const now = new Date();
+        const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const todayStr = now.toISOString().split('T')[0];
+        const defaultParams: DataQueryParams = { dateFrom: startOfMonth, dateTo: todayStr, transactionType: 'all', category: '', comparisonDateFrom: null, comparisonDateTo: null, dataScope: 'all', queryIntent: 'sum' };
+        const queryParams = safeParseJson<DataQueryParams>(rawParams, defaultParams);
 
         // Pass 2: Fetch actual data from Supabase
         const queryResults = await fetchDataForQuery(supabase, user.id, queryParams);
@@ -825,8 +864,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Pass 3: Generate natural language answer with real data
         const answerPrompt = buildDataAnswerPrompt(transcription, queryResults, conversationHistory);
         const rawAnswer = await executeWithNvidia(answerPrompt, conversationHistory);
-        const cleanAnswerJson = parseJsonFromAI(rawAnswer);
-        const parsed: { answer: string } = JSON.parse(cleanAnswerJson);
+        const parsed = safeParseJson<{ answer: string }>(rawAnswer, { answer: 'No pude procesar la consulta. Intentá de nuevo.' });
 
         result = {
           payload: { action: 'data_query', answer: parsed.answer },
@@ -916,8 +954,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const paramStrategy = getStrategy(action);
         const paramPrompt = paramStrategy.buildPrompt(transcription, undefined, conversationHistory);
         const rawParams = await executeWithNvidia(paramPrompt, conversationHistory);
-        const cleanParamsJson = parseJsonFromAI(rawParams);
-        const queryParams: DataQueryParams = JSON.parse(cleanParamsJson);
+                const now = new Date();
+        const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const todayStr = now.toISOString().split('T')[0];
+        const defaultParams: DataQueryParams = { dateFrom: startOfMonth, dateTo: todayStr, transactionType: 'all', category: '', comparisonDateFrom: null, comparisonDateTo: null, dataScope: 'all', queryIntent: 'sum' };
+        const queryParams = safeParseJson<DataQueryParams>(rawParams, defaultParams);
 
         // Pass 2: Fetch actual data from Supabase
         const queryResults = await fetchDataForQuery(supabase, user.id, queryParams);
@@ -925,8 +966,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Pass 3: Generate natural language answer with real data
         const answerPrompt = buildDataAnswerPrompt(transcription, queryResults, conversationHistory);
         const rawAnswer = await executeWithNvidia(answerPrompt, conversationHistory);
-        const cleanAnswerJson = parseJsonFromAI(rawAnswer);
-        const parsed: { answer: string } = JSON.parse(cleanAnswerJson);
+        const parsed = safeParseJson<{ answer: string }>(rawAnswer, { answer: 'No pude procesar la consulta. Intentá de nuevo.' });
 
         return NextResponse.json({
           payload: { action: 'data_query', answer: parsed.answer },
@@ -1025,9 +1065,8 @@ async function generateActionMessage(
   try {
     const insightPrompt = buildInsightPrompt(action, payload, financialContext);
     const rawInsight = await executeWithNvidia(insightPrompt, conversationHistory);
-    const cleanJson = parseJsonFromAI(rawInsight);
-    const parsed: { message: string } = JSON.parse(cleanJson);
-    return parsed.message;
+    const parsed = safeParseJson<{ message: string }>(rawInsight, { message: '' });
+    return parsed.message || fallbackMessages[action];
   } catch {
     return fallbackMessages[action];
   }
