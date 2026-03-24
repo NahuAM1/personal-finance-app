@@ -13,6 +13,8 @@ export const AgentAction = {
   DATA_QUERY: "data_query",
   SCAN_RECEIPT: "scan_receipt",
   CLARIFICATION: "clarification",
+  SAVINGS_DEPOSIT: "savings_deposit",
+  DELETE_TRANSACTION: "delete_transaction",
 } as const;
 
 export type AgentActionType = (typeof AgentAction)[keyof typeof AgentAction];
@@ -99,6 +101,30 @@ export interface AgentClarificationPayload {
   action: typeof AgentAction.CLARIFICATION;
   question: string;
   originalAction: AgentActionType;
+  partialData?: {
+    amount?: number;
+    category?: string;
+    transactionType?: "income" | "expense";
+  };
+}
+
+export interface SavingsDepositPayload {
+  action: typeof AgentAction.SAVINGS_DEPOSIT;
+  goalId: string;
+  goalName: string;
+  depositAmount: number;
+  newTotal: number;
+  progressPercent: number;
+}
+
+export interface DeleteTransactionPayload {
+  action: typeof AgentAction.DELETE_TRANSACTION;
+  transactionId: string;
+  description: string;
+  amount: number;
+  transactionType: "income" | "expense";
+  category: string;
+  date: string;
 }
 
 // Internal params used only in route.ts for data_query two-pass flow
@@ -123,7 +149,9 @@ export type AgentPayload =
   | GeneralQuestionPayload
   | DataQueryPayload
   | ScanReceiptPayload
-  | AgentClarificationPayload;
+  | AgentClarificationPayload
+  | SavingsDepositPayload
+  | DeleteTransactionPayload;
 
 // --- Conversation History (for multi-turn) ---
 export interface ConversationMessage {

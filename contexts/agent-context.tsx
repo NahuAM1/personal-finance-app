@@ -16,7 +16,8 @@ import type {
   ConversationMessage,
 } from '@/types/agent';
 import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
-import { classifyIntent, executeStrategy } from '@/lib/agent/agent-service';
+import type { SavingsDepositPayload, DeleteTransactionPayload } from '@/types/agent';
+import { classifyIntent, executeStrategy, fetchPostConfirmMessage, fetchWelcomeMessage } from '@/lib/agent/agent-service';
 import { createTTSService } from '@/lib/agent/tts/tts-service';
 import type { TTSService } from '@/lib/agent/tts/tts-service';
 import { useAuth } from '@/contexts/auth-context';
@@ -72,6 +73,8 @@ const DB_ACTIONS: Set<AgentActionType> = new Set([
   AgentAction.CREATE_SAVINGS_GOAL,
   AgentAction.CREDIT_PURCHASE,
   AgentAction.CREATE_INVESTMENT,
+  AgentAction.SAVINGS_DEPOSIT,
+  AgentAction.DELETE_TRANSACTION,
 ]);
 
 // Actions that are display-only (no confirmation needed)
@@ -104,6 +107,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
       setPendingImagePreview(null);
       setScannerActive(false);
       setPendingSequenceCount(0);
+      welcomeSentRef.current = false;
       if (ttsServiceRef.current) {
         ttsServiceRef.current.stop();
       }
@@ -112,6 +116,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
 
   const onActionCompletedRef = useRef<(() => void) | null>(null);
   const ttsServiceRef = useRef<TTSService | null>(null);
+  const welcomeSentRef = useRef(false);
   const sessionPrefsRef = useRef<SessionPreferences>({
     lastUsedCategories: [],
     frequentDescriptions: [],
@@ -144,6 +149,33 @@ export function AgentProvider({ children }: AgentProviderProps) {
     };
     setMessages(prev => [...prev, message]);
     return message;
+  }, []);
+
+  const buildFollowUpSuggestion = useCallback((payload: AgentPayload): string | null => {
+    if (payload.action === AgentAction.ADD_EXPENSE) {
+      const p = payload as AddTransactionPayload;
+      const suggestions: Record<string, string> = {
+        'Compras': '¿Querés ver cuánto llevás en Compras este mes?',
+        'Delivery': '¿Querés comparar cuánto gastaste en Delivery este mes versus el anterior?',
+        'Salidas': '¿Te gustaría ver tu resumen de entretenimiento del mes?',
+        'Auto': '¿Querés ver el total de gastos en Auto este mes?',
+        'Servicios': '¿Querés revisar tus gastos fijos este mes?',
+      };
+      return suggestions[p.category] ?? '¿Querés ver el resumen de gastos del mes?';
+    }
+    if (payload.action === AgentAction.ADD_INCOME) {
+      return '¿Querés ver tu balance total del mes?';
+    }
+    if (payload.action === AgentAction.CREATE_SAVINGS_GOAL) {
+      return '¿Querés ver el progreso de todas tus metas de ahorro?';
+    }
+    if (payload.action === AgentAction.CREDIT_PURCHASE) {
+      return '¿Querés ver el resumen de tus cuotas pendientes?';
+    }
+    if (payload.action === AgentAction.CREATE_INVESTMENT) {
+      return '¿Querés ver el estado de tu portfolio de inversiones?';
+    }
+    return null;
   }, []);
 
   const updateSessionPreferences = useCallback((payload: AgentPayload) => {
@@ -202,8 +234,24 @@ export function AgentProvider({ children }: AgentProviderProps) {
       // Step 3: Handle result based on action type
       if (result.payload.action === AgentAction.CLARIFICATION) {
         const clarification = result.payload as AgentClarificationPayload;
-        addMessage('assistant', clarification.question);
-        speakIfEnabled(clarification.question);
+        let clarificationMessage = clarification.question;
+        if (clarification.partialData) {
+          const parts: string[] = [];
+          if (clarification.partialData.amount !== undefined) {
+            parts.push(`monto: $${clarification.partialData.amount.toLocaleString('es-AR')}`);
+          }
+          if (clarification.partialData.category !== undefined) {
+            parts.push(`categoría: ${clarification.partialData.category}`);
+          }
+          if (clarification.partialData.transactionType !== undefined) {
+            parts.push(clarification.partialData.transactionType === 'income' ? 'tipo: ingreso' : 'tipo: gasto');
+          }
+          if (parts.length > 0) {
+            clarificationMessage = `Entiendo que querés registrar un ${parts.join(', ')}. ${clarification.question}`;
+          }
+        }
+        addMessage('assistant', clarificationMessage);
+        speakIfEnabled(clarificationMessage);
         setStatus('idle');
       } else if (result.payload.action === AgentAction.SCAN_RECEIPT) {
         // Scan receipt - activate scanner UI
@@ -245,6 +293,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
 
     try {
       setStatus('executing');
+      const savedPayload = pendingPayload;
 
       switch (pendingPayload.action) {
         case AgentAction.ADD_EXPENSE:
@@ -342,10 +391,33 @@ export function AgentProvider({ children }: AgentProviderProps) {
           await api.createInvestment(investment);
           break;
         }
+
+        case AgentAction.SAVINGS_DEPOSIT: {
+          const p = pendingPayload as SavingsDepositPayload;
+          await api.updateExpensePlan(p.goalId, { current_amount: p.newTotal });
+          break;
+        }
+
+        case AgentAction.DELETE_TRANSACTION: {
+          const p = pendingPayload as DeleteTransactionPayload;
+          await api.deleteTransaction(p.transactionId, user.id);
+          break;
+        }
       }
 
-      addMessage('assistant', 'Listo, se registró correctamente.');
-      speakIfEnabled('Listo, se registró correctamente.');
+      // Fetch contextual post-confirmation message
+      const confirmationMessage = await fetchPostConfirmMessage(savedPayload.action, savedPayload).catch(
+        () => 'Listo, se registró correctamente.',
+      );
+      addMessage('assistant', confirmationMessage);
+      speakIfEnabled(confirmationMessage);
+
+      // Follow-up suggestion after confirmation
+      setTimeout(() => {
+        const suggestion = buildFollowUpSuggestion(savedPayload);
+        if (suggestion) addMessage('assistant', suggestion);
+      }, 800);
+
       setPendingPayload(null);
       setPendingImagePreview(null);
       setStatus('done');
@@ -371,7 +443,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
       setPendingPayload(null);
       setPendingImagePreview(null);
     }
-  }, [pendingPayload, user, addMessage, speakIfEnabled, updateSessionPreferences, pendingSequenceCount]);
+  }, [pendingPayload, user, addMessage, speakIfEnabled, updateSessionPreferences, pendingSequenceCount, buildFollowUpSuggestion]);
 
   const cancelAction = useCallback(() => {
     setPendingPayload(null);
@@ -411,6 +483,18 @@ export function AgentProvider({ children }: AgentProviderProps) {
   const toggleDrawer = useCallback(() => {
     setIsOpen(prev => !prev);
   }, []);
+
+  // Send personalized welcome the first time the drawer opens
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && !welcomeSentRef.current) {
+      welcomeSentRef.current = true;
+      fetchWelcomeMessage().then(msg => {
+        addMessage('assistant', msg);
+      }).catch(() => {
+        addMessage('assistant', '¿En qué te puedo ayudar?');
+      });
+    }
+  }, [isOpen, messages.length, addMessage]);
 
   const toggleVoice = useCallback(() => {
     setVoiceEnabled(prev => {

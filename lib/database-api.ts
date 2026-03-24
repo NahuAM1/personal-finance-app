@@ -356,6 +356,16 @@ export async function deleteCreditTransaction(transactionId: string, userId: str
   console.log("Transaction deleted successfully")
 }
 
+export async function deleteTransaction(transactionId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('id', transactionId)
+    .eq('user_id', userId)
+
+  if (error) throw error
+}
+
 // Investment Functions
 
 export async function createInvestment(investment: Omit<Investment, "id" | "created_at" | "updated_at">) {
