@@ -44,6 +44,11 @@ export const addTransactionStrategy: AgentStrategy = {
         action: AgentAction.CLARIFICATION,
         question: parsed.question,
         originalAction: parsed.type === 'income' ? 'add_income' : 'add_expense',
+        partialData: {
+          ...(parsed.amount !== undefined && { amount: parsed.amount }),
+          ...(parsed.category !== undefined && { category: parsed.category }),
+          ...(parsed.type !== undefined && { transactionType: parsed.type }),
+        },
       };
       return clarification;
     }

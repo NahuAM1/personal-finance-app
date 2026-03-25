@@ -34,10 +34,9 @@ const huggingface = new OpenAI({
 });
 
 function parseJsonFromAI(raw: string): string {
-  const jsonMatch =
-    raw.match(/```json([\s\S]*?)```/) ||
-    raw.match(/```([\s\S]*?)```/) ||
-    raw.match(/\{[\s\S]*\}/);
+  if (!raw || raw.trim().length === 0) {
+    return "{}";
+  }
 
   // Strip thinking tags (e.g. <think>...</think>) that some models emit
   let cleaned = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
@@ -82,6 +81,7 @@ function safeParseJson<T>(raw: string, fallback: T): T {
 }
 
 interface TransactionRow {
+  id?: string;
   type: string;
   amount: number;
   category: string;
@@ -90,6 +90,7 @@ interface TransactionRow {
 }
 
 interface ExpensePlanRow {
+  id: string;
   name: string;
   target_amount: number;
   current_amount: number;
@@ -172,10 +173,12 @@ async function classifyWithNvidia(
     action: AgentAction.GENERAL_QUESTION as AgentActionType,
     confidence: 0,
   };
-  return safeParseJson<{ action: AgentActionType; confidence: number }>(
+  const parsed = safeParseJson<{ action: AgentActionType; confidence: number }>(
     rawContent,
     defaultClassification,
   );
+  if (!parsed.action) return defaultClassification;
+  return parsed;
 }
 
 // --- Execute using NVIDIA free LLM ---
@@ -216,6 +219,8 @@ function buildInsightPrompt(
     [AgentAction.CREATE_SAVINGS_GOAL]: `Meta de ahorro "${(payload as { name: string }).name}" por $${(payload as { targetAmount: number }).targetAmount.toLocaleString("es-AR")}`,
     [AgentAction.CREDIT_PURCHASE]: `Compra en ${(payload as { installments: number }).installments} cuotas por $${(payload as { totalAmount: number }).totalAmount.toLocaleString("es-AR")}`,
     [AgentAction.CREATE_INVESTMENT]: `Inversión de $${(payload as { amount: number }).amount.toLocaleString("es-AR")} en ${(payload as { investmentType: string }).investmentType}`,
+    [AgentAction.SAVINGS_DEPOSIT]: `Depósito de $${(payload as { depositAmount: number }).depositAmount.toLocaleString("es-AR")} en meta "${(payload as { goalName: string }).goalName}" (nuevo total: $${(payload as { newTotal: number }).newTotal.toLocaleString("es-AR")}, ${(payload as { progressPercent: number }).progressPercent}%)`,
+    [AgentAction.DELETE_TRANSACTION]: `Eliminación de transacción: $${(payload as { amount: number }).amount.toLocaleString("es-AR")} en ${(payload as { category: string }).category} - "${(payload as { description: string }).description}"`,
   };
 
   const desc = actionDescriptions[action] ?? "Acción detectada";
@@ -242,10 +247,68 @@ Respondé ÚNICAMENTE con un JSON válido:
 {"message": "tu mensaje acá"}`;
 }
 
+// --- Build post-confirmation contextual message prompt ---
+function buildPostConfirmPrompt(
+  action: AgentActionType,
+  payload: AgentPayload,
+  financialContext: string,
+): string {
+  const actionDescriptions: Partial<Record<AgentActionType, string>> = {
+    [AgentAction.ADD_EXPENSE]: `Gasto de $${(payload as { amount: number }).amount?.toLocaleString("es-AR") ?? "0"} en ${(payload as { category: string }).category ?? "Otros"} ya guardado`,
+    [AgentAction.ADD_INCOME]: `Ingreso de $${(payload as { amount: number }).amount?.toLocaleString("es-AR") ?? "0"} en ${(payload as { category: string }).category ?? "Otros"} ya guardado`,
+    [AgentAction.CREATE_SAVINGS_GOAL]: `Meta de ahorro "${(payload as { name: string }).name ?? ""}" por $${(payload as { targetAmount: number }).targetAmount?.toLocaleString("es-AR") ?? "0"} creada`,
+    [AgentAction.CREDIT_PURCHASE]: `Compra en cuotas por $${(payload as { totalAmount: number }).totalAmount?.toLocaleString("es-AR") ?? "0"} registrada`,
+    [AgentAction.CREATE_INVESTMENT]: `Inversión de $${(payload as { amount: number }).amount?.toLocaleString("es-AR") ?? "0"} en ${(payload as { investmentType: string }).investmentType ?? "instrumento"} registrada`,
+  };
+
+  const desc = actionDescriptions[action] ?? "Acción registrada";
+
+  return `Sos SmartPocket. La acción ya fue guardada en la base de datos. Generá UN mensaje breve confirmando el nuevo estado financiero del usuario.
+
+Acción guardada: ${desc}
+
+Datos financieros actualizados del usuario:
+${financialContext}
+
+Reglas:
+- Para gastos: "Anotado. Llevás $X en [categoría] este mes." (usa los datos reales del contexto)
+- Para ingresos: "Perfecto. Tu balance este mes es $X."
+- Para metas de ahorro: "Meta creada. ¿Querés empezar a depositar?"
+- Para inversiones: "Registrada. Tu portfolio activo suma $X."
+- Para cuotas: "Registrado. Tenés X cuotas activas."
+- Español neutro, texto plano, sin markdown, máximo 1 oración
+- Usá datos reales del contexto financiero
+
+Respondé ÚNICAMENTE con un JSON válido:
+{"message": "tu mensaje acá"}`;
+}
+
+// --- Build welcome prompt ---
+function buildWelcomePrompt(firstName: string, financialContext: string): string {
+  const greeting = firstName ? `Hola ${firstName}` : "Hola";
+  return `Sos SmartPocket, el asistente financiero personal. Generá un saludo inicial breve y personalizado.
+
+Nombre del usuario: ${firstName || "Usuario"}
+
+Datos financieros del usuario este mes:
+${financialContext}
+
+Reglas:
+- Empezá con "${greeting}."
+- Mencioná 1 dato financiero relevante del mes (balance, gasto más alto, o meta de ahorro más cercana a cumplirse)
+- Terminá con "¿En qué te puedo ayudar?"
+- Español neutro, texto plano, sin markdown, máximo 2 oraciones
+- Si no hay datos suficientes, solo saludá y preguntá en qué ayudar
+
+Respondé ÚNICAMENTE con un JSON válido:
+{"message": "tu mensaje acá"}`;
+}
+
 // --- Build user financial context ---
 async function buildUserFinancialContext(
   supabase: ReturnType<typeof createSupabaseServerClient>,
   userId: string,
+  includeTransactionIds = false,
 ): Promise<string> {
   const now = new Date();
   const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
@@ -265,7 +328,7 @@ async function buildUserFinancialContext(
   ] = await Promise.all([
     supabase
       .from("transactions")
-      .select("type, amount, category, description, date")
+      .select("id, type, amount, category, description, date")
       .eq("user_id", userId)
       .gte("date", startOfMonth)
       .lte("date", endOfMonth)
@@ -278,7 +341,7 @@ async function buildUserFinancialContext(
       .lte("date", endOfPrevMonth),
     supabase
       .from("expense_plans")
-      .select("name, target_amount, current_amount, deadline, category")
+      .select("id, name, target_amount, current_amount, deadline, category")
       .eq("user_id", userId)
       .is("deleted_at", null),
     supabase
@@ -457,7 +520,8 @@ async function buildUserFinancialContext(
     context += `=== ÚLTIMAS TRANSACCIONES (${Math.min(transactions.length, 15)} de ${transactions.length}) ===\n`;
     for (const t of transactions.slice(0, 15)) {
       const sign = t.type === "income" ? "+" : "-";
-      context += `[${t.date}] ${sign}$${t.amount.toLocaleString("es-AR")} | ${t.category} | ${t.description}\n`;
+      const idPart = includeTransactionIds && t.id ? ` [ID: ${t.id}]` : "";
+      context += `[${t.date}]${idPart} ${sign}$${t.amount.toLocaleString("es-AR")} | ${t.type} | ${t.category} | ${t.description}\n`;
     }
     context += "\n";
   }
@@ -517,7 +581,7 @@ async function buildUserFinancialContext(
         p.target_amount > 0
           ? Math.round((p.current_amount / p.target_amount) * 100)
           : 0;
-      context += `- ${p.name}: $${p.current_amount.toLocaleString("es-AR")} / $${p.target_amount.toLocaleString("es-AR")} (${progress}%) | Fecha: ${p.deadline}\n`;
+      context += `- [ID: ${p.id}] ${p.name}: $${p.current_amount.toLocaleString("es-AR")} / $${p.target_amount.toLocaleString("es-AR")} (${progress}%) | Fecha: ${p.deadline}\n`;
     }
     context += "\n";
   }
@@ -1000,15 +1064,54 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body: {
       transcription: string;
-      step: "classify" | "execute" | "unified";
+      step: "classify" | "execute" | "unified" | "post-confirm" | "welcome";
       action?: AgentActionType;
+      payload?: AgentPayload;
       conversationHistory?: ConversationMessage[];
     } = await request.json();
     const { transcription, step, conversationHistory } = body;
 
-    if (!transcription || !step) {
+    if (!step) {
+      return NextResponse.json({ error: "Missing step" }, { status: 400 });
+    }
+
+    // --- POST-CONFIRM: generate contextual message after action is saved ---
+    if (step === "post-confirm") {
+      const action = body.action;
+      const payload = body.payload;
+      if (!action || !payload) {
+        return NextResponse.json({ message: "Listo, se registró correctamente." });
+      }
+      const financialContext = await buildUserFinancialContext(supabase, user.id);
+      const postConfirmPrompt = buildPostConfirmPrompt(action, payload, financialContext);
+      try {
+        const raw = await executeWithNvidia(postConfirmPrompt);
+        const parsed = safeParseJson<{ message: string }>(raw, { message: "" });
+        return NextResponse.json({ message: parsed.message || "Listo, se registró correctamente." });
+      } catch {
+        return NextResponse.json({ message: "Listo, se registró correctamente." });
+      }
+    }
+
+    // --- WELCOME: personalized greeting with financial context ---
+    if (step === "welcome") {
+      const firstName =
+        (user.user_metadata?.full_name as string | undefined)?.split(" ")[0] ?? "";
+      const financialContext = await buildUserFinancialContext(supabase, user.id);
+      const welcomePrompt = buildWelcomePrompt(firstName, financialContext);
+      const fallback = `Hola${firstName ? ` ${firstName}` : ""}. ¿En qué te puedo ayudar?`;
+      try {
+        const raw = await executeWithNvidia(welcomePrompt);
+        const parsed = safeParseJson<{ message: string }>(raw, { message: "" });
+        return NextResponse.json({ message: parsed.message || fallback });
+      } catch {
+        return NextResponse.json({ message: fallback });
+      }
+    }
+
+    if (!transcription) {
       return NextResponse.json(
-        { error: "Missing transcription or step" },
+        { error: "Missing transcription" },
         { status: 400 },
       );
     }
@@ -1128,7 +1231,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         let context: string | undefined;
 
         if (strategy.needsUserData) {
-          context = await buildUserFinancialContext(supabase, user.id);
+          const includeIds = action === AgentAction.DELETE_TRANSACTION;
+          context = await buildUserFinancialContext(supabase, user.id, includeIds);
         }
 
         if (
@@ -1286,7 +1390,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const strategy = getStrategy(action);
       let context: string | undefined;
       if (strategy.needsUserData) {
-        context = await buildUserFinancialContext(supabase, user.id);
+        const includeIds = action === AgentAction.DELETE_TRANSACTION;
+        context = await buildUserFinancialContext(supabase, user.id, includeIds);
       }
       if (
         strategy.needsMarketData &&
@@ -1367,6 +1472,8 @@ const DB_ACTIONS: Set<AgentActionType> = new Set([
   AgentAction.CREATE_SAVINGS_GOAL,
   AgentAction.CREDIT_PURCHASE,
   AgentAction.CREATE_INVESTMENT,
+  AgentAction.SAVINGS_DEPOSIT,
+  AgentAction.DELETE_TRANSACTION,
 ]);
 
 async function generateActionMessage(
@@ -1388,6 +1495,8 @@ async function generateActionMessage(
     [AgentAction.DATA_QUERY]: (payload as { answer: string }).answer,
     [AgentAction.SCAN_RECEIPT]: "Abriendo el scanner de tickets...",
     [AgentAction.CLARIFICATION]: (payload as { question: string }).question,
+    [AgentAction.SAVINGS_DEPOSIT]: `Depósito de $${(payload as { depositAmount: number }).depositAmount?.toLocaleString("es-AR") ?? "0"} en ${(payload as { goalName: string }).goalName ?? "meta"}`,
+    [AgentAction.DELETE_TRANSACTION]: `Eliminar: ${(payload as { description: string }).description ?? "transacción"}`,
   };
 
   // Only generate insights for DB actions with financial context

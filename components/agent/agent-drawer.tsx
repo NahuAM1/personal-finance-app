@@ -12,11 +12,15 @@ import { ConfirmTransaction } from './confirmation-modals/confirm-transaction';
 import { ConfirmSavingsGoal } from './confirmation-modals/confirm-savings-goal';
 import { ConfirmCreditPurchase } from './confirmation-modals/confirm-credit-purchase';
 import { ConfirmInvestment } from './confirmation-modals/confirm-investment';
+import { ConfirmSavingsDeposit } from './confirmation-modals/confirm-savings-deposit';
+import { ConfirmDeleteTransaction } from './confirmation-modals/confirm-delete-transaction';
 import type {
   AddTransactionPayload,
   CreateSavingsGoalPayload,
   CreditPurchasePayload,
   CreateInvestmentPayload,
+  SavingsDepositPayload,
+  DeleteTransactionPayload,
 } from '@/types/agent';
 
 export function AgentDrawer() {
@@ -130,6 +134,20 @@ export function AgentDrawer() {
                     {pendingPayload.action === 'create_investment' && (
                       <ConfirmInvestment
                         payload={pendingPayload as CreateInvestmentPayload}
+                        onConfirm={confirmAction}
+                        onCancel={cancelAction}
+                      />
+                    )}
+                    {pendingPayload.action === 'savings_deposit' && (
+                      <ConfirmSavingsDeposit
+                        payload={pendingPayload as SavingsDepositPayload}
+                        onConfirm={confirmAction}
+                        onCancel={cancelAction}
+                      />
+                    )}
+                    {pendingPayload.action === 'delete_transaction' && (
+                      <ConfirmDeleteTransaction
+                        payload={pendingPayload as DeleteTransactionPayload}
                         onConfirm={confirmAction}
                         onCancel={cancelAction}
                       />

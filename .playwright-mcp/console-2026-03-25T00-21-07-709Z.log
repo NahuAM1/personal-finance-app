@@ -1,0 +1,120 @@
+[  131997ms] [ERROR] ./components/dashboard.tsx
+Error: 
+  × Unexpected token `div`. Expected jsx identifier
+     ╭─[C:\opt\personal-finance-app\components\dashboard.tsx:249:1]
+ 249 │     .filter((inst) => inst.purchase); // Only include if purchase exists
+ 250 │ 
+ 251 │   return (
+ 252 │     <div className='space-y-8 w-full min-w-0'>
+     ·      ───
+ 253 │       {/* Period Filter Card */}
+ 254 │       <Card className='bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200/50 dark:border-emerald-800/50'>
+ 254 │         <CardHeader>
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/dashboard.tsx
+./app/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  132376ms] [ERROR] ./components/dashboard.tsx
+Error: 
+  × Unexpected token `div`. Expected jsx identifier
+     ╭─[C:\opt\personal-finance-app\components\dashboard.tsx:249:1]
+ 249 │     .filter((inst) => inst.purchase); // Only include if purchase exists
+ 250 │ 
+ 251 │   return (
+ 252 │     <div className='space-y-8 w-full min-w-0'>
+     ·      ───
+ 253 │       {/* Period Filter Card */}
+ 254 │       <Card className='bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200/50 dark:border-emerald-800/50'>
+ 254 │         <CardHeader>
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/dashboard.tsx
+./app/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  139631ms] [ERROR] ./components/dashboard.tsx
+Error: 
+  × Unexpected token `div`. Expected jsx identifier
+     ╭─[C:\opt\personal-finance-app\components\dashboard.tsx:249:1]
+ 249 │     .filter((inst) => inst.purchase); // Only include if purchase exists
+ 250 │ 
+ 251 │   return (
+ 252 │     <div className='space-y-8 w-full min-w-0'>
+     ·      ───
+ 253 │       {/* Period Filter Card */}
+ 254 │       <Card className='bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200/50 dark:border-emerald-800/50'>
+ 254 │         <CardHeader>
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/dashboard.tsx
+./app/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  140053ms] [ERROR] ./components/dashboard.tsx
+Error: 
+  × Unexpected token `div`. Expected jsx identifier
+     ╭─[C:\opt\personal-finance-app\components\dashboard.tsx:249:1]
+ 249 │     .filter((inst) => inst.purchase); // Only include if purchase exists
+ 250 │ 
+ 251 │   return (
+ 252 │     <div className='space-y-8 w-full min-w-0'>
+     ·      ───
+ 253 │       {/* Period Filter Card */}
+ 254 │       <Card className='bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200/50 dark:border-emerald-800/50'>
+ 254 │         <CardHeader>
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/dashboard.tsx
+./app/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  140215ms] [ERROR] ./components/dashboard.tsx
+Error: 
+  × Unexpected token `div`. Expected jsx identifier
+     ╭─[C:\opt\personal-finance-app\components\dashboard.tsx:249:1]
+ 249 │     .filter((inst) => inst.purchase); // Only include if purchase exists
+ 250 │ 
+ 251 │   return (
+ 252 │     <div className='space-y-8 w-full min-w-0'>
+     ·      ───
+ 253 │       {/* Period Filter Card */}
+ 254 │       <Card className='bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200/50 dark:border-emerald-800/50'>
+ 254 │         <CardHeader>
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/dashboard.tsx
+./app/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  147419ms] [ERROR] ./components/dashboard.tsx
+Error: 
+  × Unexpected token `div`. Expected jsx identifier
+     ╭─[C:\opt\personal-finance-app\components\dashboard.tsx:249:1]
+ 249 │     .filter((inst) => inst.purchase); // Only include if purchase exists
+ 250 │ 
+ 251 │   return (
+ 252 │     <div className='space-y-8 w-full min-w-0'>
+     ·      ───
+ 253 │       {/* Period Filter Card */}
+ 254 │       <Card className='bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200/50 dark:border-emerald-800/50'>
+ 254 │         <CardHeader>
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/dashboard.tsx
+./app/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32

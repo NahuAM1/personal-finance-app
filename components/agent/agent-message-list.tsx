@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
 import type { AgentMessage } from '@/types/agent';
 import { DollarRateDisplay } from './confirmation-modals/dollar-rate-display';
+import { useAgentContext } from '@/contexts/agent-context';
 
 interface AgentMessageListProps {
   messages: AgentMessage[];
@@ -10,6 +12,7 @@ interface AgentMessageListProps {
 
 export function AgentMessageList({ messages }: AgentMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { status } = useAgentContext();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -17,8 +20,12 @@ export function AgentMessageList({ messages }: AgentMessageListProps) {
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm p-4">
-        Hola, soy SmartPocket. ¿En qué puedo ayudarte?
+      <div className="flex-1 flex flex-col items-center justify-center gap-2 text-gray-400 dark:text-gray-500 text-sm p-4">
+        {status === 'executing' || status === 'classifying' ? (
+          <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+        ) : (
+          <span>¿En qué te puedo ayudar?</span>
+        )}
       </div>
     );
   }

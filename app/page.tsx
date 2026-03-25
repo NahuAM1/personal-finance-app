@@ -48,6 +48,7 @@ import { Loader } from '@/components/loader';
 import { AccessControl } from '@/components/access-control';
 import { AgentFloatingButton } from '@/components/agent/agent-floating-button';
 import { useAgentContext } from '@/contexts/agent-context';
+import { ChartPreferencesProvider } from '@/contexts/chart-preferences-context';
 
 function FinanceAppContent() {
   const { user } = useAuth();
@@ -832,7 +833,9 @@ function FinanceAppContent() {
 export default function FinanceApp() {
   return (
     <AuthGuard>
-      <FinanceAppContent />
+      <ChartPreferencesProvider>
+        <FinanceAppContent />
+      </ChartPreferencesProvider>
     </AuthGuard>
   );
 }
