@@ -11,9 +11,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Settings, User, Crown, Star, Users } from 'lucide-react';
+import { LogOut, Settings, Crown, Star, Users, ChevronDown, ChevronRight, BarChart2 } from 'lucide-react';
 import { USER_ROLES } from '@/types/database';
 import { AdminUsersDialog } from '@/components/admin-users-dialog';
+import { ChartPreferencesDialog } from '@/components/chart-preferences-dialog';
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -22,6 +23,8 @@ import SmartPocketLogo from '@/assets/images/smartPocketLogo.svg';
 export function UserProfile() {
   const { user, signOut, role, isAdmin } = useAuth();
   const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [showChartPrefsDialog, setShowChartPrefsDialog] = useState(false);
+  const [prefsExpanded, setPrefsExpanded] = useState(false);
 
   if (!user) {
     return null;
@@ -69,7 +72,8 @@ export function UserProfile() {
   return (
     <>
     <AdminUsersDialog open={showAdminDialog} onOpenChange={setShowAdminDialog} />
-    <DropdownMenu>
+    <ChartPreferencesDialog open={showChartPrefsDialog} onOpenChange={setShowChartPrefsDialog} />
+    <DropdownMenu onOpenChange={(open) => { if (!open) setPrefsExpanded(false); }}>
       <DropdownMenuTrigger asChild>
         <Button
           variant='ghost'
@@ -109,6 +113,7 @@ export function UserProfile() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+
         {isAdmin && (
           <DropdownMenuItem onClick={() => setShowAdminDialog(true)}>
             <Users className='mr-2 h-4 w-4' />
@@ -129,6 +134,35 @@ export function UserProfile() {
             </Link>
           </DropdownMenuItem>
         )}
+
+        {/* Preferencias accordion */}
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            setPrefsExpanded((prev) => !prev);
+          }}
+          className='flex items-center justify-between cursor-pointer'
+        >
+          <div className='flex items-center'>
+            <Settings className='mr-2 h-4 w-4' />
+            <span>Preferencias</span>
+          </div>
+          {prefsExpanded
+            ? <ChevronDown className='h-3 w-3 text-muted-foreground' />
+            : <ChevronRight className='h-3 w-3 text-muted-foreground' />
+          }
+        </DropdownMenuItem>
+
+        {prefsExpanded && (
+          <DropdownMenuItem
+            onClick={() => setShowChartPrefsDialog(true)}
+            className='pl-8 text-sm'
+          >
+            <BarChart2 className='mr-2 h-4 w-4 text-muted-foreground' />
+            <span>Gráficos</span>
+          </DropdownMenuItem>
+        )}
+
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className='text-red-600'>
           <LogOut className='mr-2 h-4 w-4' />
