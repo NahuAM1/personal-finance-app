@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Card,
@@ -63,6 +63,18 @@ function FinanceAppContent() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loanPayments, setLoanPayments] = useState<LoanPayment[]>([]);
 
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('activeTab') || 'dashboard';
+    }
+    return 'dashboard';
+  });
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    sessionStorage.setItem('activeTab', value);
+  };
+
   const {
     setIncomeAmount,
     setIncomeCategory,
@@ -72,11 +84,11 @@ function FinanceAppContent() {
     setExpenseDescription,
   } = useFormContext();
 
-  const loadData = async () => {
+  const loadData = async (showLoader = false) => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      if (showLoader) setLoading(true);
       const [transactionsData, plansData, purchasesData, installmentsData, investmentsData, loansData, loanPaymentsData] = await Promise.all([
         api.getTransactions(user.id),
         api.getExpensePlans(user.id),
@@ -105,8 +117,12 @@ function FinanceAppContent() {
     }
   };
 
+  const hasLoadedOnce = useRef(false);
+
   useEffect(() => {
-    loadData();
+    const isFirstLoad = !hasLoadedOnce.current;
+    hasLoadedOnce.current = true;
+    loadData(isFirstLoad);
   }, [user]);
 
   useEffect(() => {
@@ -608,7 +624,7 @@ function FinanceAppContent() {
           <UserProfile />
         </div>
 
-        <Tabs defaultValue='dashboard' className='space-y-6'>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className='space-y-6'>
           <div className='flex items-center justify-center'>
             <TabsList className='w-full justify-around'>
               <TabsTrigger
