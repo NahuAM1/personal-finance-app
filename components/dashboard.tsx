@@ -174,7 +174,7 @@ export function Dashboard({
     () => getBudgetDistribution(currentMonthTransactions.filter((t) => t.type === 'expense' || t.type === 'credit')),
     [currentMonthTransactions]
   );
-  const balanceEvolution = useMemo(() => getBalanceEvolution(transactions, 60), [transactions]);
+  const balanceEvolution = useMemo(() => getBalanceEvolution(transactions, 60, investments), [transactions, investments]);
 
   const totalIncome = currentMonthTransactions
     .filter((t) => t.type === 'income')
@@ -425,9 +425,8 @@ export function Dashboard({
         </Card>
       </div>
 
-      {/* Charts Section — Row 1: existing charts */}
-      {(preferences.gastosPorCategoria || preferences.distribucionGastos) && (
-        <div className='grid gap-6 md:grid-cols-2 min-w-0'>
+      {/* Charts Section — single grid, charts auto-flow */}
+      <div className='grid gap-6 md:grid-cols-2 min-w-0'>
           {preferences.gastosPorCategoria && (
             <Card className='shadow-lg min-w-0'>
               <CardHeader>
@@ -502,12 +501,7 @@ export function Dashboard({
               </CardContent>
             </Card>
           )}
-        </div>
-      )}
 
-      {/* Charts Section — Row 2: new charts */}
-      {(preferences.tendenciaMensual || preferences.distribucionPresupuesto) && (
-        <div className='grid gap-6 md:grid-cols-2 min-w-0'>
           {preferences.tendenciaMensual && (
             <Card className='shadow-lg min-w-0'>
               <CardHeader>
@@ -578,12 +572,7 @@ export function Dashboard({
               </CardContent>
             </Card>
           )}
-        </div>
-      )}
 
-      {/* Charts Section — Row 3: balance evolution + income vs expenses */}
-      {(preferences.evolucionBalance || preferences.ingresosVsGastos) && (
-        <div className='grid gap-6 md:grid-cols-2 min-w-0'>
           {preferences.evolucionBalance && (
             <Card className='shadow-lg min-w-0'>
               <CardHeader>
@@ -591,7 +580,7 @@ export function Dashboard({
                   <div className='w-1 h-6 bg-gradient-to-b from-cyan-500 to-blue-500 rounded-full' />
                   Evolución del Balance
                 </CardTitle>
-                <CardDescription>Balance total a lo largo del tiempo</CardDescription>
+                <CardDescription>Balance total y líquido a lo largo del tiempo</CardDescription>
               </CardHeader>
               <CardContent>
                 {balanceEvolution.length < 2 ? (
@@ -606,18 +595,32 @@ export function Dashboard({
                           <stop offset='5%' stopColor='#06b6d4' stopOpacity={0.3} />
                           <stop offset='95%' stopColor='#06b6d4' stopOpacity={0} />
                         </linearGradient>
+                        <linearGradient id='liquidGradient' x1='0' y1='0' x2='0' y2='1'>
+                          <stop offset='5%' stopColor='#8b5cf6' stopOpacity={0.3} />
+                          <stop offset='95%' stopColor='#8b5cf6' stopOpacity={0} />
+                        </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray='3 3' stroke={gridColor} vertical={false} />
                       <XAxis dataKey='date' axisLine={false} tickLine={false} tick={{ fill: axisColor, fontSize: 12 }} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fill: axisColor, fontSize: 12 }} />
                       <Tooltip content={<ChartTooltip />} />
+                      <Legend wrapperStyle={{ color: axisColor, fontSize: 12 }} />
                       <Area
                         type='monotone'
                         dataKey='balance'
                         stroke='#06b6d4'
                         strokeWidth={2}
                         fill='url(#balanceGradient)'
-                        name='Balance'
+                        name='Balance Total'
+                        isAnimationActive={!prefersReducedMotion}
+                      />
+                      <Area
+                        type='monotone'
+                        dataKey='balanceLiquido'
+                        stroke='#8b5cf6'
+                        strokeWidth={2}
+                        fill='url(#liquidGradient)'
+                        name='Balance Líquido'
                         isAnimationActive={!prefersReducedMotion}
                       />
                     </AreaChart>
@@ -667,8 +670,7 @@ export function Dashboard({
               </CardContent>
             </Card>
           )}
-        </div>
-      )}
+      </div>
 
       {/* Bottom section: left column (savings + credit), right column (transactions) */}
       <div className='grid gap-6 lg:grid-cols-5 min-w-0'>

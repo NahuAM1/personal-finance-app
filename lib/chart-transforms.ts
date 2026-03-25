@@ -1,6 +1,6 @@
 import { parseISO, format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Transaction } from '@/types/database';
+import type { Transaction, Investment } from '@/types/database';
 
 export interface MonthlyTrendPoint {
   month: string;
@@ -16,6 +16,7 @@ export interface BudgetSlice {
 export interface BalancePoint {
   date: string;
   balance: number;
+  balanceLiquido: number;
 }
 
 export function getMonthlyTrends(transactions: Transaction[], monthsBack: number): MonthlyTrendPoint[] {
@@ -59,13 +60,26 @@ export function getBudgetDistribution(transactions: Transaction[]): BudgetSlice[
   return Object.entries(byCategory).map(([name, value]) => ({ name, value }));
 }
 
-export function getBalanceEvolution(transactions: Transaction[], limit: number): BalancePoint[] {
+export function getBalanceEvolution(transactions: Transaction[], limit: number, investments: Investment[]): BalancePoint[] {
   return transactions
     .filter((t): t is Transaction & { balance_total: number } => t.balance_total !== null)
     .slice(0, limit)
     .reverse()
-    .map((t) => ({
-      date: format(parseISO(t.date), 'dd/MM'),
-      balance: t.balance_total,
-    }));
+    .map((t) => {
+      const transactionDate = parseISO(t.date);
+
+      const activeInvestmentsAtDate = investments
+        .filter((inv) => {
+          const invStartDate = new Date(inv.start_date);
+          const invEndDate = inv.liquidation_date ? new Date(inv.liquidation_date) : new Date();
+          return invStartDate <= transactionDate && transactionDate <= invEndDate && !inv.is_liquidated;
+        })
+        .reduce((sum, inv) => sum + inv.amount, 0);
+
+      return {
+        date: format(transactionDate, 'dd/MM'),
+        balance: t.balance_total,
+        balanceLiquido: t.balance_total - activeInvestmentsAtDate,
+      };
+    });
 }
