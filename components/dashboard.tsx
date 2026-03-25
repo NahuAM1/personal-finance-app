@@ -674,7 +674,7 @@ export function Dashboard({
       <div className='grid gap-6 lg:grid-cols-5 min-w-0'>
         {/* Left: stacked cards */}
         <div className='lg:col-span-2 flex flex-col gap-6 min-w-0'>
-          <Card className='shadow-lg min-w-0 overflow-hidden'>
+          {preferences.metasAhorros && <Card className='shadow-lg min-w-0 overflow-hidden'>
             <CardHeader>
               <CardTitle>Metas de Ahorros</CardTitle>
               <CardDescription>Progreso de ahorro hacia tus metas</CardDescription>
@@ -706,9 +706,9 @@ export function Dashboard({
                 </div>
               )}
             </CardContent>
-          </Card>
+          </Card>}
 
-          <Card className='shadow-lg min-w-0 overflow-hidden'>
+          {preferences.proximosPagos && <Card className='shadow-lg min-w-0 overflow-hidden'>
             <CardHeader>
               <CardTitle>Próximos Pagos de Tarjeta</CardTitle>
               <CardDescription>Próximas 5 cuotas por vencer</CardDescription>
@@ -758,10 +758,10 @@ export function Dashboard({
                 )}
               </div>
             </CardContent>
-          </Card>
+          </Card>}
 
           {/* Inversiones activas */}
-          {investments.filter((inv) => !inv.is_liquidated).length > 0 && (
+          {preferences.inversionesActivas && investments.filter((inv) => !inv.is_liquidated).length > 0 && (
             <Card className='shadow-lg min-w-0 overflow-hidden'>
               <CardHeader className='pb-3'>
                 <CardTitle className='flex items-center justify-between'>
@@ -816,7 +816,7 @@ export function Dashboard({
           )}
 
           {/* Préstamos activos */}
-          {loans.filter((l) => l.status === 'active').length > 0 && (
+          {preferences.prestamosActivos && loans.filter((l) => l.status === 'active').length > 0 && (
             <Card className='shadow-lg min-w-0 overflow-hidden'>
               <CardHeader className='pb-3'>
                 <CardTitle className='flex items-center gap-2'>

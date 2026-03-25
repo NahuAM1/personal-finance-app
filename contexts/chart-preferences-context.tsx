@@ -10,6 +10,10 @@ export interface ChartPreferences {
   distribucionPresupuesto: boolean;
   evolucionBalance: boolean;
   ingresosVsGastos: boolean;
+  metasAhorros: boolean;
+  proximosPagos: boolean;
+  inversionesActivas: boolean;
+  prestamosActivos: boolean;
 }
 
 const DEFAULT_PREFERENCES: ChartPreferences = {
@@ -19,6 +23,10 @@ const DEFAULT_PREFERENCES: ChartPreferences = {
   distribucionPresupuesto: true,
   evolucionBalance: true,
   ingresosVsGastos: true,
+  metasAhorros: true,
+  proximosPagos: true,
+  inversionesActivas: true,
+  prestamosActivos: true,
 };
 
 const STORAGE_KEY = 'chartPreferences';
