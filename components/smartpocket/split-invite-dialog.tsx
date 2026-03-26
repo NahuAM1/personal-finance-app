@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 interface SplitInviteDialogProps {
   group: SplitGroup;
   onClose: () => void;
-  onInviteSent: () => void;
+  onInviteSent: (inviteLink?: string) => void;
 }
 
 export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteDialogProps) {
@@ -29,11 +29,22 @@ export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteD
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
   const handleSendInvite = async () => {
     if (!email.trim() || !displayName.trim()) {
       toast({
         title: 'Error',
         description: 'Completa el email y nombre del invitado',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!isValidEmail(email.trim())) {
+      toast({
+        title: 'Error',
+        description: 'Ingresa un email válido',
         variant: 'destructive',
       });
       return;
@@ -69,7 +80,7 @@ export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteD
 
       setEmail('');
       setDisplayName('');
-      onInviteSent();
+      onInviteSent(result.inviteLink);
     } catch (error) {
       toast({
         title: 'Error',
@@ -131,7 +142,7 @@ export function SplitInviteDialog({ group, onClose, onInviteSent }: SplitInviteD
 
           <Button
             onClick={handleSendInvite}
-            disabled={sending || !email.trim() || !displayName.trim()}
+            disabled={sending || !email.trim() || !displayName.trim() || !isValidEmail(email.trim())}
             className="w-full bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white"
           >
             {sending ? (

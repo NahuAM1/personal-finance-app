@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Users, Check, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
-import * as smartpocketApi from '@/lib/smartpocket-api';
 import { useToast } from '@/hooks/use-toast';
 import type { SplitGroup, SplitGroupMember } from '@/types/database';
 import SmartPocketLogo from '@/assets/images/smartPocketLogo.svg';
@@ -31,7 +30,9 @@ function InviteContent() {
     const loadInvite = async () => {
       try {
         setLoading(true);
-        const data = await smartpocketApi.getMemberByInviteToken(token);
+        const res = await fetch(`/api/smartpocket/invite/${token}`);
+        if (!res.ok) throw new Error('Invite not found');
+        const data = await res.json();
         setMember(data as SplitGroupMember & { split_groups: SplitGroup });
       } catch {
         setError('Invitación no encontrada o ya fue utilizada');
@@ -47,17 +48,22 @@ function InviteContent() {
 
     setAccepting(true);
     try {
-      await smartpocketApi.updateGroupMember(member.id, {
-        user_id: user.id,
-        invite_status: 'accepted',
+      const res = await fetch(`/api/smartpocket/invite/${token}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept' }),
       });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'No se pudo aceptar la invitación');
+      }
 
       toast({
         title: 'Invitación aceptada',
         description: `Te uniste al grupo "${member.split_groups.name}"`,
       });
 
-      router.push('/smartpocket');
+      router.push('/smartpocket?tab=split');
     } catch (error) {
       toast({
         title: 'Error',
@@ -74,9 +80,15 @@ function InviteContent() {
 
     setDeclining(true);
     try {
-      await smartpocketApi.updateGroupMember(member.id, {
-        invite_status: 'declined',
+      const res = await fetch(`/api/smartpocket/invite/${token}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'decline' }),
       });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'No se pudo rechazar la invitación');
+      }
 
       toast({
         title: 'Invitación rechazada',
