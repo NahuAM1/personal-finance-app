@@ -22,6 +22,9 @@ import {
   ArrowRightLeft,
   Users,
   Receipt,
+  Copy,
+  Check,
+  LogOut,
 } from 'lucide-react';
 import { Loader } from '@/components/loader';
 import type {
@@ -55,8 +58,11 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
   const [loading, setLoading] = useState(true);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [copiedMemberId, setCopiedMemberId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'expenses' | 'settlements'>('expenses');
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -86,6 +92,37 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
     () => members.find((m) => m.user_id === user?.id),
     [members, user]
   );
+
+  const isCreator = user?.id === group.created_by;
+
+  const handleLeaveOrDelete = async () => {
+    setLeaving(true);
+    try {
+      const res = await fetch(`/api/smartpocket/split-groups/${group.id}/leave`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al procesar la acción');
+      }
+      const result = await res.json();
+      if (result.action === 'deleted') {
+        toast({ title: 'Grupo eliminado', description: `El grupo "${group.name}" fue eliminado` });
+      } else {
+        toast({ title: 'Saliste del grupo', description: `Dejaste el grupo "${group.name}"` });
+      }
+      onUpdate();
+      onBack();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'No se pudo completar la acción',
+        variant: 'destructive',
+      });
+    } finally {
+      setLeaving(false);
+    }
+  };
 
   // Calculate balance per member
   const memberBalances = useMemo(() => {
@@ -147,13 +184,27 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
-          Volver
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
+            Volver
+          </Button>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">{group.name}</h2>
+          <Badge variant="outline">{group.currency}</Badge>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowLeaveDialog(true)}
+          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+        >
+          {isCreator ? (
+            <><Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />Eliminar</>
+          ) : (
+            <><LogOut className="h-4 w-4 mr-1" aria-hidden="true" />Salir</>
+          )}
         </Button>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">{group.name}</h2>
-        <Badge variant="outline">{group.currency}</Badge>
       </div>
 
       {/* Members & Balances */}
@@ -195,21 +246,68 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
                       )}
                     </div>
                   </div>
-                  <span
-                    className={`text-sm font-semibold tabular-nums ${
-                      balance > 0.01
-                        ? 'text-green-600'
+                  <div className="flex items-center gap-2">
+                    {member.invite_status === 'pending' && (
+                      <>
+                        {member.invite_token && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-purple-600 hover:text-purple-800"
+                            aria-label={`Copiar link de invitación de ${member.display_name}`}
+                            onClick={() => {
+                              const link = `${window.location.origin}/smartpocket/invite/${member.invite_token}`;
+                              navigator.clipboard.writeText(link);
+                              setCopiedMemberId(member.id);
+                              setTimeout(() => setCopiedMemberId(null), 2000);
+                              toast({ title: 'Link copiado', description: `Link de invitación de ${member.display_name} copiado` });
+                            }}
+                          >
+                            {copiedMemberId === member.id ? (
+                              <Check className="h-3.5 w-3.5 text-green-600" aria-hidden="true" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-red-500 hover:text-red-700"
+                          aria-label={`Cancelar invitación de ${member.display_name}`}
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/smartpocket/split-groups/${group.id}/members/${member.id}`, {
+                                method: 'DELETE',
+                              });
+                              if (!res.ok) throw new Error('Error al cancelar');
+                              setMembers((prev) => prev.filter((m) => m.id !== member.id));
+                              toast({ title: 'Invitación cancelada', description: `Se eliminó la invitación de ${member.display_name}` });
+                            } catch {
+                              toast({ title: 'Error', description: 'No se pudo cancelar la invitación', variant: 'destructive' });
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Button>
+                      </>
+                    )}
+                    <span
+                      className={`text-sm font-semibold tabular-nums ${
+                        balance > 0.01
+                          ? 'text-green-600'
+                          : balance < -0.01
+                          ? 'text-red-600'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {balance > 0.01
+                        ? `+$${balance.toFixed(2)}`
                         : balance < -0.01
-                        ? 'text-red-600'
-                        : 'text-gray-500'
-                    }`}
-                  >
-                    {balance > 0.01
-                      ? `+$${balance.toFixed(2)}`
-                      : balance < -0.01
-                      ? `-$${Math.abs(balance).toFixed(2)}`
-                      : '$0.00'}
-                  </span>
+                        ? `-$${Math.abs(balance).toFixed(2)}`
+                        : '$0.00'}
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -313,6 +411,9 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
         <SplitSettlements
           settlements={settlements}
           members={members}
+          expenses={expenses}
+          group={group}
+          currentUserId={user?.id || ''}
           onSettle={loadData}
         />
       )}
@@ -343,6 +444,32 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Leave/Delete group confirmation */}
+      <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isCreator ? 'Eliminar grupo' : 'Salir del grupo'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isCreator
+                ? 'Se eliminará el grupo y todos los gastos asociados. Esta acción no se puede deshacer.'
+                : 'Dejarás de ser miembro de este grupo. Si tenés deudas pendientes, no se eliminarán.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={leaving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={leaving}
+              onClick={handleLeaveOrDelete}
+            >
+              {leaving ? 'Procesando...' : isCreator ? 'Eliminar' : 'Salir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Add Expense Dialog */}
       {showAddExpense && (
         <SplitAddExpense
@@ -362,7 +489,9 @@ export function SplitGroupDetail({ group, onBack, onUpdate }: SplitGroupDetailPr
         <SplitInviteDialog
           group={group}
           onClose={() => setShowInvite(false)}
-          onInviteSent={loadData}
+          onInviteSent={() => {
+            loadData();
+          }}
         />
       )}
     </div>
