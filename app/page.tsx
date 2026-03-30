@@ -29,7 +29,7 @@ import {
   PiggyBank,
   ClipboardList,
   TrendingUp,
-  ArrowLeftRight,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
@@ -65,7 +65,17 @@ function FinanceAppContent() {
 
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('activeTab') || 'dashboard';
+      const stored = sessionStorage.getItem('activeTab') || 'dashboard';
+      const validTabs = ['dashboard', 'expenses', 'installments', 'growth', 'history'];
+      // Migrate old tab values to new ones
+      const migrationMap: Record<string, string> = {
+        credit: 'installments',
+        loans: 'installments',
+        plans: 'growth',
+        investments: 'growth',
+      };
+      if (validTabs.includes(stored)) return stored;
+      return migrationMap[stored] || 'dashboard';
     }
     return 'dashboard';
   });
@@ -638,22 +648,13 @@ function FinanceAppContent() {
                 <PlusCircle className='h-4 w-4' />
                 <span className='hidden sm:inline'>Transacciones</span>
               </TabsTrigger>
-              <TabsTrigger value='credit' className='flex items-center gap-2'>
-                <CreditCard className='h-4 w-4' />
-                <span className='hidden sm:inline'>Tarjetas</span>
+              <TabsTrigger value='installments' className='flex items-center gap-2'>
+                <Wallet className='h-4 w-4' />
+                <span className='hidden sm:inline'>Cuotas y Pagos</span>
               </TabsTrigger>
-              <TabsTrigger value='investments' className='flex items-center gap-2'>
+              <TabsTrigger value='growth' className='flex items-center gap-2'>
                 <TrendingUp className='h-4 w-4' />
-                <span className='hidden sm:inline'>Inversiones</span>
-              </TabsTrigger>
-              <TabsTrigger value='plans' className='flex items-center gap-2'>
-                <PiggyBank className='h-4 w-4' />
-                <span className='hidden sm:inline'>Metas de Ahorros</span>
-              </TabsTrigger>
-
-              <TabsTrigger value='loans' className='flex items-center gap-2'>
-                <ArrowLeftRight className='h-4 w-4' />
-                <span className='hidden sm:inline'>Prestamos</span>
+                <span className='hidden sm:inline'>Inversiones y Metas</span>
               </TabsTrigger>
               <TabsTrigger value='history' className='flex items-center gap-2'>
                 <ClipboardList className='h-4 w-4' />
@@ -704,70 +705,105 @@ function FinanceAppContent() {
             </div>
           </TabsContent>
 
-          <TabsContent value='credit'>
-            <Tabs defaultValue='nueva' className='space-y-4'>
+          <TabsContent value='installments'>
+            <Tabs defaultValue='tarjetas' className='space-y-4'>
               <div className='flex items-center justify-center'>
-                <TabsList >
-                  <TabsTrigger value='nueva'>Nueva Compra</TabsTrigger>
-                  <TabsTrigger value='pagar'>Pagar Cuota</TabsTrigger>
-                  <TabsTrigger value='ver'>Ver Compras</TabsTrigger>
+                <TabsList>
+                  <TabsTrigger value='tarjetas'>Tarjetas</TabsTrigger>
+                  <TabsTrigger value='prestamos'>Prestamos</TabsTrigger>
+                  <TabsTrigger value='planes'>Planes de Pago</TabsTrigger>
                 </TabsList>
               </div>
 
-              <TabsContent value='nueva'>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Nueva Compra con Tarjeta</CardTitle>
-                    <CardDescription>
-                      Registra una nueva compra en cuotas
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CreditCardForm onSubmit={addCreditPurchase} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
+              <TabsContent value='tarjetas'>
+                <Tabs defaultValue='nueva' className='space-y-4'>
+                  <div className='flex items-center justify-center'>
+                    <TabsList>
+                      <TabsTrigger value='nueva'>Nueva Compra</TabsTrigger>
+                      <TabsTrigger value='pagar'>Pagar Cuota</TabsTrigger>
+                      <TabsTrigger value='ver'>Ver Compras</TabsTrigger>
+                    </TabsList>
+                  </div>
 
-              <TabsContent value='pagar'>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pagar Cuota Manualmente</CardTitle>
-                    <CardDescription>
-                      Selecciona y registra el pago de cuotas pendientes
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CreditPaymentFormNew
-                      installments={creditInstallments
-                        .filter(inst => !inst.paid) // ✅ Only show unpaid installments
-                        .map(inst => {
-                          const purchase = creditPurchases.find(p => p.id === inst.credit_purchase_id);
-                          return purchase ? { ...inst, credit_purchase: purchase } : null;
-                        }).filter(Boolean) as any}
-                      onPayInstallment={payCreditInstallment}
+                  <TabsContent value='nueva'>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Nueva Compra con Tarjeta</CardTitle>
+                        <CardDescription>
+                          Registra una nueva compra en cuotas
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <CreditCardForm onSubmit={addCreditPurchase} />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value='pagar'>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Pagar Cuota Manualmente</CardTitle>
+                        <CardDescription>
+                          Selecciona y registra el pago de cuotas pendientes
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <CreditPaymentFormNew
+                          installments={creditInstallments
+                            .filter(inst => !inst.paid)
+                            .map(inst => {
+                              const purchase = creditPurchases.find(p => p.id === inst.credit_purchase_id);
+                              return purchase ? { ...inst, credit_purchase: purchase } : null;
+                            }).filter(Boolean) as any}
+                          onPayInstallment={payCreditInstallment}
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value='ver'>
+                    <CreditCardOverviewNew
+                      purchases={creditPurchases}
+                      installments={creditInstallments}
+                      onDelete={deleteCreditPurchase}
+                      onUpdate={updateCreditPurchase}
                     />
-                  </CardContent>
-                </Card>
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
 
-              <TabsContent value='ver'>
-                <CreditCardOverviewNew
-                  purchases={creditPurchases}
-                  installments={creditInstallments}
-                  onDelete={deleteCreditPurchase}
-                  onUpdate={updateCreditPurchase}
+              <TabsContent value='prestamos'>
+                <Loans
+                  loans={loans}
+                  loanPayments={loanPayments}
+                  onAddLoan={addLoan}
+                  onPayLoanPayment={payLoanPayment}
+                  onDeleteLoan={deleteLoan}
+                  mode='loans'
+                />
+              </TabsContent>
+
+              <TabsContent value='planes'>
+                <Loans
+                  loans={loans}
+                  loanPayments={loanPayments}
+                  onAddLoan={addLoan}
+                  onPayLoanPayment={payLoanPayment}
+                  onDeleteLoan={deleteLoan}
+                  mode='payment_plans'
                 />
               </TabsContent>
             </Tabs>
           </TabsContent>
 
-          <TabsContent value='investments'>
+          <TabsContent value='growth'>
             <Tabs defaultValue='nueva' className='space-y-4'>
-              <TabsList className='grid grid-cols-2 md:grid-cols-4 w-full h-auto p-[10px]'>
-                <TabsTrigger value='nueva' >Nueva Inversión</TabsTrigger>
-                <TabsTrigger value='liquidar' >Liquidar</TabsTrigger>
-                <TabsTrigger value='ver' >Ver Inversiones</TabsTrigger>
-                <TabsTrigger value='mercado' >Mercado</TabsTrigger>
+              <TabsList className='grid grid-cols-2 md:grid-cols-5 w-full h-auto p-[10px]'>
+                <TabsTrigger value='nueva'>Nueva Inversión</TabsTrigger>
+                <TabsTrigger value='liquidar'>Liquidar</TabsTrigger>
+                <TabsTrigger value='ver'>Ver Inversiones</TabsTrigger>
+                <TabsTrigger value='mercado'>Mercado</TabsTrigger>
+                <TabsTrigger value='metas'>Metas de Ahorro</TabsTrigger>
               </TabsList>
 
               <TabsContent value='nueva'>
@@ -813,26 +849,16 @@ function FinanceAppContent() {
               <TabsContent value='mercado'>
                 <Market />
               </TabsContent>
+
+              <TabsContent value='metas'>
+                <ExpensePlans
+                  expensePlans={expensePlans}
+                  onAddPlan={addExpensePlan}
+                  onUpdatePlan={updateExpensePlan}
+                  onDeletePlan={deleteExpensePlan}
+                />
+              </TabsContent>
             </Tabs>
-          </TabsContent>
-
-          <TabsContent value='plans'>
-            <ExpensePlans
-              expensePlans={expensePlans}
-              onAddPlan={addExpensePlan}
-              onUpdatePlan={updateExpensePlan}
-              onDeletePlan={deleteExpensePlan}
-            />
-          </TabsContent>
-
-          <TabsContent value='loans'>
-            <Loans
-              loans={loans}
-              loanPayments={loanPayments}
-              onAddLoan={addLoan}
-              onPayLoanPayment={payLoanPayment}
-              onDeleteLoan={deleteLoan}
-            />
           </TabsContent>
 
           <TabsContent value='history'>

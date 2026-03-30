@@ -409,7 +409,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
-          loan_type: "given" | "received"
+          loan_type: "given" | "received" | "payment_plan"
           counterparty_name: string
           description: string
           principal_amount: number
@@ -427,7 +427,7 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
-          loan_type: "given" | "received"
+          loan_type: "given" | "received" | "payment_plan"
           counterparty_name: string
           description: string
           principal_amount: number
@@ -445,7 +445,7 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
-          loan_type?: "given" | "received"
+          loan_type?: "given" | "received" | "payment_plan"
           counterparty_name?: string
           description?: string
           principal_amount?: number
