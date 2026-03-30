@@ -704,15 +704,18 @@ export async function createLoan(
   payments: Omit<LoanPayment, "id" | "loan_id" | "created_at" | "updated_at">[]
 ): Promise<{ loan: Loan; payments: LoanPayment[]; transaction: Transaction }> {
   // Create the origination transaction
-  const transactionType = loan.loan_type === "given" ? "expense" : "income"
-  const preposition = loan.loan_type === "given" ? "a" : "de"
+  const isPaymentPlan = loan.loan_type === "payment_plan"
+  const transactionType = isPaymentPlan ? "expense" : loan.loan_type === "given" ? "expense" : "income"
+  const description = isPaymentPlan
+    ? `Plan de pago - ${loan.counterparty_name}: ${loan.description}`
+    : `Prestamo ${loan.loan_type === "given" ? "a" : "de"} ${loan.counterparty_name}: ${loan.description}`
 
   const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: loan.user_id,
     type: transactionType,
     amount: loan.total_amount,
-    category: "Prestamo",
-    description: `Prestamo ${preposition} ${loan.counterparty_name}: ${loan.description}`,
+    category: isPaymentPlan ? "Plan de Pago" : "Prestamo",
+    description,
     date: loan.start_date,
     is_recurring: null,
     installments: null,
@@ -827,16 +830,19 @@ export async function payLoanPayment(
   const loan = Array.isArray(payment.loan) ? payment.loan[0] : payment.loan
 
   // Create a transaction for this payment
+  const isPaymentPlan = loan.loan_type === "payment_plan"
   const isGiven = loan.loan_type === "given"
-  const transactionType = isGiven ? "income" : "expense"
-  const action = isGiven ? "Cobro prestamo a" : "Pago prestamo de"
+  const transactionType = isPaymentPlan ? "expense" : isGiven ? "income" : "expense"
+  const action = isPaymentPlan
+    ? `Cuota plan de pago - ${loan.counterparty_name}`
+    : isGiven ? `Cobro prestamo a ${loan.counterparty_name}` : `Pago prestamo de ${loan.counterparty_name}`
 
   const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: userId,
     type: transactionType,
     amount: payment.amount,
-    category: "Prestamo",
-    description: `${action} ${loan.counterparty_name}: Cuota ${payment.payment_number}/${loan.installments_count}`,
+    category: isPaymentPlan ? "Plan de Pago" : "Prestamo",
+    description: `${action}: Cuota ${payment.payment_number}/${loan.installments_count}`,
     date: paidDate,
     is_recurring: null,
     installments: null,

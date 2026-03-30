@@ -836,16 +836,19 @@ export function Dashboard({
                         <Badge
                           variant='outline'
                           className={`text-xs mt-0.5 ${
-                            loan.loan_type === 'given'
-                              ? 'border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400'
-                              : 'border-violet-300 text-violet-600 dark:border-violet-700 dark:text-violet-400'
+                            loan.loan_type === 'payment_plan'
+                              ? 'border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400'
+                              : loan.loan_type === 'given'
+                                ? 'border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400'
+                                : 'border-violet-300 text-violet-600 dark:border-violet-700 dark:text-violet-400'
                           }`}
                         >
-                          {loan.loan_type === 'given' ? 'Prestado' : 'Recibido'}
+                          {loan.loan_type === 'payment_plan' ? 'Plan de Pago' : loan.loan_type === 'given' ? 'Prestado' : 'Recibido'}
                         </Badge>
                       </div>
                       <div className='text-right flex-shrink-0 ml-3'>
                         <div className={`text-sm font-semibold tabular-nums ${
+                          loan.loan_type === 'payment_plan' ? 'text-purple-600 dark:text-purple-400' :
                           loan.loan_type === 'given' ? 'text-blue-600 dark:text-blue-400' : 'text-violet-600 dark:text-violet-400'
                         }`}>
                           {formatAmount(loan.total_amount)}
