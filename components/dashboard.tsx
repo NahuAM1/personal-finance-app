@@ -47,7 +47,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { getMonth, getYear, format, parseISO } from 'date-fns';
+import { getMonth, getYear, format, parseISO, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan } from '@/types/database';
 
@@ -247,6 +247,32 @@ export function Dashboard({
       };
     })
     .filter((inst) => inst.purchase); // Only include if purchase exists
+
+  // Totals for current and next month installments (real-time, not affected by month filter)
+  const realToday = new Date();
+  const realCurrentMonth = getMonth(realToday);
+  const realCurrentYear = getYear(realToday);
+  const realNextMonthDate = addMonths(realToday, 1);
+  const realNextMonth = getMonth(realNextMonthDate);
+  const realNextYear = getYear(realNextMonthDate);
+  const realCurrentMonthLabel = format(realToday, 'MMMM', { locale: es });
+  const realNextMonthLabel = format(realNextMonthDate, 'MMMM', { locale: es });
+
+  const currentMonthInstallmentsTotal = creditInstallments
+    .filter((inst) => !inst.paid)
+    .filter((inst) => {
+      const due = parseISO(inst.due_date);
+      return getMonth(due) === realCurrentMonth && getYear(due) === realCurrentYear;
+    })
+    .reduce((sum, inst) => sum + inst.amount, 0);
+
+  const nextMonthInstallmentsTotal = creditInstallments
+    .filter((inst) => !inst.paid)
+    .filter((inst) => {
+      const due = parseISO(inst.due_date);
+      return getMonth(due) === realNextMonth && getYear(due) === realNextYear;
+    })
+    .reduce((sum, inst) => sum + inst.amount, 0);
 
   return (
     <div className='space-y-8 w-full min-w-0'>
@@ -716,6 +742,24 @@ export function Dashboard({
               <CardDescription>Próximas 5 cuotas por vencer</CardDescription>
             </CardHeader>
             <CardContent>
+              <div className='grid grid-cols-2 gap-2 mb-4'>
+                <div className='p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800'>
+                  <div className='text-xs text-blue-700 dark:text-blue-300 capitalize'>
+                    Cuotas pendientes - {realCurrentMonthLabel}
+                  </div>
+                  <div className='font-bold text-blue-900 dark:text-blue-100 tabular-nums mt-1'>
+                    {formatAmount(currentMonthInstallmentsTotal)}
+                  </div>
+                </div>
+                <div className='p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800'>
+                  <div className='text-xs text-indigo-700 dark:text-indigo-300 capitalize'>
+                    Cuotas pendientes - {realNextMonthLabel}
+                  </div>
+                  <div className='font-bold text-indigo-900 dark:text-indigo-100 tabular-nums mt-1'>
+                    {formatAmount(nextMonthInstallmentsTotal)}
+                  </div>
+                </div>
+              </div>
               <div className='space-y-3'>
                 {upcomingInstallments.length > 0 ? (
                   upcomingInstallments.map((installment) => {

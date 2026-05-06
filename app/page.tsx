@@ -398,6 +398,41 @@ function FinanceAppContent() {
     }
   };
 
+  const pushCreditPurchaseForward = async (purchaseId: string) => {
+    if (!user) return;
+
+    try {
+      const updated = await api.pushCreditPurchaseInstallments(purchaseId, user.id);
+
+      if (updated.length === 0) {
+        toast({
+          title: 'Sin cambios',
+          description: 'No hay cuotas pendientes para mover',
+        });
+        return;
+      }
+
+      const updatedMap = new Map(updated.map((u) => [u.id, u]));
+      setCreditInstallments((prev) =>
+        prev.map((inst) => updatedMap.get(inst.id) ?? inst)
+      );
+
+      toast({
+        title: 'Éxito',
+        description: `${updated.length} cuota(s) movidas un mes hacia adelante`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudieron mover las cuotas',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const deleteCreditPurchase = async (purchaseId: string) => {
     if (!user) return;
 
@@ -767,6 +802,7 @@ function FinanceAppContent() {
                       installments={creditInstallments}
                       onDelete={deleteCreditPurchase}
                       onUpdate={updateCreditPurchase}
+                      onPushForward={pushCreditPurchaseForward}
                     />
                   </TabsContent>
                 </Tabs>

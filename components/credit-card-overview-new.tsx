@@ -31,9 +31,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { format, isPast, isToday } from 'date-fns';
+import { format, isPast, isToday, addMonths, parseISO, getMonth, getYear } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CheckCircle2, Clock, AlertCircle, CreditCard, Calendar, Trash2, Edit2 } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, CreditCard, Calendar, Trash2, Edit2, ChevronsRight } from 'lucide-react';
 
 interface CreditPurchaseData {
   id: string;
@@ -71,13 +71,25 @@ interface CreditCardOverviewNewProps {
   installments: CreditInstallmentData[];
   onDelete: (purchaseId: string) => void;
   onUpdate: (purchaseId: string, updates: Partial<CreditPurchaseData>) => void;
+  onPushForward: (purchaseId: string) => void;
 }
 
-export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpdate }: CreditCardOverviewNewProps) {
+export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpdate, onPushForward }: CreditCardOverviewNewProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [pushDialogOpen, setPushDialogOpen] = useState(false);
   const [purchaseToDelete, setPurchaseToDelete] = useState<string | null>(null);
   const [purchaseToEdit, setPurchaseToEdit] = useState<CreditPurchaseData | null>(null);
+  const [purchaseToPush, setPurchaseToPush] = useState<string | null>(null);
+
+  const today = new Date();
+  const currentMonth = getMonth(today);
+  const currentYear = getYear(today);
+  const nextMonthDate = addMonths(today, 1);
+  const nextMonth = getMonth(nextMonthDate);
+  const nextYear = getYear(nextMonthDate);
+  const currentMonthLabel = format(today, 'MMMM', { locale: es });
+  const nextMonthLabel = format(nextMonthDate, 'MMMM', { locale: es });
 
   // Edit form state
   const [editDescription, setEditDescription] = useState('');
@@ -93,6 +105,19 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
     setEditDescription(purchase.description);
     setEditTotalAmount(purchase.total_amount.toString());
     setEditDialogOpen(true);
+  };
+
+  const handlePushClick = (purchaseId: string) => {
+    setPurchaseToPush(purchaseId);
+    setPushDialogOpen(true);
+  };
+
+  const confirmPush = () => {
+    if (purchaseToPush) {
+      onPushForward(purchaseToPush);
+      setPushDialogOpen(false);
+      setPurchaseToPush(null);
+    }
   };
 
   const confirmDelete = () => {
@@ -142,12 +167,30 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
     );
     const isCompleted = paidCount === purchase.installments;
 
+    const currentMonthTotal = purchaseInstallments
+      .filter(inst => !inst.paid)
+      .filter(inst => {
+        const due = parseISO(inst.due_date);
+        return getMonth(due) === currentMonth && getYear(due) === currentYear;
+      })
+      .reduce((sum, inst) => sum + inst.amount, 0);
+
+    const nextMonthTotal = purchaseInstallments
+      .filter(inst => !inst.paid)
+      .filter(inst => {
+        const due = parseISO(inst.due_date);
+        return getMonth(due) === nextMonth && getYear(due) === nextYear;
+      })
+      .reduce((sum, inst) => sum + inst.amount, 0);
+
     return {
       purchase,
       installments: purchaseInstallments,
       paidCount,
       totalPaid,
       totalPending,
+      currentMonthTotal,
+      nextMonthTotal,
       nextDueDate: nextUnpaid?.due_date || null,
       hasOverdue,
       isCompleted,
@@ -163,6 +206,20 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
 
     return new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();
   });
+
+  // Aggregate totals across all purchases
+  const totalCurrentMonth = enrichedPurchases.reduce(
+    (sum, p) => sum + p.currentMonthTotal,
+    0
+  );
+  const totalNextMonth = enrichedPurchases.reduce(
+    (sum, p) => sum + p.nextMonthTotal,
+    0
+  );
+  const totalPendingAll = enrichedPurchases.reduce(
+    (sum, p) => sum + p.totalPending,
+    0
+  );
 
   if (enrichedPurchases.length === 0) {
     return (
@@ -191,6 +248,34 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
             Visualiza el progreso de todas tus compras en cuotas
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
+            <div className='p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800'>
+              <div className='text-xs text-blue-700 dark:text-blue-300 capitalize'>
+                Total este mes ({currentMonthLabel})
+              </div>
+              <div className='text-xl font-bold text-blue-900 dark:text-blue-100 tabular-nums mt-1'>
+                ${totalCurrentMonth.toFixed(2)}
+              </div>
+            </div>
+            <div className='p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800'>
+              <div className='text-xs text-indigo-700 dark:text-indigo-300 capitalize'>
+                Total mes próximo ({nextMonthLabel})
+              </div>
+              <div className='text-xl font-bold text-indigo-900 dark:text-indigo-100 tabular-nums mt-1'>
+                ${totalNextMonth.toFixed(2)}
+              </div>
+            </div>
+            <div className='p-3 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800'>
+              <div className='text-xs text-amber-700 dark:text-amber-300'>
+                Total pendiente
+              </div>
+              <div className='text-xl font-bold text-amber-900 dark:text-amber-100 tabular-nums mt-1'>
+                ${totalPendingAll.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       <div className='grid gap-4 md:grid-cols-2'>
@@ -237,6 +322,14 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                     )}
                     {!data.isCompleted && (
                       <>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => handlePushClick(data.purchase.id)}
+                          title='Mover cuotas pendientes al mes siguiente'
+                        >
+                          <ChevronsRight className='h-4 w-4 text-blue-600' />
+                        </Button>
                         {data.paidCount === 0 && (
                           <Button
                             variant='ghost'
@@ -300,6 +393,28 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                     </div>
                   </div>
                 </div>
+
+                {/* This month / Next month summary */}
+                {!data.isCompleted && (
+                  <div className='grid grid-cols-2 gap-2 text-sm'>
+                    <div className='p-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded'>
+                      <div className='text-xs text-blue-700 dark:text-blue-300 mb-1 capitalize'>
+                        Este mes ({currentMonthLabel})
+                      </div>
+                      <div className='font-bold text-blue-900 dark:text-blue-100'>
+                        ${data.currentMonthTotal.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className='p-2 bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800 rounded'>
+                      <div className='text-xs text-indigo-700 dark:text-indigo-300 mb-1 capitalize'>
+                        Mes próximo ({nextMonthLabel})
+                      </div>
+                      <div className='font-bold text-indigo-900 dark:text-indigo-100'>
+                        ${data.nextMonthTotal.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Next installment info */}
                 {!data.isCompleted && data.nextDueDate && (
@@ -449,6 +564,28 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Push Forward Confirmation Dialog */}
+      <AlertDialog open={pushDialogOpen} onOpenChange={setPushDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Mover cuotas un mes hacia adelante?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cada cuota pendiente de esta compra se moverá un mes hacia adelante.
+              Las cuotas ya pagadas no se modifican. Esta acción se puede repetir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmPush}
+              className='bg-blue-600 hover:bg-blue-700'
+            >
+              Mover cuotas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

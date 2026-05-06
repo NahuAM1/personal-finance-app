@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { addMonths, format } from "date-fns"
 import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment } from "@/types/database"
 
 export async function getTransactions(userId: string) {
@@ -648,6 +649,46 @@ export async function updateCreditPurchase(
 
   if (error) throw error
   return data
+}
+
+export async function pushCreditPurchaseInstallments(
+  purchaseId: string,
+  userId: string
+): Promise<CreditInstallment[]> {
+  const { data: purchase, error: fetchError } = await supabase
+    .from("credit_purchases")
+    .select("id")
+    .eq("id", purchaseId)
+    .eq("user_id", userId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!purchase) throw new Error("Purchase not found")
+
+  const { data: installments, error: instError } = await supabase
+    .from("credit_installments")
+    .select("*")
+    .eq("credit_purchase_id", purchaseId)
+    .eq("paid", false)
+
+  if (instError) throw instError
+  if (!installments || installments.length === 0) return []
+
+  const updated: CreditInstallment[] = []
+  for (const inst of installments) {
+    const newDueDate = format(addMonths(new Date(inst.due_date), 1), "yyyy-MM-dd")
+    const { data, error } = await supabase
+      .from("credit_installments")
+      .update({ due_date: newDueDate })
+      .eq("id", inst.id)
+      .select()
+      .single()
+
+    if (error) throw error
+    updated.push(data)
+  }
+
+  return updated
 }
 
 export async function deleteCreditPurchase(purchaseId: string, userId: string) {
