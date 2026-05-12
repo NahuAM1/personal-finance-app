@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import { addMonths, format } from "date-fns"
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment } from "@/types/database"
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem } from "@/types/database"
 
 export async function getTransactions(userId: string) {
   const { data, error } = await supabase
@@ -928,6 +928,61 @@ export async function payLoanPayment(
   }
 
   return { payment: updatedPayment, transaction: transactionData }
+}
+
+// Ticket Functions (used by data portability export)
+
+export async function getTickets(userId: string): Promise<Ticket[]> {
+  const { data, error } = await supabase
+    .from("tickets")
+    .select("*")
+    .eq("user_id", userId)
+    .order("ticket_date", { ascending: false })
+
+  if (error) throw error
+  return data || []
+}
+
+export async function getTicketItems(ticketIds: string[]): Promise<TicketItem[]> {
+  if (ticketIds.length === 0) return []
+  const { data, error } = await supabase
+    .from("ticket_items")
+    .select("*")
+    .in("ticket_id", ticketIds)
+
+  if (error) throw error
+  return data || []
+}
+
+// Recompute balance_total for every transaction of a user in date order.
+// Used after a bulk import to keep the cumulative balance coherent.
+export async function recalculateAllBalances(userId: string): Promise<void> {
+  const { data: rows, error } = await supabase
+    .from("transactions")
+    .select("id, type, amount, date, created_at")
+    .eq("user_id", userId)
+    .order("date", { ascending: true })
+    .order("created_at", { ascending: true })
+
+  if (error) throw error
+  if (!rows || rows.length === 0) return
+
+  let running = 0
+  const BATCH = 50
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const slice = rows.slice(i, i + BATCH)
+    await Promise.all(
+      slice.map((r) => {
+        running = r.type === "income" ? running + r.amount : running - r.amount
+        const newBalance = running
+        return supabase
+          .from("transactions")
+          .update({ balance_total: newBalance })
+          .eq("id", r.id)
+          .eq("user_id", userId)
+      })
+    )
+  }
 }
 
 export async function deleteLoan(loanId: string, userId: string): Promise<void> {
