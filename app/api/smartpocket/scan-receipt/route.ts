@@ -3,11 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { USER_ROLES, type UserRole } from "@/types/database";
 import { GeminiModels } from "@/public/enums";
 import { scanReceiptPrompt } from "@/public/promts/scan-receipt";
-import { GoogleGenAI } from "@google/genai";
-
-const genai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+import { generateContentWithRetry } from "@/lib/gemini";
 
 export async function POST(request: NextRequest) {
   const supabase = createSupabaseServerClient();
@@ -62,8 +58,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Call Gemini for OCR
-    const response = await genai.models.generateContent({
-      model: GeminiModels.GEMINI_2_5_FLASH,
+    const response = await generateContentWithRetry({
+      model: GeminiModels.GEMINI_3_5_FLASH,
       contents: [
         {
           inlineData: {
