@@ -123,6 +123,27 @@ async function fetchTransactions(
     result += '\n';
   }
 
+  // Monthly breakdown for trend intent
+  if (queryIntent === 'trend' || queryIntent === 'compare') {
+    const byMonth: Record<string, { income: number; expense: number; credit: number; count: number }> = {};
+    for (const t of transactions) {
+      const monthKey = t.date.substring(0, 7); // YYYY-MM
+      if (!byMonth[monthKey]) byMonth[monthKey] = { income: 0, expense: 0, credit: 0, count: 0 };
+      if (t.type === 'income') byMonth[monthKey].income += t.amount;
+      else if (t.type === 'expense') byMonth[monthKey].expense += t.amount;
+      else if (t.type === 'credit') byMonth[monthKey].credit += t.amount;
+      byMonth[monthKey].count += 1;
+    }
+    result += 'Evolucion mes a mes:\n';
+    const sortedMonths = Object.keys(byMonth).sort();
+    for (const mk of sortedMonths) {
+      const m = byMonth[mk];
+      const balance = m.income - m.expense - m.credit;
+      result += `- ${mk}: Ingresos $${m.income.toLocaleString('es-AR')} | Gastos $${m.expense.toLocaleString('es-AR')}${m.credit > 0 ? ` | Tarjeta $${m.credit.toLocaleString('es-AR')}` : ''} | Balance $${balance.toLocaleString('es-AR')}\n`;
+    }
+    result += '\n';
+  }
+
   // Transaction list for detail/list intent
   if (queryIntent === 'list' || queryIntent === 'detail') {
     result += 'Detalle de transacciones:\n';
