@@ -18,6 +18,8 @@ export interface Database {
           due_date: string | null
           balance_total: number | null
           ticket_id: string | null
+          service_id: string | null
+          period_key?: string
           created_at: string
           updated_at: string
         }
@@ -37,6 +39,7 @@ export interface Database {
           due_date?: string | null
           balance_total?: number | null
           ticket_id?: string | null
+          service_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -56,6 +59,7 @@ export interface Database {
           due_date?: string | null
           balance_total?: number | null
           ticket_id?: string | null
+          service_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -94,6 +98,50 @@ export interface Database {
           deadline?: string
           category?: string
           deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      services: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          amount: number
+          due_day: number
+          mode: "automatic" | "manual"
+          icon: string | null
+          color: string | null
+          notes: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          amount: number
+          due_day: number
+          mode: "automatic" | "manual"
+          icon?: string | null
+          color?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          amount?: number
+          due_day?: number
+          mode?: "automatic" | "manual"
+          icon?: string | null
+          color?: string | null
+          notes?: string | null
+          is_active?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -550,3 +598,4 @@ export type SplitExpense = Database["public"]["Tables"]["split_expenses"]["Row"]
 export type SplitExpenseShare = Database["public"]["Tables"]["split_expense_shares"]["Row"]
 export type Loan = Database["public"]["Tables"]["loans"]["Row"]
 export type LoanPayment = Database["public"]["Tables"]["loan_payments"]["Row"]
+export type Service = Database["public"]["Tables"]["services"]["Row"]

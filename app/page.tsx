@@ -22,6 +22,7 @@ import { Market } from '@/components/market';
 import { ExpensePlans } from '@/components/expense-plans';
 import { Loans } from '@/components/loans';
 import { History } from '@/components/history';
+import { Services } from '@/components/services';
 import {
   BarChart3,
   PlusCircle,
@@ -30,6 +31,7 @@ import {
   ClipboardList,
   TrendingUp,
   Wallet,
+  Receipt,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
@@ -50,6 +52,10 @@ import { AgentFloatingButton } from '@/components/agent/agent-floating-button';
 import { useAgentContext } from '@/contexts/agent-context';
 import { ChartPreferencesProvider } from '@/contexts/chart-preferences-context';
 
+type InstallmentWithPurchase = CreditInstallment & {
+  credit_purchase: CreditPurchase;
+};
+
 function FinanceAppContent() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -66,7 +72,7 @@ function FinanceAppContent() {
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem('activeTab') || 'dashboard';
-      const validTabs = ['dashboard', 'expenses', 'installments', 'growth', 'history'];
+      const validTabs = ['dashboard', 'expenses', 'installments', 'growth', 'servicios', 'history'];
       // Migrate old tab values to new ones
       const migrationMap: Record<string, string> = {
         credit: 'installments',
@@ -612,12 +618,16 @@ function FinanceAppContent() {
     }
   };
 
-  const transcriptionHandler = (rawResponse: any) => {
-    const jsonMatch =
-      rawResponse.match?.(/```json([\s\S]*?)```/) ||
-      rawResponse.match?.(/```([\s\S]*?)```/);
-    const cleanJson = jsonMatch ? jsonMatch[1].trim() : rawResponse;
-
+  const transcriptionHandler = (
+    rawResponse:
+      | string
+      | {
+          type: 'income' | 'expense';
+          amount: number;
+          category: string;
+          description: string;
+        }
+  ): void => {
     let response: {
       type: 'income' | 'expense';
       amount: number;
@@ -625,12 +635,20 @@ function FinanceAppContent() {
       description: string;
     };
 
-    try {
-      response =
-        typeof cleanJson === 'string' ? JSON.parse(cleanJson) : cleanJson;
-    } catch (error) {
-      console.error('Error al parsear la respuesta:', error);
-      return;
+    if (typeof rawResponse === 'string') {
+      const jsonMatch =
+        rawResponse.match(/```json([\s\S]*?)```/) ||
+        rawResponse.match(/```([\s\S]*?)```/);
+      const cleanJson = jsonMatch ? jsonMatch[1].trim() : rawResponse;
+
+      try {
+        response = JSON.parse(cleanJson);
+      } catch (error) {
+        console.error('Error al parsear la respuesta:', error);
+        return;
+      }
+    } else {
+      response = rawResponse;
     }
 
     const { type, amount, category, description } = response;
@@ -690,6 +708,10 @@ function FinanceAppContent() {
               <TabsTrigger value='growth' className='flex items-center gap-2'>
                 <TrendingUp className='h-4 w-4' />
                 <span className='hidden sm:inline'>Inversiones y Metas</span>
+              </TabsTrigger>
+              <TabsTrigger value='servicios' className='flex items-center gap-2'>
+                <Receipt className='h-4 w-4' />
+                <span className='hidden sm:inline'>Servicios</span>
               </TabsTrigger>
               <TabsTrigger value='history' className='flex items-center gap-2'>
                 <ClipboardList className='h-4 w-4' />
@@ -785,11 +807,12 @@ function FinanceAppContent() {
                       <CardContent>
                         <CreditPaymentFormNew
                           installments={creditInstallments
-                            .filter(inst => !inst.paid)
-                            .map(inst => {
-                              const purchase = creditPurchases.find(p => p.id === inst.credit_purchase_id);
+                            .filter((inst) => !inst.paid)
+                            .map((inst): InstallmentWithPurchase | null => {
+                              const purchase = creditPurchases.find((p) => p.id === inst.credit_purchase_id);
                               return purchase ? { ...inst, credit_purchase: purchase } : null;
-                            }).filter(Boolean) as any}
+                            })
+                            .filter((x): x is InstallmentWithPurchase => x !== null)}
                           onPayInstallment={payCreditInstallment}
                         />
                       </CardContent>
@@ -895,6 +918,10 @@ function FinanceAppContent() {
                 />
               </TabsContent>
             </Tabs>
+          </TabsContent>
+
+          <TabsContent value='servicios'>
+            <Services />
           </TabsContent>
 
           <TabsContent value='history'>
