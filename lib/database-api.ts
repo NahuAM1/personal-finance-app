@@ -1,6 +1,10 @@
 import { supabase } from "@/lib/supabase"
 import { addMonths, format } from "date-fns"
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem } from "@/types/database"
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem, Service, Database } from "@/types/database"
+import { buildServiceTransactionPayload, pendingAutomaticServices } from "@/lib/services"
+
+type ServiceInsert = Database["public"]["Tables"]["services"]["Insert"]
+type ServiceUpdate = Database["public"]["Tables"]["services"]["Update"]
 
 export async function getTransactions(userId: string) {
   const { data, error } = await supabase
@@ -278,6 +282,8 @@ export async function payCreditInstallment(
     parent_transaction_id: null,
     due_date: null,
     balance_total: null, // Will be calculated by addTransaction
+    ticket_id: null,
+    service_id: null,
   }
 
   // Use addTransaction to automatically calculate balance_total
@@ -441,6 +447,8 @@ export async function liquidateInvestment(
     parent_transaction_id: null,
     due_date: null,
     balance_total: null, // Will be calculated by addTransaction
+    ticket_id: null,
+    service_id: null,
   }
 
   // Use addTransaction to automatically calculate balance_total
@@ -540,6 +548,8 @@ export async function partialSellCurrency(
     parent_transaction_id: null,
     due_date: null,
     balance_total: null, // Will be calculated by addTransaction
+    ticket_id: null,
+    service_id: null,
   }
 
   const transactionData = await addTransaction(transaction)
@@ -766,6 +776,7 @@ export async function createLoan(
     due_date: null,
     balance_total: null,
     ticket_id: null,
+    service_id: null,
   }
 
   const transactionData = await addTransaction(transaction)
@@ -893,6 +904,7 @@ export async function payLoanPayment(
     due_date: null,
     balance_total: null,
     ticket_id: null,
+    service_id: null,
   }
 
   const transactionData = await addTransaction(transaction)
@@ -1033,4 +1045,132 @@ export async function deleteLoan(loanId: string, userId: string): Promise<void> 
     .eq("id", loanId)
 
   if (deleteError) throw deleteError
+}
+
+// ============================================================
+// Services
+// ============================================================
+
+export async function getServices(userId: string): Promise<Service[]> {
+  const { data, error } = await supabase
+    .from("services")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+  return data
+}
+
+export async function createService(
+  service: Omit<ServiceInsert, "user_id">,
+  userId: string
+): Promise<Service> {
+  const { data, error } = await supabase
+    .from("services")
+    .insert({ ...service, user_id: userId })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateService(
+  serviceId: string,
+  updates: ServiceUpdate,
+  userId: string
+): Promise<Service> {
+  const { data, error } = await supabase
+    .from("services")
+    .update(updates)
+    .eq("id", serviceId)
+    .eq("user_id", userId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteService(serviceId: string, userId: string): Promise<void> {
+  // ON DELETE SET NULL on transactions.service_id keeps historical expenses intact.
+  const { error } = await supabase
+    .from("services")
+    .delete()
+    .eq("id", serviceId)
+    .eq("user_id", userId)
+
+  if (error) throw error
+}
+
+// ---- Linked-transaction queries ----
+
+// All transactions linked to any service for this user (used to derive status).
+export async function getServiceTransactions(userId: string): Promise<Transaction[]> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("user_id", userId)
+    .not("service_id", "is", null)
+    .order("date", { ascending: false })
+
+  if (error) throw error
+  return data
+}
+
+// ---- Manual payment ----
+
+// Create the linked expense for a manual service. Amount may differ from
+// service.amount (utilities vary). Funnels through addTransaction so
+// balance_total stays coherent.
+export async function payService(
+  service: Service,
+  amount: number,
+  userId: string,
+  ref: Date = new Date()
+): Promise<Transaction> {
+  const payload = buildServiceTransactionPayload(service, amount, ref)
+  return addTransaction({ ...payload, user_id: userId, balance_total: null })
+}
+
+// ---- Lazy automatic generation ----
+
+// True when `error` carries a Postgres "unique_violation" (23505) code.
+// This is the DB-level idempotency signal: the uniq_service_period partial index
+// rejected a second charge for the same service in the same period.
+// Supabase rejections arrive as PostgrestError-like objects with a string `code`.
+function isUniqueViolation(error: object): boolean {
+  return "code" in error && error.code === "23505"
+}
+
+// For each active automatic service with no transaction in the current period,
+// create one. Returns the newly created transactions (possibly empty).
+// SEQUENTIAL: addTransaction recomputes cumulative balance_total on every call;
+// parallel inserts would race on balance_total and corrupt it.
+//
+// A 23505 unique violation means another session/tab/device (or a StrictMode
+// double-mount) already charged this service this period — treat it as "already
+// paid" and skip, so generation stays idempotent regardless of concurrency.
+export async function generateAutomaticServiceTransactions(
+  services: Service[],
+  serviceTransactions: Transaction[],
+  userId: string,
+  ref: Date = new Date()
+): Promise<Transaction[]> {
+  const pending = pendingAutomaticServices(services, serviceTransactions, ref)
+  const created: Transaction[] = []
+
+  for (const service of pending) {
+    const payload = buildServiceTransactionPayload(service, service.amount, ref)
+    try {
+      const tx = await addTransaction({ ...payload, user_id: userId, balance_total: null })
+      created.push(tx)
+    } catch (error) {
+      if (typeof error === "object" && error !== null && isUniqueViolation(error)) continue
+      throw error
+    }
+  }
+
+  return created
 }
