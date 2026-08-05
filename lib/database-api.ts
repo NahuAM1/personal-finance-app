@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase"
 import { addMonths, format } from "date-fns"
 import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem, Service, Database } from "@/types/database"
-import { buildServiceTransactionPayload, pendingAutomaticServices } from "@/lib/services"
+import { buildServiceTransactionPayload, currentPeriodDueDate, pendingAutomaticServices } from "@/lib/services"
 
 type ServiceInsert = Database["public"]["Tables"]["services"]["Insert"]
 type ServiceUpdate = Database["public"]["Tables"]["services"]["Update"]
@@ -1123,14 +1123,15 @@ export async function getServiceTransactions(userId: string): Promise<Transactio
 
 // Create the linked expense for a manual service. Amount may differ from
 // service.amount (utilities vary). Funnels through addTransaction so
-// balance_total stays coherent.
+// balance_total stays coherent. The transaction date is the actual pay day,
+// not the service due date.
 export async function payService(
   service: Service,
   amount: number,
   userId: string,
   ref: Date = new Date()
 ): Promise<Transaction> {
-  const payload = buildServiceTransactionPayload(service, amount, ref)
+  const payload = buildServiceTransactionPayload(service, amount, format(ref, "yyyy-MM-dd"))
   return addTransaction({ ...payload, user_id: userId, balance_total: null })
 }
 
@@ -1162,7 +1163,7 @@ export async function generateAutomaticServiceTransactions(
   const created: Transaction[] = []
 
   for (const service of pending) {
-    const payload = buildServiceTransactionPayload(service, service.amount, ref)
+    const payload = buildServiceTransactionPayload(service, service.amount, currentPeriodDueDate(service, ref))
     try {
       const tx = await addTransaction({ ...payload, user_id: userId, balance_total: null })
       created.push(tx)
