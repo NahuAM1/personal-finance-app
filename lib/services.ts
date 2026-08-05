@@ -70,17 +70,19 @@ export function deriveServiceStatus(
 
 // Build the transaction payload (WITHOUT user_id) for a service payment in a period.
 // The amount may be overridden (manual services with variable amounts).
+// `date` is decided by the caller: actual pay day for manual payments,
+// the period due date for automatic generation.
 export function buildServiceTransactionPayload(
   service: Service,
   amount: number,
-  ref: Date = new Date()
+  date: string
 ): Omit<Transaction, "id" | "user_id" | "created_at" | "updated_at" | "balance_total"> {
   return {
     type: "expense",
     amount,
     category: SERVICE_CATEGORY,
     description: service.name,
-    date: currentPeriodDueDate(service, ref),
+    date,
     is_recurring: null,
     installments: null,
     current_installment: null,
