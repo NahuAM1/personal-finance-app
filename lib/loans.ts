@@ -1,6 +1,36 @@
 import { supabase } from "@/lib/supabase"
 import type { Database } from "@/types/database"
-import type { Loan } from "@/types/database"
+import type { Loan, LoanPayment } from "@/types/database"
+
+const roundCents = (n: number): number => Math.round(n * 100) / 100
+
+export function computeLoanTotal(principal: number, interestRate: number): number {
+  return roundCents(principal * (1 + interestRate / 100))
+}
+
+// Spread whatever is left of `newTotal` (after paid installments) evenly across
+// the unpaid ones. The last unpaid installment absorbs the rounding remainder.
+export function redistributeUnpaidInstallments(
+  payments: Pick<LoanPayment, "id" | "amount" | "paid" | "payment_number">[],
+  newTotal: number
+): { id: string; amount: number }[] {
+  const paidSum = payments.filter((p) => p.paid).reduce((sum, p) => sum + p.amount, 0)
+  const unpaid = payments
+    .filter((p) => !p.paid)
+    .sort((a, b) => a.payment_number - b.payment_number)
+  if (unpaid.length === 0) return []
+
+  const remaining = roundCents(newTotal - paidSum)
+  if (remaining < 0) {
+    throw new Error("El nuevo total es menor a lo ya pagado")
+  }
+
+  const each = roundCents(remaining / unpaid.length)
+  return unpaid.map((p, i) => ({
+    id: p.id,
+    amount: i === unpaid.length - 1 ? roundCents(remaining - each * (unpaid.length - 1)) : each,
+  }))
+}
 
 type LoanInsert = Database["public"]["Tables"]["loans"]["Insert"]
 type LoanUpdate = Database["public"]["Tables"]["loans"]["Update"]

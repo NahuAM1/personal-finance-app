@@ -594,6 +594,57 @@ function FinanceAppContent() {
     }
   };
 
+  const updateLoan = async (loanId: string, fields: api.LoanEditableFields) => {
+    if (!user) return;
+
+    try {
+      await api.updateLoan(loanId, user.id, fields);
+
+      toast({
+        title: 'Exito',
+        description: 'Prestamo actualizado correctamente',
+      });
+
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo actualizar el prestamo',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateLoanPayment = async (
+    paymentId: string,
+    fields: Pick<LoanPayment, 'amount' | 'due_date'>
+  ) => {
+    if (!user) return;
+
+    try {
+      await api.updateLoanPayment(paymentId, user.id, fields);
+
+      toast({
+        title: 'Exito',
+        description: 'Cuota actualizada correctamente',
+      });
+
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo actualizar la cuota',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const deleteLoan = async (loanId: string) => {
     if (!user) return;
 
@@ -838,6 +889,8 @@ function FinanceAppContent() {
                   onAddLoan={addLoan}
                   onPayLoanPayment={payLoanPayment}
                   onDeleteLoan={deleteLoan}
+                  onUpdateLoan={updateLoan}
+                  onUpdateLoanPayment={updateLoanPayment}
                   mode='loans'
                 />
               </TabsContent>
@@ -849,6 +902,8 @@ function FinanceAppContent() {
                   onAddLoan={addLoan}
                   onPayLoanPayment={payLoanPayment}
                   onDeleteLoan={deleteLoan}
+                  onUpdateLoan={updateLoan}
+                  onUpdateLoanPayment={updateLoanPayment}
                   mode='payment_plans'
                 />
               </TabsContent>
