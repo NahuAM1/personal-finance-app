@@ -18,6 +18,8 @@ function getFormatter(currency: string, options: FormatMoneyOptions): Intl.Numbe
       formatter = new Intl.NumberFormat(LOCALE, {
         style: "currency",
         currency,
+        // Always show the ISO code ("ARS 1.234,50", "USD 10,00"): the "$" symbol is ambiguous.
+        currencyDisplay: "code",
         signDisplay,
         ...(options.compact
           ? { notation: "compact" as const, maximumFractionDigits: 1 }
@@ -43,7 +45,7 @@ function getFormatter(currency: string, options: FormatMoneyOptions): Intl.Numbe
   return formatter
 }
 
-/** Formats an amount in the given currency using the es-AR locale. */
+/** Formats an amount with its ISO currency code using the es-AR locale, e.g. "ARS 1.234,50". */
 export function formatMoney(
   amount: number,
   currency: string = "ARS",
@@ -51,16 +53,4 @@ export function formatMoney(
 ): string {
   const value = Number.isFinite(amount) ? amount : 0
   return getFormatter(currency, options).format(value)
-}
-
-/** Currency symbol or code for masked amounts, e.g. "$" for ARS, "US$" for USD. */
-export function currencySymbol(currency: string = "ARS"): string {
-  try {
-    const part = new Intl.NumberFormat(LOCALE, { style: "currency", currency })
-      .formatToParts(0)
-      .find((p) => p.type === "currency")
-    return part?.value ?? currency
-  } catch {
-    return currency
-  }
 }

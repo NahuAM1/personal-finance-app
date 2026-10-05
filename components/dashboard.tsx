@@ -37,7 +37,6 @@ import {
 import { useChartPreferences } from '@/contexts/chart-preferences-context';
 import { useCurrency } from '@/hooks/use-currency';
 import { useCurrentRates } from '@/hooks/use-current-rates';
-import { currencySymbol } from '@/lib/currency/format';
 import { OriginalAmount } from '@/components/currency/original-amount';
 import { getMonthlyTrends, getBudgetDistribution, getBalanceEvolution } from '@/lib/chart-transforms';
 import {
@@ -147,7 +146,7 @@ export function Dashboard({
 
   const { baseCurrency, format: formatCurrency } = useCurrency();
   const formatAmount = (amount: number, currency: string = baseCurrency) => {
-    return showAmounts ? formatCurrency(amount, currency) : `${currencySymbol(currency)}****`;
+    return showAmounts ? formatCurrency(amount, currency) : `${currency} ****`;
   };
   // Savings plans live in their own currency: reserve them in the base currency at today's rate.
   const planRates = useCurrentRates(expensePlans.map((p) => p.currency));
