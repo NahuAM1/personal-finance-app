@@ -13,3 +13,11 @@ export function emitNavigateTab(tab: string): void {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent<string>(NAVIGATE_TAB_EVENT, { detail: tab }));
 }
+
+export const DATA_CHANGED_EVENT = 'app:data-changed';
+
+/** Tells the main page to reload its data (e.g. after the base currency was reconverted). */
+export function emitDataChanged(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
+}

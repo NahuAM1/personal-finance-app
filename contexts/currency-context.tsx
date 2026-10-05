@@ -2,6 +2,7 @@
 
 import React, {
   createContext,
+  useRef,
   useCallback,
   useContext,
   useEffect,
@@ -15,7 +16,13 @@ import {
   isArsRateType,
 } from '@/lib/currency/currencies';
 import { formatMoney, type FormatMoneyOptions } from '@/lib/currency/format';
-import { getUserSettings, updateArsRateType } from '@/lib/user-settings-api';
+import {
+  getUserSettings,
+  startReconversion,
+  stepReconversion,
+  updateArsRateType,
+} from '@/lib/user-settings-api';
+import { emitDataChanged } from '@/lib/app-events';
 import type { ArsRateType, UserSettings } from '@/types/database';
 
 export interface ReconversionState {
@@ -35,6 +42,14 @@ interface CurrencyContextType {
   loading: boolean;
   /** Formats an amount; defaults to the base currency. */
   format: (amount: number, currency?: string, options?: FormatMoneyOptions) => string;
+  /** Progress of the reconversion run driven by this tab (null when none). */
+  reconversionProgress: { total: number; remaining: number } | null;
+  /** Last error of the run driven by this tab. */
+  reconversionRunError: string | null;
+  /** Starts the base-currency reconversion and drives it to completion. */
+  startBaseChange: (target: string) => Promise<void>;
+  /** Resumes a failed or interrupted reconversion. */
+  resumeReconversion: () => Promise<void>;
   setRateType: (type: ArsRateType) => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -48,6 +63,9 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const userId = user?.id ?? null;
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{ total: number; remaining: number } | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+  const running = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!userId) {
@@ -100,6 +118,58 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     [userId, refresh]
   );
 
+  // Client-driven loop: each step converts one batch server side and is safe to retry.
+  const drive = useCallback(
+    async (total: number) => {
+      if (running.current) return;
+      running.current = true;
+      setRunError(null);
+      setProgress({ total, remaining: total });
+      try {
+        for (;;) {
+          const result = await stepReconversion();
+          setProgress({ total: Math.max(total, result.remaining), remaining: result.remaining });
+          if (result.done) break;
+        }
+        setProgress(null);
+        await refresh();
+        emitDataChanged();
+      } catch (error) {
+        setRunError(error instanceof Error ? error.message : 'Error desconocido');
+        await refresh();
+      } finally {
+        running.current = false;
+      }
+    },
+    [refresh]
+  );
+
+  const startBaseChange = useCallback(
+    async (target: string) => {
+      if (running.current) return;
+      setRunError(null);
+      try {
+        const total = await startReconversion(target);
+        await refresh();
+        await drive(total);
+      } catch (error) {
+        setRunError(error instanceof Error ? error.message : 'Error desconocido');
+      }
+    },
+    [drive, refresh]
+  );
+
+  const resumeReconversion = useCallback(async () => {
+    const target = settings?.pending_base_currency;
+    if (!target || running.current) return;
+    try {
+      const total = await startReconversion(target);
+      await drive(total);
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : 'Error desconocido');
+    }
+  }, [drive, settings]);
+
   const value = useMemo<CurrencyContextType>(
     () => ({
       baseCurrency,
@@ -108,10 +178,14 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
       isReconverting: reconversion.status !== 'idle',
       loading,
       format,
+      reconversionProgress: progress,
+      reconversionRunError: runError,
+      startBaseChange,
+      resumeReconversion,
       setRateType,
       refresh,
     }),
-    [baseCurrency, rateType, reconversion, loading, format, setRateType, refresh]
+    [baseCurrency, rateType, reconversion, loading, format, progress, runError, startBaseChange, resumeReconversion, setRateType, refresh]
   );
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;

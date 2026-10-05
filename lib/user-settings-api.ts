@@ -58,3 +58,53 @@ export async function updateArsRateType(userId: string, type: ArsRateType): Prom
     .insert({ user_id: userId, ars_rate_type: type })
   if (insertError) throw insertError
 }
+
+// ============================================
+// Base currency reconversion (server-driven job)
+// ============================================
+
+export interface ReconversionProgress {
+  /** Rows still to convert (0 when done). */
+  remaining: number
+  /** Rows to convert when the run started, used to compute a percentage. */
+  total: number
+  done: boolean
+}
+
+async function reconversionRequest<T>(init?: RequestInit): Promise<T> {
+  const response = await fetch("/api/currency/reconversion", {
+    ...init,
+    headers: { "Content-Type": "application/json" },
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error((body as { error?: string }).error ?? "No se pudo reconvertir el historial")
+  }
+  return body as T
+}
+
+/** Starts (or resumes) the reconversion job towards `targetBase`. Returns the rows to convert. */
+export async function startReconversion(targetBase: string): Promise<number> {
+  const body = await reconversionRequest<{ remaining: number }>({
+    method: "POST",
+    body: JSON.stringify({ targetBase }),
+  })
+  return body.remaining
+}
+
+/** Runs one batch. Call until `done` is true; each call is idempotent and safe to retry. */
+export async function stepReconversion(): Promise<{ done: boolean; remaining: number }> {
+  return reconversionRequest<{ done: boolean; remaining: number }>({
+    method: "POST",
+    body: JSON.stringify({ step: true }),
+  })
+}
+
+export async function getReconversionStatus(): Promise<{
+  status: "idle" | "running" | "failed"
+  baseCurrency: string
+  pendingBase: string | null
+  remaining: number
+}> {
+  return reconversionRequest({ method: "GET" })
+}

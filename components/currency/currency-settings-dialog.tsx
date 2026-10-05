@@ -29,6 +29,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { CurrencySelect } from '@/components/currency/currency-select';
 import { useCurrency } from '@/hooks/use-currency';
+import { ReconversionProgress } from '@/components/currency/reconversion-progress';
 import {
   ARS_RATE_TYPES,
   ARS_RATE_TYPE_LABELS,
@@ -42,7 +43,7 @@ interface CurrencySettingsDialogProps {
 }
 
 export function CurrencySettingsDialog({ open, onOpenChange }: CurrencySettingsDialogProps) {
-  const { baseCurrency, rateType, setRateType, isReconverting } = useCurrency();
+  const { baseCurrency, rateType, setRateType, isReconverting, startBaseChange } = useCurrency();
   const [pendingBase, setPendingBase] = useState<string | null>(null);
   const [savingRateType, setSavingRateType] = useState(false);
 
@@ -65,9 +66,9 @@ export function CurrencySettingsDialog({ open, onOpenChange }: CurrencySettingsD
   };
 
   const confirmBaseChange = () => {
-    // The reconversion job is wired in the reconversion phase.
-    toast.info('El cambio de moneda base todavía no está disponible.');
+    const target = pendingBase;
     setPendingBase(null);
+    if (target) void startBaseChange(target);
   };
 
   return (
@@ -80,6 +81,8 @@ export function CurrencySettingsDialog({ open, onOpenChange }: CurrencySettingsD
               Elegí la moneda en la que ves tus totales y cómo se cotizan los pesos.
             </DialogDescription>
           </DialogHeader>
+
+          <ReconversionProgress />
 
           <div className='grid grid-cols-1 gap-5 py-2'>
             <div className='min-w-0 space-y-2'>

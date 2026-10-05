@@ -24,7 +24,8 @@ import { Loans } from '@/components/loans';
 import { History } from '@/components/history';
 import { Services } from '@/components/services';
 import { Trips } from '@/components/trips/trips';
-import { NAVIGATE_TAB_EVENT } from '@/lib/app-events';
+import { NAVIGATE_TAB_EVENT, DATA_CHANGED_EVENT } from '@/lib/app-events';
+import { ReconversionProgress } from '@/components/currency/reconversion-progress';
 import {
   BarChart3,
   PlusCircle,
@@ -152,6 +153,14 @@ function FinanceAppContent() {
       setLoading(false);
     }
   };
+
+  // Reload everything after the base currency was reconverted.
+  useEffect(() => {
+    const handler = () => { void loadData(); };
+    window.addEventListener(DATA_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const hasLoadedOnce = useRef(false);
 
@@ -799,6 +808,7 @@ function FinanceAppContent() {
           </div>
         </div>
 
+        <ReconversionProgress className='mb-4' />
         <Tabs value={activeTab} onValueChange={handleTabChange} className='space-y-6'>
           <div className='flex items-center justify-center'>
             <TabsList className='w-full justify-around'>
