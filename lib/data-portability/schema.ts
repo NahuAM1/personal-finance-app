@@ -378,10 +378,11 @@ function parseMetadata(v: JSONValue, errors: string[]): CanonicalMetadata | null
   }
   try {
     const versionField = v.schemaVersion;
-    if (!isNumber(versionField) || versionField !== 1) {
-      errors.push('"metadata.schemaVersion" must equal 1');
+    if (!isNumber(versionField) || (versionField !== 1 && versionField !== 2)) {
+      errors.push('"metadata.schemaVersion" must be 1 or 2');
       return null;
     }
+    const schemaVersion: 1 | 2 = versionField === 2 ? 2 : 1;
     const entitiesField = v.entities;
     const entities: CanonicalMetadata['entities'] = [];
     if (isArray(entitiesField)) {
@@ -410,7 +411,8 @@ function parseMetadata(v: JSONValue, errors: string[]): CanonicalMetadata | null
       }
     }
     return {
-      schemaVersion: 1,
+      schemaVersion,
+      baseCurrency: isString(v.baseCurrency) && v.baseCurrency.length > 0 ? v.baseCurrency : undefined,
       exportedAt: isString(v.exportedAt) ? v.exportedAt : '',
       exportedBy: isString(v.exportedBy) ? v.exportedBy : '',
       dateRange,

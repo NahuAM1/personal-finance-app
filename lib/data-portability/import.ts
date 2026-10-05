@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
 import { recalculateAllBalances } from '@/lib/database-api';
+import { getUserSettings } from '@/lib/user-settings-api';
 import { validateAndParse } from './schema';
 import type { JSONObject, JSONValue } from './schema';
 import type {
@@ -64,7 +65,12 @@ function workbookToJSONValue(wb: XLSX.WorkBook): JSONValue {
       ? dateRangeToVal
       : null;
   const metadata: JSONObject = {
-    schemaVersion: 1,
+    schemaVersion:
+      metaRow && typeof metaRow['schemaVersion'] !== 'undefined' && Number(metaRow['schemaVersion']) === 2
+        ? 2
+        : 1,
+    baseCurrency:
+      metaRow && typeof metaRow['baseCurrency'] === 'string' ? metaRow['baseCurrency'] : '',
     exportedAt:
       metaRow && typeof metaRow['exportedAt'] === 'string'
         ? metaRow['exportedAt']
@@ -402,7 +408,24 @@ export async function importMerge(
     }
   }
 
-  return { inserted, errors };
+  // Rows exported under another base currency stay in it until the reconversion job runs.
+  let mismatchedBase: string | null = null;
+  try {
+    const settings = await getUserSettings(userId);
+    const importedBases = [
+      ...remapped.transactions,
+      ...remapped.credit_purchases,
+      ...remapped.credit_installments,
+      ...remapped.investments,
+      ...remapped.loans,
+      ...remapped.loan_payments,
+    ].map((r) => r.base_currency);
+    mismatchedBase = importedBases.find((b) => b !== settings.base_currency) ?? null;
+  } catch {
+    // Without settings we cannot compare: the user can still run the reconversion from Moneda.
+  }
+
+  return { inserted, errors, mismatchedBase };
 }
 
 export function totalInserted(counts: EntityCounts): number {

@@ -10,6 +10,7 @@ import {
   getTickets,
   getTicketItems,
 } from '@/lib/database-api';
+import { getUserSettings } from '@/lib/user-settings-api';
 import type {
   CanonicalExport,
   CanonicalData,
@@ -18,7 +19,7 @@ import type {
   ExportOptions,
 } from './types';
 
-const SCHEMA_VERSION = 1 as const;
+const SCHEMA_VERSION = 2 as const;
 const APP_VERSION = '0.1.0';
 
 function inDateRange(
@@ -104,7 +105,8 @@ async function gatherData(
 
 function buildMetadata(
   userEmail: string,
-  opts: ExportOptions
+  opts: ExportOptions,
+  baseCurrency: string
 ): CanonicalMetadata {
   const entitiesArr: EntityKey[] = [];
   opts.entities.forEach((e) => entitiesArr.push(e));
@@ -115,6 +117,7 @@ function buildMetadata(
     dateRange: opts.dateRange,
     appVersion: APP_VERSION,
     entities: entitiesArr,
+    baseCurrency,
   };
 }
 
@@ -124,8 +127,13 @@ export async function buildCanonicalExport(
   opts: ExportOptions
 ): Promise<CanonicalExport> {
   const data = await gatherData(userId, opts);
-  const metadata = buildMetadata(userEmail, opts);
-  return { metadata, data };
+  const settings = await getUserSettings(userId);
+  const metadata = buildMetadata(userEmail, opts, settings.base_currency);
+  return {
+    metadata,
+    settings: { base_currency: settings.base_currency, ars_rate_type: settings.ars_rate_type },
+    data,
+  };
 }
 
 export function serializeJSON(payload: CanonicalExport): Blob {
@@ -160,6 +168,8 @@ export function serializeXLSX(payload: CanonicalExport): Blob {
     exportedAt: payload.metadata.exportedAt,
     exportedBy: payload.metadata.exportedBy,
     appVersion: payload.metadata.appVersion,
+    baseCurrency: payload.metadata.baseCurrency ?? '',
+    arsRateType: payload.settings?.ars_rate_type ?? '',
     entities: payload.metadata.entities.join(', '),
     dateRangeFrom: payload.metadata.dateRange?.from ?? '',
     dateRangeTo: payload.metadata.dateRange?.to ?? '',

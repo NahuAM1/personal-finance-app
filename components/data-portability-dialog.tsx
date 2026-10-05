@@ -39,6 +39,7 @@ import type {
   EntityCounts,
   ImportResult,
 } from '@/lib/data-portability/types';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface DataPortabilityDialogProps {
   open: boolean;
@@ -86,6 +87,7 @@ export function DataPortabilityDialog({
   const [parsing, setParsing] = useState(false);
   const [parsed, setParsed] = useState<ParsedImportState | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const { baseCurrency, startBaseChange, isReconverting } = useCurrency();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const allSelected = useMemo(
@@ -487,6 +489,22 @@ export function DataPortabilityDialog({
                         <li key={i}>{err}</li>
                       ))}
                     </ul>
+                  </div>
+                )}
+                {importResult.mismatchedBase && (
+                  <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+                    <p>
+                      Algunos registros importados están expresados en {importResult.mismatchedBase}, pero tu
+                      moneda base es {baseCurrency}. Reconvertilos para que los totales sean coherentes.
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isReconverting}
+                      onClick={() => void startBaseChange(baseCurrency)}
+                    >
+                      Reconvertir a {baseCurrency}
+                    </Button>
                   </div>
                 )}
                 <div className="flex justify-end pt-2">
