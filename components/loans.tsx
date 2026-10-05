@@ -43,10 +43,13 @@ import {
   DollarSign,
   Percent,
   User,
+  Pencil,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Loan, LoanPayment } from '@/types/database';
+import type { LoanEditableFields } from '@/lib/database-api';
+import { EditLoanDialog, EditLoanPaymentDialog } from '@/components/loan-edit-dialogs';
 
 interface LoansProps {
   loans: Loan[];
@@ -57,6 +60,8 @@ interface LoansProps {
   }) => void;
   onPayLoanPayment: (paymentId: string) => void;
   onDeleteLoan: (loanId: string) => void;
+  onUpdateLoan: (loanId: string, fields: LoanEditableFields) => Promise<void>;
+  onUpdateLoanPayment: (paymentId: string, fields: Pick<LoanPayment, 'amount' | 'due_date'>) => Promise<void>;
   mode?: 'loans' | 'payment_plans';
 }
 
@@ -84,7 +89,16 @@ const initialFormState: NewLoanForm = {
   dueDate: '',
 };
 
-export function Loans({ loans, loanPayments, onAddLoan, onPayLoanPayment, onDeleteLoan, mode = 'loans' }: LoansProps) {
+export function Loans({
+  loans,
+  loanPayments,
+  onAddLoan,
+  onPayLoanPayment,
+  onDeleteLoan,
+  onUpdateLoan,
+  onUpdateLoanPayment,
+  mode = 'loans',
+}: LoansProps) {
   const isPaymentPlanMode = mode === 'payment_plans';
 
   const filteredLoans = useMemo(() => {
@@ -105,6 +119,8 @@ export function Loans({ loans, loanPayments, onAddLoan, onPayLoanPayment, onDele
 
   const [form, setForm] = useState<NewLoanForm>(defaultFormState);
   const [confirmPayment, setConfirmPayment] = useState<(LoanPayment & { loan: Loan }) | null>(null);
+  const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
+  const [editingPayment, setEditingPayment] = useState<(LoanPayment & { loan: Loan }) | null>(null);
 
   const totalAmount = useMemo(() => {
     const principal = Number.parseFloat(form.principalAmount) || 0;
@@ -535,6 +551,15 @@ export function Loans({ loans, loanPayments, onAddLoan, onPayLoanPayment, onDele
                             ${payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </span>
                           <Button
+                            variant='ghost'
+                            size='sm'
+                            className='px-2'
+                            onClick={() => setEditingPayment(payment)}
+                            aria-label={`Editar cuota ${payment.payment_number}`}
+                          >
+                            <Pencil className='h-4 w-4' aria-hidden='true' />
+                          </Button>
+                          <Button
                             size='sm'
                             onClick={() => setConfirmPayment(payment)}
                           >
@@ -570,9 +595,20 @@ export function Loans({ loans, loanPayments, onAddLoan, onPayLoanPayment, onDele
                             </div>
                           </div>
                         </div>
-                        <span className='text-sm text-gray-400 tabular-nums'>
-                          ${payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </span>
+                        <div className='flex items-center gap-1'>
+                          <span className='text-sm text-gray-400 tabular-nums'>
+                            ${payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
+                          <Button
+                            variant='ghost'
+                            size='sm'
+                            className='px-2'
+                            onClick={() => setEditingPayment(payment)}
+                            aria-label={`Editar cuota ${payment.payment_number}`}
+                          >
+                            <Pencil className='h-3.5 w-3.5' aria-hidden='true' />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -721,17 +757,28 @@ export function Loans({ loans, loanPayments, onAddLoan, onPayLoanPayment, onDele
                           )}
                         </div>
 
-                        {!isCompleted && (
+                        <div className='flex gap-2'>
                           <Button
                             variant='ghost'
                             size='sm'
-                            className='w-full text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30'
-                            onClick={() => onDeleteLoan(loan.id)}
+                            className='flex-1'
+                            onClick={() => setEditingLoan(loan)}
                           >
-                            <Trash2 className='h-4 w-4 mr-2' aria-hidden="true" />
-                            {isPaymentPlanMode ? 'Eliminar Plan' : 'Eliminar Prestamo'}
+                            <Pencil className='h-4 w-4 mr-2' aria-hidden='true' />
+                            Editar
                           </Button>
-                        )}
+                          {!isCompleted && (
+                            <Button
+                              variant='ghost'
+                              size='sm'
+                              className='flex-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30'
+                              onClick={() => onDeleteLoan(loan.id)}
+                            >
+                              <Trash2 className='h-4 w-4 mr-2' aria-hidden="true" />
+                              Eliminar
+                            </Button>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   );
@@ -777,6 +824,22 @@ export function Loans({ loans, loanPayments, onAddLoan, onPayLoanPayment, onDele
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {editingLoan && (
+        <EditLoanDialog
+          loan={editingLoan}
+          onClose={() => setEditingLoan(null)}
+          onSave={onUpdateLoan}
+        />
+      )}
+
+      {editingPayment && (
+        <EditLoanPaymentDialog
+          payment={editingPayment}
+          onClose={() => setEditingPayment(null)}
+          onSave={onUpdateLoanPayment}
+        />
+      )}
     </div>
   );
 }

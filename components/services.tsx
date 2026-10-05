@@ -33,7 +33,7 @@ import { es } from 'date-fns/locale';
 import { useServices } from '@/hooks/use-services';
 import { ServiceForm } from '@/components/service-form';
 import type { Service } from '@/types/database';
-import type { ServiceWithStatus } from '@/lib/services';
+import { sortByPaymentPriority, type ServiceWithStatus } from '@/lib/services';
 import type { Database } from '@/types/database';
 import { cn } from '@/lib/utils';
 
@@ -142,7 +142,7 @@ function ServiceCard({ item, onPay, onEdit, onDelete }: ServiceCardProps): React
     <>
       <Card
         className={cn(
-          'hover:shadow-lg transition-all duration-300',
+          'min-w-0 hover:shadow-lg transition-all duration-300',
           isInactive && 'opacity-60'
         )}
       >
@@ -192,12 +192,12 @@ function ServiceCard({ item, onPay, onEdit, onDelete }: ServiceCardProps): React
             </span>
           </div>
 
-          <div className='flex items-center justify-between text-sm'>
-            <span className='text-gray-500 dark:text-gray-400 flex items-center gap-1'>
+          <div className='flex items-center justify-between gap-2 text-sm'>
+            <span className='text-gray-500 dark:text-gray-400 flex items-center gap-1 shrink-0'>
               <Calendar className='h-3.5 w-3.5' aria-hidden='true' />
               Vence
             </span>
-            <span className='font-medium'>
+            <span className='font-medium text-right'>
               Día {service.due_day} ({formattedDueDate})
             </span>
           </div>
@@ -268,16 +268,18 @@ export function Services(): React.JSX.Element {
   const [formOpen, setFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
-  const activeItems = servicesWithStatus.filter((i) => i.service.is_active);
-  const inactiveItems = servicesWithStatus.filter((i) => !i.service.is_active);
+  const activeItems = sortByPaymentPriority(
+    servicesWithStatus.filter((i) => i.service.is_active)
+  );
+  const inactiveItems = sortByPaymentPriority(
+    servicesWithStatus.filter((i) => !i.service.is_active)
+  );
 
   const paidCount = activeItems.filter((i) => i.status === 'paid').length;
   const pendingCount = activeItems.filter((i) => i.status === 'pending').length;
   const totalMonthly = activeItems.reduce((sum, i) => sum + i.service.amount, 0);
 
-  const upcomingItems = [...activeItems]
-    .filter((i) => i.status === 'pending')
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const upcomingItems = activeItems.filter((i) => i.status === 'pending');
 
   const openCreate = (): void => {
     setEditingService(null);
@@ -314,14 +316,14 @@ export function Services(): React.JSX.Element {
   return (
     <div className='space-y-6'>
       {/* Header */}
-      <div className='flex justify-between items-center'>
-        <div>
+      <div className='flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center'>
+        <div className='min-w-0'>
           <h2 className='text-2xl font-bold'>Servicios</h2>
           <p className='text-gray-600 dark:text-gray-400'>
             Gestioná tus servicios y suscripciones recurrentes
           </p>
         </div>
-        <Button onClick={openCreate}>
+        <Button onClick={openCreate} className='w-full sm:w-auto'>
           <PlusCircle className='h-4 w-4 mr-2' aria-hidden='true' />
           Nuevo Servicio
         </Button>
@@ -339,24 +341,24 @@ export function Services(): React.JSX.Element {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className='grid gap-4 md:grid-cols-3'>
-              <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
-                <div className='text-2xl font-bold text-blue-600 dark:text-blue-400 tabular-nums'>
+            <div className='grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4'>
+              <div className='col-span-2 md:col-span-1 min-w-0 text-center p-3 md:p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
+                <div className='text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400 tabular-nums break-words'>
                   ${totalMonthly.toLocaleString('es-AR')}
                 </div>
                 <div className='text-sm text-gray-600 dark:text-gray-400'>Total mensual</div>
               </div>
-              <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
-                <div className='text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums'>
+              <div className='min-w-0 text-center p-3 md:p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
+                <div className='text-xl md:text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums'>
                   {paidCount}
                 </div>
-                <div className='text-sm text-gray-600 dark:text-gray-400'>Pagados este mes</div>
+                <div className='text-xs md:text-sm text-gray-600 dark:text-gray-400'>Pagados este mes</div>
               </div>
-              <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
-                <div className='text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums'>
+              <div className='min-w-0 text-center p-3 md:p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
+                <div className='text-xl md:text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums'>
                   {pendingCount}
                 </div>
-                <div className='text-sm text-gray-600 dark:text-gray-400'>Pendientes</div>
+                <div className='text-xs md:text-sm text-gray-600 dark:text-gray-400'>Pendientes</div>
               </div>
             </div>
           </CardContent>
@@ -384,7 +386,7 @@ export function Services(): React.JSX.Element {
       ) : (
         <>
           {activeItems.length > 0 && (
-            <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+            <div className='grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3'>
               {activeItems.map((item) => (
                 <ServiceCard
                   key={item.service.id}
@@ -403,7 +405,7 @@ export function Services(): React.JSX.Element {
               <h3 className='text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
                 Servicios inactivos
               </h3>
-              <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+              <div className='grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3'>
                 {inactiveItems.map((item) => (
                   <ServiceCard
                     key={item.service.id}
@@ -433,17 +435,17 @@ export function Services(): React.JSX.Element {
               {upcomingItems.map((item) => (
                 <li
                   key={item.service.id}
-                  className='flex items-center justify-between py-2.5'
+                  className='flex items-center justify-between gap-3 py-2.5'
                 >
-                  <div className='flex items-center gap-2'>
+                  <div className='flex items-center gap-2 min-w-0'>
                     {item.service.mode === 'automatic' ? (
-                      <Zap className='h-3.5 w-3.5 text-amber-500' aria-hidden='true' />
+                      <Zap className='h-3.5 w-3.5 shrink-0 text-amber-500' aria-hidden='true' />
                     ) : (
-                      <Hand className='h-3.5 w-3.5 text-gray-400' aria-hidden='true' />
+                      <Hand className='h-3.5 w-3.5 shrink-0 text-gray-400' aria-hidden='true' />
                     )}
-                    <span className='text-sm font-medium'>{item.service.name}</span>
+                    <span className='text-sm font-medium truncate'>{item.service.name}</span>
                   </div>
-                  <div className='flex items-center gap-3'>
+                  <div className='flex items-center gap-3 shrink-0'>
                     <span className='text-sm tabular-nums text-gray-600 dark:text-gray-400'>
                       ${item.service.amount.toLocaleString('es-AR')}
                     </span>

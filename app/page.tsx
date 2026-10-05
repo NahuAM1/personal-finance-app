@@ -244,6 +244,32 @@ function FinanceAppContent() {
     }
   };
 
+  const payCreditInstallments = async (installmentIds: string[]) => {
+    if (!user || installmentIds.length === 0) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const paid = await api.payCreditInstallments(installmentIds, user.id, today);
+
+      toast({
+        title: 'Éxito',
+        description: `${paid} cuotas pagadas y transacciones creadas correctamente`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudieron pagar las cuotas',
+        variant: 'destructive',
+      });
+    } finally {
+      // Reload even on failure: some installments may have been paid already
+      await loadData();
+    }
+  };
+
   const addInvestment = async (
     investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>
   ) => {
@@ -594,6 +620,57 @@ function FinanceAppContent() {
     }
   };
 
+  const updateLoan = async (loanId: string, fields: api.LoanEditableFields) => {
+    if (!user) return;
+
+    try {
+      await api.updateLoan(loanId, user.id, fields);
+
+      toast({
+        title: 'Exito',
+        description: 'Prestamo actualizado correctamente',
+      });
+
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo actualizar el prestamo',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateLoanPayment = async (
+    paymentId: string,
+    fields: Pick<LoanPayment, 'amount' | 'due_date'>
+  ) => {
+    if (!user) return;
+
+    try {
+      await api.updateLoanPayment(paymentId, user.id, fields);
+
+      toast({
+        title: 'Exito',
+        description: 'Cuota actualizada correctamente',
+      });
+
+      await loadData();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo actualizar la cuota',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const deleteLoan = async (loanId: string) => {
     if (!user) return;
 
@@ -814,6 +891,7 @@ function FinanceAppContent() {
                             })
                             .filter((x): x is InstallmentWithPurchase => x !== null)}
                           onPayInstallment={payCreditInstallment}
+                          onPayInstallments={payCreditInstallments}
                         />
                       </CardContent>
                     </Card>
@@ -838,6 +916,8 @@ function FinanceAppContent() {
                   onAddLoan={addLoan}
                   onPayLoanPayment={payLoanPayment}
                   onDeleteLoan={deleteLoan}
+                  onUpdateLoan={updateLoan}
+                  onUpdateLoanPayment={updateLoanPayment}
                   mode='loans'
                 />
               </TabsContent>
@@ -849,6 +929,8 @@ function FinanceAppContent() {
                   onAddLoan={addLoan}
                   onPayLoanPayment={payLoanPayment}
                   onDeleteLoan={deleteLoan}
+                  onUpdateLoan={updateLoan}
+                  onUpdateLoanPayment={updateLoanPayment}
                   mode='payment_plans'
                 />
               </TabsContent>

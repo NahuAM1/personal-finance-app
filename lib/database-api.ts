@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase"
 import { addMonths, format } from "date-fns"
 import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem, Service, Database } from "@/types/database"
 import { buildServiceTransactionPayload, currentPeriodDueDate, pendingAutomaticServices } from "@/lib/services"
+import { computeLoanTotal, redistributeUnpaidInstallments } from "@/lib/loans"
 
 type ServiceInsert = Database["public"]["Tables"]["services"]["Insert"]
 type ServiceUpdate = Database["public"]["Tables"]["services"]["Update"]
@@ -304,6 +305,22 @@ export async function payCreditInstallment(
   if (updateError) throw updateError
 
   return { installment: updatedInstallment, transaction: transactionData }
+}
+
+// Pay several installments at once (e.g. a whole statement month).
+// SEQUENTIAL: addTransaction recomputes cumulative balance_total on every call;
+// parallel inserts would race on balance_total and corrupt it.
+export async function payCreditInstallments(
+  installmentIds: string[],
+  userId: string,
+  paidDate: string
+): Promise<number> {
+  let paid = 0
+  for (const id of installmentIds) {
+    await payCreditInstallment(id, userId, paidDate)
+    paid++
+  }
+  return paid
 }
 
 export async function deleteCreditTransaction(transactionId: string, userId: string) {
@@ -1045,6 +1062,137 @@ export async function deleteLoan(loanId: string, userId: string): Promise<void> 
     .eq("id", loanId)
 
   if (deleteError) throw deleteError
+}
+
+export type LoanEditableFields = Pick<
+  Loan,
+  "counterparty_name" | "description" | "principal_amount" | "interest_rate" | "start_date" | "due_date"
+>
+
+function loanOriginDescription(loan: Pick<Loan, "loan_type" | "counterparty_name" | "description">): string {
+  return loan.loan_type === "payment_plan"
+    ? `Plan de pago - ${loan.counterparty_name}: ${loan.description}`
+    : `Prestamo ${loan.loan_type === "given" ? "a" : "de"} ${loan.counterparty_name}: ${loan.description}`
+}
+
+// Edit a loan's terms. The total is recomputed, the origination transaction is
+// kept in sync and the new total is redistributed across unpaid installments.
+export async function updateLoan(loanId: string, userId: string, fields: LoanEditableFields): Promise<void> {
+  const { data: loan, error: fetchError } = await supabase
+    .from("loans")
+    .select("*")
+    .eq("id", loanId)
+    .eq("user_id", userId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!loan) throw new Error("Loan not found")
+
+  const { data: payments, error: paymentsError } = await supabase
+    .from("loan_payments")
+    .select("*")
+    .eq("loan_id", loanId)
+
+  if (paymentsError) throw paymentsError
+
+  const totalAmount = computeLoanTotal(fields.principal_amount, fields.interest_rate)
+  const installmentUpdates = redistributeUnpaidInstallments(payments ?? [], totalAmount)
+
+  const { error: loanError } = await supabase
+    .from("loans")
+    .update({ ...fields, total_amount: totalAmount })
+    .eq("id", loanId)
+    .eq("user_id", userId)
+
+  if (loanError) throw loanError
+
+  for (const update of installmentUpdates) {
+    const { error } = await supabase
+      .from("loan_payments")
+      .update({ amount: update.amount })
+      .eq("id", update.id)
+    if (error) throw error
+  }
+
+  if (loan.transaction_id) {
+    const { error } = await supabase
+      .from("transactions")
+      .update({
+        amount: totalAmount,
+        date: fields.start_date,
+        description: loanOriginDescription({ ...loan, ...fields }),
+      })
+      .eq("id", loan.transaction_id)
+      .eq("user_id", userId)
+    if (error) throw error
+  }
+
+  await recalculateAllBalances(userId)
+}
+
+// Edit a single installment. A paid installment also updates its transaction.
+// The loan total becomes the sum of its installments.
+export async function updateLoanPayment(
+  paymentId: string,
+  userId: string,
+  fields: Pick<LoanPayment, "amount" | "due_date">
+): Promise<void> {
+  const { data: payment, error: fetchError } = await supabase
+    .from("loan_payments")
+    .select(`
+      *,
+      loan:loans(*)
+    `)
+    .eq("id", paymentId)
+    .single()
+
+  if (fetchError) throw fetchError
+  const loan = payment && (Array.isArray(payment.loan) ? payment.loan[0] : payment.loan)
+  if (!payment || !loan || loan.user_id !== userId) throw new Error("Payment not found")
+
+  const { error: paymentError } = await supabase
+    .from("loan_payments")
+    .update(fields)
+    .eq("id", paymentId)
+
+  if (paymentError) throw paymentError
+
+  if (payment.paid && payment.transaction_id) {
+    const { error } = await supabase
+      .from("transactions")
+      .update({ amount: fields.amount })
+      .eq("id", payment.transaction_id)
+      .eq("user_id", userId)
+    if (error) throw error
+  }
+
+  const { data: allPayments, error: allPaymentsError } = await supabase
+    .from("loan_payments")
+    .select("amount")
+    .eq("loan_id", loan.id)
+
+  if (allPaymentsError) throw allPaymentsError
+
+  const totalAmount = Math.round(allPayments.reduce((sum, p) => sum + p.amount, 0) * 100) / 100
+
+  const { error: loanError } = await supabase
+    .from("loans")
+    .update({ total_amount: totalAmount })
+    .eq("id", loan.id)
+    .eq("user_id", userId)
+
+  if (loanError) throw loanError
+
+  if (loan.transaction_id) {
+    const { error } = await supabase
+      .from("transactions")
+      .update({ amount: totalAmount })
+      .eq("id", loan.transaction_id)
+      .eq("user_id", userId)
+    if (error) throw error
+  }
+
+  await recalculateAllBalances(userId)
 }
 
 // ============================================================
