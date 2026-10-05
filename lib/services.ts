@@ -1,5 +1,5 @@
 import { format } from "date-fns"
-import type { Service, Transaction } from "@/types/database"
+import type { Service, Transaction, OmitNew } from "@/types/database"
 
 export const SERVICE_CATEGORY = "Servicios"
 
@@ -84,7 +84,7 @@ export function buildServiceTransactionPayload(
   service: Service,
   amount: number,
   date: string
-): Omit<Transaction, "id" | "user_id" | "created_at" | "updated_at" | "balance_total"> {
+): OmitNew<Transaction, "id" | "user_id" | "created_at" | "updated_at" | "balance_total"> {
   return {
     type: "expense",
     amount,

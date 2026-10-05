@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import { addMonths, format } from "date-fns"
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem, Service, Database } from "@/types/database"
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem, Service, Database, OmitNew } from "@/types/database"
 import { buildServiceTransactionPayload, currentPeriodDueDate, pendingAutomaticServices } from "@/lib/services"
 import { computeLoanTotal, redistributeUnpaidInstallments } from "@/lib/loans"
 
@@ -18,7 +18,7 @@ export async function getTransactions(userId: string) {
   return data
 }
 
-export async function addTransaction(transaction: Omit<Transaction, "id" | "created_at" | "updated_at">) {
+export async function addTransaction(transaction: OmitNew<Transaction, "id" | "created_at" | "updated_at">) {
   // Calculate balance_total before inserting
   // Get all transactions for this user to calculate cumulative balance
   const { data: existingTransactions, error: fetchError } = await supabase
@@ -74,7 +74,7 @@ export async function getExpensePlans(userId: string) {
   return data
 }
 
-export async function addExpensePlan(plan: Omit<ExpensePlan, "id" | "deleted_at" | "created_at" | "updated_at">) {
+export async function addExpensePlan(plan: OmitNew<ExpensePlan, "id" | "deleted_at" | "created_at" | "updated_at">) {
   const { data, error } = await supabase
     .from("expense_plans")
     .insert([plan])
@@ -108,7 +108,7 @@ export async function deleteExpensePlan(id: string, userId: string) {
 }
 
 // Credit card payment functions
-export async function addMultipleTransactions(transactions: Omit<Transaction, "id" | "created_at" | "updated_at">[]) {
+export async function addMultipleTransactions(transactions: OmitNew<Transaction, "id" | "created_at" | "updated_at">[]) {
   const { data, error } = await supabase
     .from("transactions")
     .insert(transactions)
@@ -158,8 +158,8 @@ export async function getUnpaidInstallments(userId: string) {
 // New Credit Card System Functions
 
 export async function createCreditPurchase(
-  purchase: Omit<CreditPurchase, "id" | "created_at" | "updated_at">,
-  installments: Omit<CreditInstallment, "id" | "credit_purchase_id" | "created_at" | "updated_at">[]
+  purchase: OmitNew<CreditPurchase, "id" | "created_at" | "updated_at">,
+  installments: OmitNew<CreditInstallment, "id" | "credit_purchase_id" | "created_at" | "updated_at">[]
 ) {
   // Create the purchase
   const { data: purchaseData, error: purchaseError } = await supabase
@@ -269,7 +269,7 @@ export async function payCreditInstallment(
     : installment.credit_purchase
 
   // Create a transaction for this payment using addTransaction to calculate balance
-  const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
+  const transaction: OmitNew<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: userId,
     type: "credit",
     amount: installment.amount,
@@ -392,7 +392,7 @@ export async function deleteTransaction(transactionId: string, userId: string): 
 
 // Investment Functions
 
-export async function createInvestment(investment: Omit<Investment, "id" | "created_at" | "updated_at">) {
+export async function createInvestment(investment: OmitNew<Investment, "id" | "created_at" | "updated_at">) {
   const { data, error } = await supabase
     .from("investments")
     .insert([investment])
@@ -448,7 +448,7 @@ export async function liquidateInvestment(
   const absoluteReturn = Math.abs(actualReturn)
 
   // Create a transaction for the liquidation using addTransaction to calculate balance
-  const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
+  const transaction: OmitNew<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: userId,
     type: isProfit ? "income" : "expense",
     amount: absoluteReturn,
@@ -492,7 +492,7 @@ export async function liquidateInvestment(
 export async function updateInvestment(
   investmentId: string,
   userId: string,
-  updates: Partial<Omit<Investment, "id" | "user_id" | "created_at" | "updated_at">>
+  updates: Partial<OmitNew<Investment, "id" | "user_id" | "created_at" | "updated_at">>
 ) {
   const { data, error } = await supabase
     .from("investments")
@@ -551,7 +551,7 @@ export async function partialSellCurrency(
   const saleTypeLabel = isFullSale ? 'Venta total' : 'Venta parcial'
 
   // Create a transaction for the profit/loss only
-  const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
+  const transaction: OmitNew<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: userId,
     type: isProfit ? "income" : "expense",
     amount: absoluteProfit,
@@ -653,7 +653,7 @@ export async function deleteInvestment(investmentId: string, userId: string) {
 export async function updateCreditPurchase(
   purchaseId: string,
   userId: string,
-  updates: Partial<Omit<CreditPurchase, "id" | "user_id" | "created_at" | "updated_at">>
+  updates: Partial<OmitNew<CreditPurchase, "id" | "user_id" | "created_at" | "updated_at">>
 ) {
   // First verify the purchase belongs to the user
   const { data: purchase, error: fetchError } = await supabase
@@ -768,8 +768,8 @@ export async function deleteCreditPurchase(purchaseId: string, userId: string) {
 // Loan Functions
 
 export async function createLoan(
-  loan: Omit<Loan, "id" | "created_at" | "updated_at" | "transaction_id">,
-  payments: Omit<LoanPayment, "id" | "loan_id" | "created_at" | "updated_at">[]
+  loan: OmitNew<Loan, "id" | "created_at" | "updated_at" | "transaction_id">,
+  payments: OmitNew<LoanPayment, "id" | "loan_id" | "created_at" | "updated_at">[]
 ): Promise<{ loan: Loan; payments: LoanPayment[]; transaction: Transaction }> {
   // Create the origination transaction
   const isPaymentPlan = loan.loan_type === "payment_plan"
@@ -778,7 +778,7 @@ export async function createLoan(
     ? `Plan de pago - ${loan.counterparty_name}: ${loan.description}`
     : `Prestamo ${loan.loan_type === "given" ? "a" : "de"} ${loan.counterparty_name}: ${loan.description}`
 
-  const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
+  const transaction: OmitNew<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: loan.user_id,
     type: transactionType,
     amount: loan.total_amount,
@@ -906,7 +906,7 @@ export async function payLoanPayment(
     ? `Cuota plan de pago - ${loan.counterparty_name}`
     : isGiven ? `Cobro prestamo a ${loan.counterparty_name}` : `Pago prestamo de ${loan.counterparty_name}`
 
-  const transaction: Omit<Transaction, "id" | "created_at" | "updated_at"> = {
+  const transaction: OmitNew<Transaction, "id" | "created_at" | "updated_at"> = {
     user_id: userId,
     type: transactionType,
     amount: payment.amount,

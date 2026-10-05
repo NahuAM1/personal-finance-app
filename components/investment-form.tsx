@@ -20,7 +20,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { format, differenceInDays } from 'date-fns';
-import type { Investment } from '@/types/database';
+import type { Investment, OmitNew } from '@/types/database';
 import { TrendingUp, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,7 +34,7 @@ interface CryptoOption {
 }
 
 interface InvestmentFormProps {
-  onSubmit: (investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
+  onSubmit: (investment: OmitNew<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
 }
 
 const investmentTypes = [
@@ -179,7 +179,7 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
     if (isCurrencyPurchase && (!currency || !exchangeRate)) return;
     if (isCrypto && (!selectedCrypto || !exchangeRate)) return;
 
-    const investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
+    const investment: OmitNew<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
       description,
       investment_type: investmentType as Investment['investment_type'],
       amount: Number.parseFloat(amount),
@@ -191,8 +191,8 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
       liquidation_date: null,
       actual_return: null,
       transaction_id: null,
-      currency: (isCurrencyPurchase || isCrypto) && currency ? currency : null,
-      exchange_rate: (isCurrencyPurchase || isCrypto) && exchangeRate ? Number.parseFloat(exchangeRate) : null,
+      currency: (isCurrencyPurchase || isCrypto) && currency ? currency : undefined,
+      exchange_rate: (isCurrencyPurchase || isCrypto) && exchangeRate ? Number.parseFloat(exchangeRate) : undefined,
     };
 
     onSubmit(investment);

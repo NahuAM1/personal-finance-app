@@ -14,14 +14,14 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
-import type { Transaction } from '@/types/database';
+import type { Transaction, OmitNew } from '@/types/database';
 import { incomeCategories } from '@/public/constants';
 import { TransactionsTypes } from '@/public/enums';
 import { useFormContext } from '@/contexts/form-context';
 
 interface IncomeFormProps {
   onSubmit: (
-    transaction: Omit<
+    transaction: OmitNew<
       Transaction,
       'id' | 'user_id' | 'created_at' | 'updated_at'
     >

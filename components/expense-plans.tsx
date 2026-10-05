@@ -43,12 +43,12 @@ import {
   Trash2,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
-import type { ExpensePlan } from '@/types/database';
+import type { ExpensePlan, OmitNew } from '@/types/database';
 
 interface ExpensePlansProps {
   expensePlans: ExpensePlan[];
   onAddPlan: (
-    plan: Omit<ExpensePlan, 'id' | 'user_id' | 'deleted_at' | 'created_at' | 'updated_at'>
+    plan: OmitNew<ExpensePlan, 'id' | 'user_id' | 'deleted_at' | 'created_at' | 'updated_at'>
   ) => void;
   onUpdatePlan: (id: string, amount: number) => void;
   onDeletePlan: (id: string) => void;

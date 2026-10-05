@@ -41,7 +41,7 @@ import { AuthGuard } from '@/components/auth-guard';
 import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, OmitNew } from '@/types/database';
 import { USER_ROLES } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import { NotificationBell } from '@/components/notification-bell';
@@ -162,7 +162,7 @@ function FinanceAppContent() {
   }, [setOnActionCompleted]);
 
   const addTransaction = async (
-    transaction: Omit<
+    transaction: OmitNew<
       Transaction,
       'id' | 'user_id' | 'created_at' | 'updated_at'
     >
@@ -200,8 +200,8 @@ function FinanceAppContent() {
   };
 
   const addCreditPurchase = async (data: {
-    purchase: Omit<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
-    installments: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
+    purchase: OmitNew<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+    installments: OmitNew<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
   }) => {
     if (!user) {
       return;
@@ -287,7 +287,7 @@ function FinanceAppContent() {
   };
 
   const addInvestment = async (
-    investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+    investment: OmitNew<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>
   ) => {
     if (!user) return;
 
@@ -508,7 +508,7 @@ function FinanceAppContent() {
   };
 
   const addExpensePlan = async (
-    plan: Omit<ExpensePlan, 'id' | 'user_id' | 'deleted_at' | 'created_at' | 'updated_at'>
+    plan: OmitNew<ExpensePlan, 'id' | 'user_id' | 'deleted_at' | 'created_at' | 'updated_at'>
   ) => {
     if (!user) return;
 
@@ -580,8 +580,8 @@ function FinanceAppContent() {
   };
 
   const addLoan = async (data: {
-    loan: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'>;
-    payments: Omit<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[];
+    loan: OmitNew<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'>;
+    payments: OmitNew<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[];
   }) => {
     if (!user) return;
 

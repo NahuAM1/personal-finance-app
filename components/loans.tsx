@@ -47,7 +47,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Loan, LoanPayment } from '@/types/database';
+import type { Loan, LoanPayment, OmitNew } from '@/types/database';
 import type { LoanEditableFields } from '@/lib/database-api';
 import { EditLoanDialog, EditLoanPaymentDialog } from '@/components/loan-edit-dialogs';
 
@@ -55,8 +55,8 @@ interface LoansProps {
   loans: Loan[];
   loanPayments: LoanPayment[];
   onAddLoan: (data: {
-    loan: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'>;
-    payments: Omit<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[];
+    loan: OmitNew<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'>;
+    payments: OmitNew<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[];
   }) => void;
   onPayLoanPayment: (paymentId: string) => void;
   onDeleteLoan: (loanId: string) => void;
@@ -171,7 +171,7 @@ export function Loans({
     const paymentMode = form.paymentMode as 'single' | 'installments';
     const installmentsCount = paymentMode === 'installments' ? Number.parseInt(form.installmentsCount) || 1 : 1;
 
-    const loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'> = {
+    const loanData: OmitNew<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'> = {
       loan_type: loanType,
       counterparty_name: form.counterpartyName,
       description: form.description,
@@ -186,7 +186,7 @@ export function Loans({
     };
 
     // Generate payment schedule
-    const payments: Omit<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[] = [];
+    const payments: OmitNew<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[] = [];
     const startDate = new Date(form.startDate);
 
     for (let i = 1; i <= installmentsCount; i++) {

@@ -22,12 +22,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { format, addMonths } from 'date-fns';
-import type { CreditPurchase, CreditInstallment } from '@/types/database';
+import type { CreditPurchase, CreditInstallment, OmitNew } from '@/types/database';
 
 interface CreditCardFormProps {
   onSubmit: (data: {
-    purchase: Omit<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
-    installments: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
+    purchase: OmitNew<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+    installments: OmitNew<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
   }) => void;
 }
 
@@ -66,7 +66,7 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
     const today = new Date();
 
     // Create the purchase object
-    const purchase: Omit<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
+    const purchase: OmitNew<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
       description,
       category,
       total_amount: totalAmountValue,
@@ -76,7 +76,7 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
     };
 
     // Create array of installments
-    const installmentsData: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = Array.from(
+    const installmentsData: OmitNew<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = Array.from(
       { length: numInstallments },
       (_, index) => {
         const installmentNumber = index + 1;

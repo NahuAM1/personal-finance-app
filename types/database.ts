@@ -20,6 +20,11 @@ export interface Database {
           ticket_id: string | null
           service_id: string | null
           period_key?: string
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -40,6 +45,11 @@ export interface Database {
           balance_total?: number | null
           ticket_id?: string | null
           service_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -60,6 +70,11 @@ export interface Database {
           balance_total?: number | null
           ticket_id?: string | null
           service_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -74,6 +89,7 @@ export interface Database {
           deadline: string
           category: string
           deleted_at: string | null
+          currency: string
           created_at: string
           updated_at: string
         }
@@ -86,6 +102,7 @@ export interface Database {
           deadline: string
           category: string
           deleted_at?: string | null
+          currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -98,6 +115,7 @@ export interface Database {
           deadline?: string
           category?: string
           deleted_at?: string | null
+          currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -114,6 +132,11 @@ export interface Database {
           color: string | null
           notes: string | null
           is_active: boolean
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -128,6 +151,11 @@ export interface Database {
           color?: string | null
           notes?: string | null
           is_active?: boolean
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -142,6 +170,11 @@ export interface Database {
           color?: string | null
           notes?: string | null
           is_active?: boolean
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -156,6 +189,11 @@ export interface Database {
           installments: number
           monthly_amount: number
           start_date: string
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -168,6 +206,11 @@ export interface Database {
           installments: number
           monthly_amount: number
           start_date: string
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -180,6 +223,11 @@ export interface Database {
           installments?: number
           monthly_amount?: number
           start_date?: string
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -194,6 +242,11 @@ export interface Database {
           paid: boolean
           paid_date: string | null
           transaction_id: string | null
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -206,6 +259,11 @@ export interface Database {
           paid?: boolean
           paid_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -218,6 +276,11 @@ export interface Database {
           paid?: boolean
           paid_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -237,8 +300,11 @@ export interface Database {
           liquidation_date: string | null
           actual_return: number | null
           transaction_id: string | null
-          currency: string | null
-          exchange_rate: number | null
+          currency: string
+          exchange_rate: number
+          original_amount: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -256,8 +322,11 @@ export interface Database {
           liquidation_date?: string | null
           actual_return?: number | null
           transaction_id?: string | null
-          currency?: string | null
-          exchange_rate?: number | null
+          currency?: string
+          exchange_rate?: number
+          original_amount?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -275,8 +344,11 @@ export interface Database {
           liquidation_date?: string | null
           actual_return?: number | null
           transaction_id?: string | null
-          currency?: string | null
-          exchange_rate?: number | null
+          currency?: string
+          exchange_rate?: number
+          original_amount?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -364,6 +436,11 @@ export interface Database {
           start_date: string
           due_date: string | null
           transaction_id: string | null
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -382,6 +459,11 @@ export interface Database {
           start_date: string
           due_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -400,6 +482,11 @@ export interface Database {
           start_date?: string
           due_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -414,6 +501,11 @@ export interface Database {
           paid: boolean
           paid_date: string | null
           transaction_id: string | null
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -426,6 +518,11 @@ export interface Database {
           paid?: boolean
           paid_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -438,6 +535,11 @@ export interface Database {
           paid?: boolean
           paid_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -532,6 +634,10 @@ export interface Database {
           expense_date: string
           split_method: "equal" | "custom" | "percentage"
           transaction_id: string | null
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
           created_at: string
           updated_at: string
         }
@@ -545,6 +651,10 @@ export interface Database {
           expense_date: string
           split_method?: "equal" | "custom" | "percentage"
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
           created_at?: string
           updated_at?: string
         }
@@ -558,6 +668,10 @@ export interface Database {
           expense_date?: string
           split_method?: "equal" | "custom" | "percentage"
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
           created_at?: string
           updated_at?: string
         }
@@ -622,6 +736,39 @@ export interface Database {
       }
     }
   }
+}
+
+type MoneyKeys = "currency" | "original_amount" | "exchange_rate" | "rate_source" | "base_currency"
+
+/**
+ * Like Omit<T, K>, but the multi-currency money fields become optional so callers
+ * that do not set them fall back to the database defaults trigger.
+ */
+export type OmitNew<T, K extends keyof T> = Omit<T, K | Extract<MoneyKeys, keyof T>> &
+  Partial<Pick<T, Extract<MoneyKeys, keyof T>>>
+
+export type RateSource = "auto" | "manual"
+export type ArsRateType = "oficial" | "blue" | "bolsa" | "tarjeta"
+
+export interface UserSettings {
+  user_id: string
+  base_currency: string
+  ars_rate_type: ArsRateType
+  pending_base_currency: string | null
+  reconversion_status: "idle" | "running" | "failed"
+  reconversion_started_at: string | null
+  reconversion_error: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ExchangeRate {
+  rate_date: string
+  currency: string
+  rate_type: ArsRateType
+  ars_per_unit: number
+  source: string
+  fetched_at: string
 }
 
 export const USER_ROLES = {

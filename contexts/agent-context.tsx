@@ -15,7 +15,7 @@ import type {
   ScanReceiptPayload,
   ConversationMessage,
 } from '@/types/agent';
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, OmitNew } from '@/types/database';
 import type { SavingsDepositPayload, DeleteTransactionPayload } from '@/types/agent';
 import { classifyIntent, executeStrategy, fetchPostConfirmMessage, fetchWelcomeMessage } from '@/lib/agent/agent-service';
 import { createTTSService } from '@/lib/agent/tts/tts-service';
@@ -299,7 +299,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
         case AgentAction.ADD_EXPENSE:
         case AgentAction.ADD_INCOME: {
           const p = pendingPayload as AddTransactionPayload;
-          const transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'> = {
+          const transaction: OmitNew<Transaction, 'id' | 'created_at' | 'updated_at'> = {
             user_id: user.id,
             type: p.type,
             amount: p.amount,
@@ -322,7 +322,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
 
         case AgentAction.CREATE_SAVINGS_GOAL: {
           const p = pendingPayload as CreateSavingsGoalPayload;
-          const plan: Omit<ExpensePlan, 'id' | 'deleted_at' | 'created_at' | 'updated_at'> = {
+          const plan: OmitNew<ExpensePlan, 'id' | 'deleted_at' | 'created_at' | 'updated_at'> = {
             user_id: user.id,
             name: p.name,
             target_amount: p.targetAmount,
@@ -338,7 +338,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
           const p = pendingPayload as CreditPurchasePayload;
           const monthlyAmount = Math.ceil((p.totalAmount / p.installments) * 100) / 100;
 
-          const purchase: Omit<CreditPurchase, 'id' | 'created_at' | 'updated_at'> = {
+          const purchase: OmitNew<CreditPurchase, 'id' | 'created_at' | 'updated_at'> = {
             user_id: user.id,
             description: p.description,
             category: p.category,
@@ -348,7 +348,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
             start_date: p.startDate,
           };
 
-          const installments: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = [];
+          const installments: OmitNew<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = [];
           const startDate = new Date(p.startDate);
 
           for (let i = 0; i < p.installments; i++) {
@@ -372,7 +372,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
 
         case AgentAction.CREATE_INVESTMENT: {
           const p = pendingPayload as CreateInvestmentPayload;
-          const investment: Omit<Investment, 'id' | 'created_at' | 'updated_at'> = {
+          const investment: OmitNew<Investment, 'id' | 'created_at' | 'updated_at'> = {
             user_id: user.id,
             investment_type: p.investmentType,
             amount: p.amount,
@@ -385,8 +385,8 @@ export function AgentProvider({ children }: AgentProviderProps) {
             liquidation_date: null,
             actual_return: null,
             transaction_id: null,
-            currency: null,
-            exchange_rate: null,
+            currency: undefined,
+            exchange_rate: undefined,
           };
           await api.createInvestment(investment);
           break;

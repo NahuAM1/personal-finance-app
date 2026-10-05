@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 // import { ExpensePlanService } from "@/components/expense-plans" // TODO: This service doesn't exist
 import { useAuth } from "@/contexts/auth-context"
-import type { ExpensePlan } from "@/types/database"
+import type { ExpensePlan, OmitNew } from "@/types/database"
 
 export function useExpensePlans() {
   const { user } = useAuth()
@@ -31,7 +31,7 @@ export function useExpensePlans() {
     fetchExpensePlans()
   }, [user])
 
-  const addExpensePlan = async (plan: Omit<ExpensePlan, "id" | "user_id" | "created_at" | "updated_at">) => {
+  const addExpensePlan = async (plan: OmitNew<ExpensePlan, "id" | "user_id" | "created_at" | "updated_at">) => {
     if (!user) return
 
     try {
