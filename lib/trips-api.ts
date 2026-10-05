@@ -5,6 +5,9 @@ import {
   recalculateAllBalances,
 } from '@/lib/database-api';
 import type { Database, Trip, TripMember, TripExpense } from '@/types/database';
+import { getUserSettings } from '@/lib/user-settings-api';
+import { resolveMoney } from '@/lib/currency/resolve-money';
+import type { MoneyFields, RateSource } from '@/lib/currency/money';
 import {
   buildTripTransactionDescription,
   getSharesToSettle,
@@ -27,6 +30,12 @@ export interface TripExpenseInput {
   category: string | null;
   expense_date: string;
   split_method: TripExpense['split_method'];
+  // `amount` is always in the trip currency. When the expense was paid in another currency
+  // these record the original currency, amount and the rate to the trip currency.
+  currency?: string;
+  original_amount?: number;
+  exchange_rate?: number;
+  rate_source?: RateSource;
 }
 
 // ============================================
@@ -158,15 +167,36 @@ async function insertShares(expenseId: string, shares: ShareInput[]): Promise<vo
   if (error) throw error;
 }
 
+/**
+ * Converts an amount in the trip currency to the user's base currency at the given date.
+ * Resolved before any write so a failed lookup never leaves a half-created expense.
+ */
+async function tripAmountInBase(
+  userId: string,
+  tripCurrency: string,
+  amount: number,
+  date: string
+): Promise<MoneyFields> {
+  const settings = await getUserSettings(userId);
+  return resolveMoney({
+    currency: tripCurrency,
+    originalAmount: amount,
+    base: settings.base_currency,
+    date,
+    rateType: settings.ars_rate_type,
+  });
+}
+
 async function createPersonalTransaction(
   userId: string,
   tripName: string,
-  input: TripExpenseInput
+  input: TripExpenseInput,
+  money: MoneyFields
 ): Promise<string> {
   const tx = await addTransaction({
     user_id: userId,
     type: 'expense',
-    amount: input.amount,
+    ...money,
     category: TRIP_TRANSACTION_CATEGORY,
     description: buildTripTransactionDescription(tripName, input.description),
     date: input.expense_date,
@@ -204,13 +234,18 @@ export function hasSettledShares(expense: TripExpenseWithShares): boolean {
  * personal "Viaje" transaction is created too and linked to the expense.
  */
 export async function createTripExpense(params: {
-  trip: Pick<Trip, 'id' | 'name'>;
+  trip: Pick<Trip, 'id' | 'name' | 'currency'>;
   input: TripExpenseInput;
   shares: ShareInput[];
   members: TripMember[];
   currentUserId: string;
 }): Promise<void> {
   const { trip, input, shares, members, currentUserId } = params;
+
+  const payerIsMe = isPaidByUser(members, input.paid_by_member_id, currentUserId);
+  const personalMoney = payerIsMe
+    ? await tripAmountInBase(currentUserId, trip.currency, input.amount, input.expense_date)
+    : null;
 
   const { data: expense, error } = await supabase
     .from('trip_expenses')
@@ -227,8 +262,8 @@ export async function createTripExpense(params: {
     throw sharesError;
   }
 
-  if (isPaidByUser(members, input.paid_by_member_id, currentUserId)) {
-    const transactionId = await createPersonalTransaction(currentUserId, trip.name, input);
+  if (personalMoney) {
+    const transactionId = await createPersonalTransaction(currentUserId, trip.name, input, personalMoney);
     await setExpenseTransactionId(expense.id, transactionId);
   }
 }
@@ -239,7 +274,7 @@ export async function createTripExpense(params: {
  * Expenses with settled shares cannot be edited (their debts were already paid).
  */
 export async function updateTripExpense(params: {
-  trip: Pick<Trip, 'id' | 'name'>;
+  trip: Pick<Trip, 'id' | 'name' | 'currency'>;
   expense: TripExpenseWithShares;
   input: TripExpenseInput;
   shares: ShareInput[];
@@ -252,6 +287,13 @@ export async function updateTripExpense(params: {
     throw new Error('Este gasto tiene deudas saldadas y ya no se puede editar');
   }
 
+  const wasMine = isPaidByUser(members, expense.paid_by_member_id, currentUserId);
+  const isMine = isPaidByUser(members, input.paid_by_member_id, currentUserId);
+  const personalMoney = isMine
+    ? await tripAmountInBase(currentUserId, trip.currency, input.amount, input.expense_date)
+    : null;
+
+  // `input` carries both `amount` (trip currency) and `original_amount` (expense currency).
   const { error: updateError } = await supabase
     .from('trip_expenses')
     .update(input)
@@ -266,15 +308,13 @@ export async function updateTripExpense(params: {
 
   await insertShares(expense.id, shares);
 
-  const wasMine = isPaidByUser(members, expense.paid_by_member_id, currentUserId);
-  const isMine = isPaidByUser(members, input.paid_by_member_id, currentUserId);
   let touchedTransactions = false;
 
-  if (expense.transaction_id && wasMine && isMine) {
+  if (expense.transaction_id && wasMine && isMine && personalMoney) {
     const { error } = await supabase
       .from('transactions')
       .update({
-        amount: input.amount,
+        ...personalMoney,
         date: input.expense_date,
         description: buildTripTransactionDescription(trip.name, input.description),
       })
@@ -286,8 +326,8 @@ export async function updateTripExpense(params: {
     await setExpenseTransactionId(expense.id, null);
     await deleteTransaction(expense.transaction_id, currentUserId);
     touchedTransactions = true;
-  } else if (isMine && !(expense.transaction_id && wasMine)) {
-    const transactionId = await createPersonalTransaction(currentUserId, trip.name, input);
+  } else if (isMine && personalMoney && !(expense.transaction_id && wasMine)) {
+    const transactionId = await createPersonalTransaction(currentUserId, trip.name, input, personalMoney);
     await setExpenseTransactionId(expense.id, transactionId);
   }
 
@@ -327,7 +367,7 @@ export async function deleteTripExpense(params: {
  * ("Saldo de deuda" when paying, "Cobro de deuda" when collecting).
  */
 export async function settleDebt(params: {
-  trip: Pick<Trip, 'name'>;
+  trip: Pick<Trip, 'name' | 'currency'>;
   settlement: DebtSettlement;
   expenses: TripExpenseWithShares[];
   members: TripMember[];
@@ -337,20 +377,27 @@ export async function settleDebt(params: {
   const shareIds = getSharesToSettle(expenses, settlement.fromMemberId, settlement.toMemberId);
   if (shareIds.length === 0) return;
 
+  const currentMember = members.find((m) => m.user_id === currentUserId);
+  const settledAt = new Date();
+  const today = settledAt.toISOString().split('T')[0];
+  // The personal transaction converts the trip currency to the base at the settlement date.
+  // It is resolved first so a failed lookup does not leave shares settled without a transaction.
+  const money = currentMember
+    ? await tripAmountInBase(currentUserId, trip.currency, settlement.amount, today)
+    : null;
+
   const { error } = await supabase
     .from('trip_expense_shares')
-    .update({ is_settled: true, settled_at: new Date().toISOString() })
+    .update({ is_settled: true, settled_at: settledAt.toISOString() })
     .in('id', shareIds);
   if (error) throw error;
 
-  const currentMember = members.find((m) => m.user_id === currentUserId);
-  if (!currentMember) return;
+  if (!currentMember || !money) return;
 
   const nameOf = (id: string) => members.find((m) => m.id === id)?.display_name || 'Desconocido';
-  const today = new Date().toISOString().split('T')[0];
   const base = {
     user_id: currentUserId,
-    amount: settlement.amount,
+    ...money,
     date: today,
     is_recurring: false,
     installments: null,

@@ -2,7 +2,7 @@
 
 import type React from 'react';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -44,13 +44,18 @@ import {
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import type { ExpensePlan, OmitNew } from '@/types/database';
+import { CurrencySelect } from '@/components/currency/currency-select';
+import { useCurrency } from '@/hooks/use-currency';
+import { fetchRate } from '@/lib/exchange-rates/client';
+import { roundAmount } from '@/lib/currency/money';
 
 interface ExpensePlansProps {
   expensePlans: ExpensePlan[];
   onAddPlan: (
     plan: OmitNew<ExpensePlan, 'id' | 'user_id' | 'deleted_at' | 'created_at' | 'updated_at'>
   ) => void;
-  onUpdatePlan: (id: string, amount: number) => void;
+  /** `depositCurrency` defaults to the plan currency; other currencies are converted at the deposit date. */
+  onUpdatePlan: (id: string, amount: number, depositCurrency?: string) => void;
   onDeletePlan: (id: string) => void;
 }
 
@@ -66,14 +71,51 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
   const [newPlan, setNewPlan] = useState({
     name: '',
     targetAmount: '',
+    currency: null as string | null,
     deadline: '',
     category: '',
   });
+  const { baseCurrency, rateType, format: formatCurrency } = useCurrency();
+  const [addCurrency, setAddCurrency] = useState<Record<string, string>>({});
+  // Current rate plan currency -> base, to show base equivalents (no rate: not shown).
+  const [planRates, setPlanRates] = useState<Record<string, number>>({});
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [addAmount, setAddAmount] = useState<Record<string, string>>({});
 
-  const totalSaved = expensePlans.reduce((sum, plan) => sum + plan.current_amount, 0);
-  const totalTarget = expensePlans.reduce((sum, plan) => sum + plan.target_amount, 0);
+  const planCurrencies = useMemo(
+    () => Array.from(new Set(expensePlans.map((p) => p.currency).filter((c) => c !== baseCurrency))),
+    [expensePlans, baseCurrency]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const today = new Date().toISOString().split('T')[0];
+    for (const currency of planCurrencies) {
+      fetchRate(currency, baseCurrency, today, rateType)
+        .then((result) => {
+          if (!cancelled) setPlanRates((prev) => ({ ...prev, [currency]: result.rate }));
+        })
+        .catch(() => {
+          // Without a rate the base equivalent is simply not shown.
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [planCurrencies, baseCurrency, rateType]);
+
+  const rateToBase = (currency: string): number | null =>
+    currency === baseCurrency ? 1 : (planRates[currency] ?? null);
+
+  // Totals are expressed in the base currency at the current rate; plans without a rate are skipped.
+  const totalSaved = expensePlans.reduce(
+    (sum, plan) => sum + plan.current_amount * (rateToBase(plan.currency) ?? 0),
+    0
+  );
+  const totalTarget = expensePlans.reduce(
+    (sum, plan) => sum + plan.target_amount * (rateToBase(plan.currency) ?? 0),
+    0
+  );
   const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
   const handleAddPlan = (e: React.FormEvent) => {
@@ -90,19 +132,21 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
     onAddPlan({
       name: newPlan.name,
       target_amount: Number.parseFloat(newPlan.targetAmount),
+      currency: newPlan.currency ?? baseCurrency,
       current_amount: 0,
       deadline: newPlan.deadline,
       category: newPlan.category,
     });
 
-    setNewPlan({ name: '', targetAmount: '', deadline: '', category: '' });
+    setNewPlan({ name: '', targetAmount: '', currency: null, deadline: '', category: '' });
     setIsDialogOpen(false);
   };
 
   const handleAddMoney = (planId: string) => {
     const amount = Number.parseFloat(addAmount[planId] || '0');
     if (amount > 0) {
-      onUpdatePlan(planId, amount);
+      const plan = expensePlans.find((p) => p.id === planId);
+      onUpdatePlan(planId, amount, addCurrency[planId] ?? plan?.currency);
       setAddAmount({ ...addAmount, [planId]: '' });
     }
   };
@@ -123,13 +167,13 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
             <div className='grid gap-4 md:grid-cols-3'>
               <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
                 <div className='text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums'>
-                  ${totalSaved.toLocaleString()}
+                  {formatCurrency(totalSaved)}
                 </div>
                 <div className='text-sm text-gray-600 dark:text-gray-400'>Total Ahorrado</div>
               </div>
               <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
                 <div className='text-2xl font-bold text-teal-600 dark:text-teal-400 tabular-nums'>
-                  ${totalTarget.toLocaleString()}
+                  {formatCurrency(totalTarget)}
                 </div>
                 <div className='text-sm text-gray-600 dark:text-gray-400'>Meta Total</div>
               </div>
@@ -206,24 +250,33 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
                   </SelectContent>
                 </Select>
               </div>
-              <div className='space-y-2'>
+              <div className='space-y-2 min-w-0'>
                 <Label htmlFor='plan-amount'>Monto Estimado</Label>
-                <Input
-                  id='plan-amount'
-                  name='plan-amount'
-                  type='number'
-                  inputMode='decimal'
-                  placeholder='0.00'
-                  value={newPlan.targetAmount}
-                  onChange={(e) =>
-                    setNewPlan({ ...newPlan, targetAmount: e.target.value })
-                  }
-                  required
-                  min={0}
-                  step='0.01'
-                  autoComplete='off'
-                  className='tabular-nums'
-                />
+                <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-2'>
+                  <Input
+                    id='plan-amount'
+                    name='plan-amount'
+                    type='number'
+                    inputMode='decimal'
+                    placeholder='0.00'
+                    value={newPlan.targetAmount}
+                    onChange={(e) =>
+                      setNewPlan({ ...newPlan, targetAmount: e.target.value })
+                    }
+                    required
+                    min={0}
+                    step='0.01'
+                    autoComplete='off'
+                    className='min-w-0 tabular-nums'
+                  />
+                  <CurrencySelect
+                    id='plan-currency'
+                    value={newPlan.currency ?? baseCurrency}
+                    onChange={(value) => setNewPlan({ ...newPlan, currency: value })}
+                    className='w-[104px]'
+                    aria-label='Moneda del plan'
+                  />
+                </div>
               </div>
               <div className='space-y-2'>
                 <Label htmlFor='plan-deadline'>Fecha Objetivo</Label>
@@ -282,15 +335,21 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
                 <div>
                   <div className='flex justify-between text-sm mb-2 tabular-nums'>
                     <span className='font-medium'>
-                      ${plan.current_amount.toLocaleString()}
+                      {formatCurrency(plan.current_amount, plan.currency)}
                     </span>
                     <span className='text-gray-600'>
-                      ${plan.target_amount.toLocaleString()}
+                      {formatCurrency(plan.target_amount, plan.currency)}
                     </span>
                   </div>
                   <Progress value={progress} className='h-2' />
+                  {plan.currency !== baseCurrency && rateToBase(plan.currency) !== null && (
+                    <div className='mt-1 text-xs text-gray-500 tabular-nums'>
+                      ≈ {formatCurrency(roundAmount(plan.current_amount * (rateToBase(plan.currency) ?? 0)))}{' '}
+                      de {formatCurrency(roundAmount(plan.target_amount * (rateToBase(plan.currency) ?? 0)))}
+                    </div>
+                  )}
                   <div className='flex justify-between text-sm mt-2 text-gray-600'>
-                    <span className='tabular-nums'>Faltan ${remaining.toLocaleString()}</span>
+                    <span className='tabular-nums'>Faltan {formatCurrency(remaining, plan.currency)}</span>
                     <span className='flex items-center gap-1'>
                       <Calendar className='h-3 w-3' aria-hidden="true" />
                       {daysLeft > 0 ? `${daysLeft}d` : 'Vencido'}
@@ -303,12 +362,10 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
                     Ahorro mensual sugerido:
                   </div>
                   <div className='text-lg font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums'>
-                    $
-                    {daysLeft > 0
-                      ? Math.ceil(
-                          remaining / Math.ceil(daysLeft / 30)
-                        ).toLocaleString()
-                      : '0'}
+                    {formatCurrency(
+                      daysLeft > 0 ? Math.ceil(remaining / Math.ceil(daysLeft / 30)) : 0,
+                      plan.currency
+                    )}
                   </div>
                   <div className='text-xs text-gray-500'>
                     para alcanzar la meta a tiempo
@@ -316,7 +373,7 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
                 </div>
 
                 {progress < 100 && (
-                  <div className='flex gap-2 pt-2 border-t border-emerald-100 dark:border-emerald-800'>
+                  <div className='flex min-w-0 gap-2 pt-2 border-t border-emerald-100 dark:border-emerald-800'>
                     <Input
                       type='number'
                       inputMode='decimal'
@@ -328,7 +385,13 @@ export function ExpensePlans({ expensePlans, onAddPlan, onUpdatePlan, onDeletePl
                       min={0}
                       step='0.01'
                       autoComplete='off'
-                      className='tabular-nums'
+                      className='min-w-0 tabular-nums'
+                    />
+                    <CurrencySelect
+                      value={addCurrency[plan.id] ?? plan.currency}
+                      onChange={(value) => setAddCurrency({ ...addCurrency, [plan.id]: value })}
+                      className='w-[96px] shrink-0'
+                      aria-label='Moneda del depósito'
                     />
                     <Button
                       onClick={() => handleAddMoney(plan.id)}

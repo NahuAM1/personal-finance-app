@@ -31,6 +31,8 @@ interface RateInputProps {
   autoFetch?: boolean;
   /** Hides the "Equivale a" line when the caller shows its own derived value. */
   hideEquivalent?: boolean;
+  /** Currency the rate converts to. Defaults to the user base currency (trips pass the trip currency). */
+  targetCurrency?: string;
 }
 
 type Notice = 'stale' | 'fallback' | 'manual-required' | null;
@@ -51,8 +53,10 @@ export function RateInput({
   disabled,
   autoFetch = true,
   hideEquivalent = false,
+  targetCurrency,
 }: RateInputProps) {
-  const { baseCurrency, rateType, format, isReconverting } = useCurrency();
+  const { baseCurrency: userBase, rateType, format, isReconverting } = useCurrency();
+  const baseCurrency = targetCurrency ?? userBase;
   const foreign = currency !== baseCurrency;
   const isDisabled = disabled || isReconverting;
 

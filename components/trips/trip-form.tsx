@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { Trip } from '@/types/database';
+import { useCurrency } from '@/hooks/use-currency';
 
 export const TRIP_CURRENCIES = ['ARS', 'USD', 'EUR', 'BRL', 'CLP', 'UYU'] as const;
 
@@ -48,7 +49,9 @@ export function TripForm({ open, trip, onClose, onSubmit }: TripFormProps): Reac
   const [startDate, setStartDate] = useState(trip?.start_date ?? '');
   const [endDate, setEndDate] = useState(trip?.end_date ?? '');
   const [budget, setBudget] = useState(trip?.budget != null ? String(trip.budget) : '');
-  const [currency, setCurrency] = useState(trip?.currency ?? 'ARS');
+  const { baseCurrency } = useCurrency();
+  // New trips default to the user's base currency.
+  const [currency, setCurrency] = useState(trip?.currency ?? baseCurrency);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 

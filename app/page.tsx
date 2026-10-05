@@ -55,7 +55,9 @@ import { AccessControl } from '@/components/access-control';
 import { AgentFloatingButton } from '@/components/agent/agent-floating-button';
 import { useAgentContext } from '@/contexts/agent-context';
 import { ChartPreferencesProvider } from '@/contexts/chart-preferences-context';
-import type { MoneyFields } from '@/lib/currency/money';
+import { roundAmount, type MoneyFields } from '@/lib/currency/money';
+import { resolveRate } from '@/lib/currency/resolve-money';
+import { useCurrency } from '@/hooks/use-currency';
 
 type InstallmentWithPurchase = CreditInstallment & {
   credit_purchase: CreditPurchase;
@@ -63,6 +65,7 @@ type InstallmentWithPurchase = CreditInstallment & {
 
 function FinanceAppContent() {
   const { user } = useAuth();
+  const { rateType } = useCurrency();
   const { toast } = useToast();
   const { setOnActionCompleted } = useAgentContext();
   const [loading, setLoading] = useState(true);
@@ -533,13 +536,21 @@ function FinanceAppContent() {
     }
   };
 
-  const updateExpensePlan = async (id: string, amount: number) => {
+  // `amount` is in `depositCurrency` (defaults to the plan currency) and is converted to the plan
+  // currency at the deposit date.
+  const updateExpensePlan = async (id: string, amount: number, depositCurrency?: string) => {
     const plan = expensePlans.find((p) => p.id === id);
     if (!plan) return;
 
     try {
+      let amountInPlanCurrency = amount;
+      if (depositCurrency && depositCurrency !== plan.currency) {
+        const today = new Date().toISOString().split('T')[0];
+        const rate = await resolveRate(depositCurrency, plan.currency, today, rateType);
+        amountInPlanCurrency = roundAmount(amount * rate);
+      }
       const newAmount = Math.min(
-        plan.current_amount + amount,
+        plan.current_amount + amountInPlanCurrency,
         plan.target_amount
       );
       const updatedPlan = await api.updateExpensePlan(id, {

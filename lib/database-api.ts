@@ -121,10 +121,12 @@ export async function getExpensePlans(userId: string) {
   return data
 }
 
+// A plan without an explicit currency is created in the user's base currency.
 export async function addExpensePlan(plan: OmitNew<ExpensePlan, "id" | "deleted_at" | "created_at" | "updated_at">) {
+  const currency = plan.currency ?? (await getUserSettings(plan.user_id)).base_currency
   const { data, error } = await supabase
     .from("expense_plans")
-    .insert([plan])
+    .insert([{ ...plan, currency }])
     .select()
     .single()
 

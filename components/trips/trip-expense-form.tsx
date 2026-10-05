@@ -29,6 +29,13 @@ import {
 } from '@/lib/trips';
 import * as tripsApi from '@/lib/trips-api';
 import { useToast } from '@/hooks/use-toast';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import {
+  emptyMoneyInput,
+  formatRateInput,
+  moneyInputToFields,
+  type MoneyInputState,
+} from '@/lib/currency/money-input';
 
 const NO_CATEGORY = '__none__';
 
@@ -58,6 +65,21 @@ function initialInputs(
   return result;
 }
 
+// Money state for an existing expense: the original amount when it was paid in another
+// currency, otherwise the trip-currency amount.
+function initialMoney(expense: TripExpenseWithShares | null | undefined, tripCurrency: string): MoneyInputState {
+  if (!expense) return emptyMoneyInput();
+  if (expense.currency && expense.currency !== tripCurrency) {
+    return {
+      amount: String(expense.original_amount),
+      currency: expense.currency,
+      rate: formatRateInput(Number(expense.exchange_rate)),
+      rateSource: expense.rate_source,
+    };
+  }
+  return { ...emptyMoneyInput(), amount: String(expense.amount) };
+}
+
 export function TripExpenseForm({
   trip,
   members,
@@ -74,7 +96,7 @@ export function TripExpenseForm({
   );
 
   const [description, setDescription] = useState(expense?.description ?? '');
-  const [amount, setAmount] = useState(expense ? String(expense.amount) : '');
+  const [money, setMoney] = useState<MoneyInputState>(() => initialMoney(expense, trip.currency));
   const [paidBy, setPaidBy] = useState(
     expense?.paid_by_member_id ?? currentMember?.id ?? acceptedMembers[0]?.id ?? ''
   );
@@ -98,7 +120,14 @@ export function TripExpenseForm({
     return base;
   }, [expense]);
 
-  const parsedAmount = Number.parseFloat(amount.replace(',', '.'));
+  // Amount in the trip currency (converted with the expense rate when paid in another currency).
+  const moneyFields = moneyInputToFields(money, trip.currency);
+  const parsedAmount = moneyFields ? moneyFields.amount : Number.NaN;
+  // Keep the saved rate when editing, unless the date or the currency changes.
+  const autoFetchRate =
+    !expense ||
+    expenseDate !== expense.expense_date ||
+    (money.currency ?? trip.currency) !== (expense.currency ?? trip.currency);
   const payerIsMe = acceptedMembers.find((m) => m.id === paidBy)?.user_id === currentUserId;
 
   const toggleParticipant = (memberId: string): void => {
@@ -138,10 +167,19 @@ export function TripExpenseForm({
       return;
     }
 
+    if (!moneyFields) {
+      setError('Ingresá un monto y una cotización válidos');
+      return;
+    }
+
     const input: tripsApi.TripExpenseInput = {
       paid_by_member_id: paidBy,
       description: description.trim(),
-      amount: Math.round(parsedAmount * 100) / 100,
+      amount: moneyFields.amount,
+      currency: moneyFields.currency,
+      original_amount: moneyFields.original_amount,
+      exchange_rate: moneyFields.exchange_rate,
+      rate_source: moneyFields.rate_source,
       category: category === NO_CATEGORY ? null : category,
       expense_date: expenseDate,
       split_method: splitMethod,
@@ -200,30 +238,26 @@ export function TripExpenseForm({
             />
           </div>
 
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <div className='space-y-2 min-w-0'>
-              <Label htmlFor='trip-expense-amount'>Monto ({trip.currency})</Label>
-              <Input
-                id='trip-expense-amount'
-                type='number'
-                inputMode='decimal'
-                step='0.01'
-                min='0'
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder='0.00'
-              />
-            </div>
-            <div className='space-y-2 min-w-0'>
-              <Label htmlFor='trip-expense-date'>Fecha</Label>
-              <Input
-                id='trip-expense-date'
-                type='date'
-                value={expenseDate}
-                onChange={(e) => setExpenseDate(e.target.value)}
-              />
-            </div>
+          <div className='space-y-2 min-w-0'>
+            <Label htmlFor='trip-expense-date'>Fecha</Label>
+            <Input
+              id='trip-expense-date'
+              type='date'
+              value={expenseDate}
+              onChange={(e) => setExpenseDate(e.target.value)}
+            />
           </div>
+
+          <AmountWithCurrencyInput
+            idPrefix='trip-expense'
+            label={`Monto (${trip.currency} o la moneda en que pagaste)`}
+            value={money}
+            onChange={setMoney}
+            date={expenseDate}
+            targetCurrency={trip.currency}
+            autoFetch={autoFetchRate}
+            required={false}
+          />
 
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div className='space-y-2 min-w-0'>

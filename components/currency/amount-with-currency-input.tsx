@@ -25,6 +25,8 @@ interface AmountWithCurrencyInputProps {
   lockCurrency?: boolean;
   allowNegative?: boolean;
   required?: boolean;
+  /** Currency the rate converts to. Defaults to the user base currency (trips pass the trip currency). */
+  targetCurrency?: string;
 }
 
 /**
@@ -42,8 +44,10 @@ export function AmountWithCurrencyInput({
   lockCurrency = false,
   allowNegative = false,
   required = true,
+  targetCurrency,
 }: AmountWithCurrencyInputProps) {
-  const { baseCurrency, isReconverting } = useCurrency();
+  const { baseCurrency: userBase, isReconverting } = useCurrency();
+  const baseCurrency = targetCurrency ?? userBase;
   const currency = value.currency ?? baseCurrency;
   const isDisabled = disabled || isReconverting;
   const amountId = `${idPrefix}-amount`;
@@ -97,6 +101,7 @@ export function AmountWithCurrencyInput({
         idPrefix={idPrefix}
         disabled={disabled}
         autoFetch={autoFetch}
+        targetCurrency={baseCurrency}
       />
     </div>
   );
