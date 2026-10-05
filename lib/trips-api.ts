@@ -5,7 +5,7 @@ import {
   recalculateAllBalances,
 } from '@/lib/database-api';
 import type { Database, Trip, TripMember, TripExpense } from '@/types/database';
-import { getUserSettings } from '@/lib/user-settings-api';
+import { getUserSettingsStrict } from '@/lib/user-settings-api';
 import { resolveMoney } from '@/lib/currency/resolve-money';
 import type { MoneyFields, RateSource } from '@/lib/currency/money';
 import {
@@ -177,7 +177,7 @@ async function tripAmountInBase(
   amount: number,
   date: string
 ): Promise<MoneyFields> {
-  const settings = await getUserSettings(userId);
+  const settings = await getUserSettingsStrict(userId);
   return resolveMoney({
     currency: tripCurrency,
     originalAmount: amount,

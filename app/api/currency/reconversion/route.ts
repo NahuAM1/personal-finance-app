@@ -6,7 +6,7 @@ import { isArsRateType, isSupportedCurrency, type ArsRateTypeValue } from '@/lib
 import { reconvertRow, type ReconvertibleRow } from '@/lib/currency/reconvert';
 import { roundAmount, type RateSource } from '@/lib/currency/money';
 import { argentinaToday, getRate } from '@/lib/exchange-rates/service';
-import { recalculateAllBalances } from '@/lib/database-api';
+import { recalculateAllBalances } from '@/lib/balances';
 import type { Database } from '@/types/database';
 
 // Reconversion job: client-driven. `POST {targetBase}` starts it, `POST {step: true}` runs one
@@ -151,8 +151,10 @@ function neededPair(row: ReconvertibleRow, target: string): [string, string] | n
 async function preloadRates(
   pairs: Map<string, { from: string; to: string; date: string }>,
   rateType: ArsRateTypeValue
-): Promise<Map<string, number>> {
+): Promise<{ rates: Map<string, number>; approximate: Set<string> }> {
   const rates = new Map<string, number>();
+  // Keys whose rate came from a stale cache entry or a fallback path (rate_source only allows auto|manual).
+  const approximate = new Set<string>();
   const entries = Array.from(pairs.entries());
   for (let i = 0; i < entries.length; i += RATE_CONCURRENCY) {
     await Promise.all(
@@ -163,10 +165,11 @@ async function preloadRates(
         }
         const result = await getRate(from, to, clampDate(date), rateType);
         rates.set(key, result.rate);
+        if (result.stale || result.fallback) approximate.add(key);
       })
     );
   }
-  return rates;
+  return { rates, approximate };
 }
 
 /** Converts one batch from the first table that still has pending rows. Returns rows processed. */
@@ -175,7 +178,7 @@ async function runBatch(
   userId: string,
   target: string,
   rateType: ArsRateTypeValue
-): Promise<number> {
+): Promise<{ processed: number; approximated: number }> {
   for (const config of TABLES) {
     const { data, error } = await config
       .scope(admin.from(config.table).select(config.select), userId)
@@ -203,10 +206,16 @@ async function runBatch(
       const date = config.dateOf(row);
       pairs.set(`${pair[0]}|${pair[1]}|${date}`, { from: pair[0], to: pair[1], date });
     }
-    const rates = await preloadRates(pairs, rateType);
+    const { rates, approximate } = await preloadRates(pairs, rateType);
+    let approximated = 0;
 
     for (const row of rows) {
       const date = config.dateOf(row);
+      const pair = neededPair(asRow(row), target);
+      if (pair && approximate.has(`${pair[0]}|${pair[1]}|${date}`)) {
+        approximated++;
+        console.warn(`Reconversion used a stale/fallback rate: ${config.table} ${row.id} (${pair[0]}->${pair[1]} on ${date})`);
+      }
       const result = reconvertRow(
         asRow(row),
         target,
@@ -237,9 +246,9 @@ async function runBatch(
         .neq('base_currency', target);
       if (updateError) throw updateError;
     }
-    return rows.length;
+    return { processed: rows.length, approximated };
   }
-  return 0;
+  return { processed: 0, approximated: 0 };
 }
 
 export async function GET() {
@@ -334,10 +343,10 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const processed = await runBatch(admin, user.id, target, rateType);
+        const { processed, approximated } = await runBatch(admin, user.id, target, rateType);
         if (processed > 0) {
           const remaining = await countRemaining(admin, user.id, target);
-          return NextResponse.json({ done: false, processed, remaining });
+          return NextResponse.json({ done: false, processed, remaining, approximated });
         }
 
         // Nothing left: recalculate balances in date order, then switch the base currency.
@@ -353,7 +362,7 @@ export async function POST(request: NextRequest) {
           })
           .eq('user_id', user.id);
         if (error) throw error;
-        return NextResponse.json({ done: true, processed: 0, remaining: 0, baseCurrency: target });
+        return NextResponse.json({ done: true, processed: 0, remaining: 0, approximated: 0, baseCurrency: target });
       } catch (jobError) {
         const message = jobError instanceof Error ? jobError.message : 'Error desconocido';
         console.error('Reconversion step failed:', jobError);

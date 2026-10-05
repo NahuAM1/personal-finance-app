@@ -22,6 +22,9 @@ import { createTTSService } from '@/lib/agent/tts/tts-service';
 import type { TTSService } from '@/lib/agent/tts/tts-service';
 import { useAuth } from '@/contexts/auth-context';
 import * as api from '@/lib/database-api';
+import { useCurrency } from '@/hooks/use-currency';
+import { resolveMoney } from '@/lib/currency/resolve-money';
+import { isSupportedCurrency } from '@/lib/currency/currencies';
 
 interface ScanCompleteData {
   storeName: string;
@@ -87,6 +90,7 @@ const DISPLAY_ACTIONS: Set<AgentActionType> = new Set([
 
 export function AgentProvider({ children }: AgentProviderProps) {
   const { user } = useAuth();
+  const { baseCurrency, rateType } = useCurrency();
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<AgentStatus>('idle');
   const [messages, setMessages] = useState<AgentMessage[]>([]);
@@ -299,10 +303,30 @@ export function AgentProvider({ children }: AgentProviderProps) {
         case AgentAction.ADD_EXPENSE:
         case AgentAction.ADD_INCOME: {
           const p = pendingPayload as AddTransactionPayload;
+          // A foreign currency is converted at the movement date (same path as the forms);
+          // a failed rate lookup throws, so nothing is saved without a rate.
+          const payloadCurrency = p.currency?.toUpperCase();
+          const money =
+            payloadCurrency && payloadCurrency !== baseCurrency && isSupportedCurrency(payloadCurrency)
+              ? await resolveMoney({
+                  currency: payloadCurrency,
+                  originalAmount: p.amount,
+                  base: baseCurrency,
+                  date: p.date,
+                  rateType,
+                })
+              : null;
           const transaction: OmitNew<Transaction, 'id' | 'created_at' | 'updated_at'> = {
             user_id: user.id,
             type: p.type,
-            amount: p.amount,
+            amount: money ? money.amount : p.amount,
+            ...(money && {
+              currency: money.currency,
+              original_amount: money.original_amount,
+              exchange_rate: money.exchange_rate,
+              rate_source: money.rate_source,
+              base_currency: money.base_currency,
+            }),
             category: p.category,
             description: p.description,
             date: p.date,
@@ -443,7 +467,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
       setPendingPayload(null);
       setPendingImagePreview(null);
     }
-  }, [pendingPayload, user, addMessage, speakIfEnabled, updateSessionPreferences, pendingSequenceCount, buildFollowUpSuggestion]);
+  }, [pendingPayload, user, baseCurrency, rateType, addMessage, speakIfEnabled, updateSessionPreferences, pendingSequenceCount, buildFollowUpSuggestion]);
 
   const cancelAction = useCallback(() => {
     setPendingPayload(null);

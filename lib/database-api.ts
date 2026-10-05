@@ -4,7 +4,8 @@ import { addMonths, format } from "date-fns"
 import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem, Service, Database, OmitNew } from "@/types/database"
 import { buildServiceTransactionPayload, currentPeriodDueDate, pendingAutomaticServices } from "@/lib/services"
 import { computeLoanTotal, redistributeUnpaidInstallments } from "@/lib/loans"
-import { getUserSettings } from "@/lib/user-settings-api"
+import { fetchAllTransactionsOrdered, recalculateAllBalances as recalculateAllBalancesWith } from "@/lib/balances"
+import { getUserSettingsStrict } from "@/lib/user-settings-api"
 import { resolveMoney } from "@/lib/currency/resolve-money"
 import { formatMoney } from "@/lib/currency/format"
 import { roundAmount, type MoneyFields, type RateSource } from "@/lib/currency/money"
@@ -20,19 +21,23 @@ type ChildMoneyParent = {
 }
 
 // Child rows (installments, loan payments) created without money fields inherit the
-// currency and the provisional rate of their parent; original_amount is derived from amount.
+// currency and the provisional rate of their parent. The original amount is derived once from
+// the planned base amount, then the stored base amount is recomputed as
+// round2(original_amount * rate) so the row always satisfies the money invariant exactly.
 function withParentMoney<T extends { amount: number; original_amount?: number }>(
   child: T,
   parent: ChildMoneyParent
 ): T {
   if (child.original_amount !== undefined || !parent.currency || !parent.exchange_rate) return child
+  const originalAmount = roundAmount(child.amount / parent.exchange_rate)
   return {
     ...child,
     currency: parent.currency,
     exchange_rate: parent.exchange_rate,
     rate_source: parent.rate_source ?? "auto",
     base_currency: parent.base_currency,
-    original_amount: roundAmount(child.amount / parent.exchange_rate),
+    original_amount: originalAmount,
+    amount: roundAmount(originalAmount * parent.exchange_rate),
   }
 }
 
@@ -68,13 +73,12 @@ export async function getTransactions(userId: string) {
 export async function addTransaction(transaction: OmitNew<Transaction, "id" | "created_at" | "updated_at">) {
   // Calculate balance_total before inserting
   // Get all transactions for this user to calculate cumulative balance
-  const { data: existingTransactions, error: fetchError } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("user_id", transaction.user_id)
-    .order("date", { ascending: true })
-
-  if (fetchError) throw fetchError
+  // Write path: a failed settings read must not default to ARS (and the base must match the stored one).
+  const settings = await getUserSettingsStrict(transaction.user_id)
+  if (transaction.base_currency && transaction.base_currency !== settings.base_currency) {
+    throw new Error("La moneda base cambió. Recargá la página e intentá de nuevo.")
+  }
+  const existingTransactions = await fetchAllTransactionsOrdered(supabase, transaction.user_id)
 
   // Calculate current balance from all existing transactions
   const currentBalance = (existingTransactions || []).reduce((balance, t) => {
@@ -123,7 +127,7 @@ export async function getExpensePlans(userId: string) {
 
 // A plan without an explicit currency is created in the user's base currency.
 export async function addExpensePlan(plan: OmitNew<ExpensePlan, "id" | "deleted_at" | "created_at" | "updated_at">) {
-  const currency = plan.currency ?? (await getUserSettings(plan.user_id)).base_currency
+  const currency = plan.currency ?? (await getUserSettingsStrict(plan.user_id)).base_currency
   const { data, error } = await supabase
     .from("expense_plans")
     .insert([{ ...plan, currency }])
@@ -321,7 +325,7 @@ export async function payCreditInstallment(
     ? installment.credit_purchase[0]
     : installment.credit_purchase
 
-  const settings = await getUserSettings(userId)
+  const settings = await getUserSettingsStrict(userId)
   const payMoney = money ?? await resolveMoney({
     currency: installment.currency,
     originalAmount: installment.original_amount,
@@ -985,7 +989,7 @@ export async function payLoanPayment(
     ? `Cuota plan de pago - ${loan.counterparty_name}`
     : isGiven ? `Cobro prestamo a ${loan.counterparty_name}` : `Pago prestamo de ${loan.counterparty_name}`
 
-  const settings = await getUserSettings(userId)
+  const settings = await getUserSettingsStrict(userId)
   const payMoney = money ?? await resolveMoney({
     currency: payment.currency,
     originalAmount: payment.original_amount,
@@ -1071,39 +1075,13 @@ export async function getTicketItems(ticketIds: string[]): Promise<TicketItem[]>
   return data || []
 }
 
-// Recompute balance_total for every transaction of a user in date order.
-// Used after a bulk import to keep the cumulative balance coherent.
+// Recompute balance_total for every transaction of a user in date order (see lib/balances.ts).
 // The client is injectable so server routes can run it with their own (service-role) client.
 export async function recalculateAllBalances(
   userId: string,
   client: SupabaseClient<Database> = supabase
 ): Promise<void> {
-  const { data: rows, error } = await client
-    .from("transactions")
-    .select("id, type, amount, date, created_at")
-    .eq("user_id", userId)
-    .order("date", { ascending: true })
-    .order("created_at", { ascending: true })
-
-  if (error) throw error
-  if (!rows || rows.length === 0) return
-
-  let running = 0
-  const BATCH = 50
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const slice = rows.slice(i, i + BATCH)
-    await Promise.all(
-      slice.map((r) => {
-        running = r.type === "income" ? running + r.amount : running - r.amount
-        const newBalance = running
-        return client
-          .from("transactions")
-          .update({ balance_total: newBalance })
-          .eq("id", r.id)
-          .eq("user_id", userId)
-      })
-    )
-  }
+  return recalculateAllBalancesWith(userId, client)
 }
 
 export async function deleteLoan(loanId: string, userId: string): Promise<void> {
@@ -1441,7 +1419,7 @@ export async function payService(
   const date = format(ref, "yyyy-MM-dd")
   let payMoney = money
   if (!payMoney) {
-    const settings = await getUserSettings(userId)
+    const settings = await getUserSettingsStrict(userId)
     payMoney = await resolveMoney({
       currency: service.currency,
       originalAmount: amount,
@@ -1482,7 +1460,7 @@ export async function generateAutomaticServiceTransactions(
   const created: Transaction[] = []
   if (pending.length === 0) return created
 
-  const settings = await getUserSettings(userId)
+  const settings = await getUserSettingsStrict(userId)
 
   for (const service of pending) {
     const dueDate = currentPeriodDueDate(service, ref)

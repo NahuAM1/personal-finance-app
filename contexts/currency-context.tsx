@@ -22,6 +22,7 @@ import {
   stepReconversion,
   updateArsRateType,
 } from '@/lib/user-settings-api';
+import { toast } from 'sonner';
 import { emitDataChanged } from '@/lib/app-events';
 import type { ArsRateType, UserSettings } from '@/types/database';
 
@@ -126,12 +127,20 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
       setRunError(null);
       setProgress({ total, remaining: total });
       try {
+        // Rows converted with a stale or fallback rate (provider outage), accumulated across steps.
+        let approximated = 0;
         for (;;) {
           const result = await stepReconversion();
+          approximated += result.approximated ?? 0;
           setProgress({ total: Math.max(total, result.remaining), remaining: result.remaining });
           if (result.done) break;
         }
         setProgress(null);
+        if (approximated > 0) {
+          toast.warning(
+            `${approximated} movimiento(s) se convirtieron con una cotización aproximada (proveedor no disponible). Revisalos y ajustá la cotización si hace falta.`
+          );
+        }
         await refresh();
         emitDataChanged();
       } catch (error) {

@@ -37,6 +37,24 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
 }
 
 /**
+ * Write-path variant: a failed read throws instead of defaulting to ARS, so a movement is never
+ * saved in the wrong base currency because of a transient error. A missing row still means defaults.
+ */
+export async function getUserSettingsStrict(userId: string): Promise<UserSettings> {
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (error) {
+    console.error("Error loading user settings:", error)
+    throw new Error("No se pudo leer la configuración de moneda. Intentá de nuevo.")
+  }
+  return (data as UserSettings | null) ?? defaultUserSettings(userId)
+}
+
+/**
  * Updates only `ars_rate_type`. The base currency can only change through the
  * reconversion route (column grants block direct updates).
  */
@@ -93,8 +111,8 @@ export async function startReconversion(targetBase: string): Promise<number> {
 }
 
 /** Runs one batch. Call until `done` is true; each call is idempotent and safe to retry. */
-export async function stepReconversion(): Promise<{ done: boolean; remaining: number }> {
-  return reconversionRequest<{ done: boolean; remaining: number }>({
+export async function stepReconversion(): Promise<{ done: boolean; remaining: number; approximated: number }> {
+  return reconversionRequest<{ done: boolean; remaining: number; approximated: number }>({
     method: "POST",
     body: JSON.stringify({ step: true }),
   })

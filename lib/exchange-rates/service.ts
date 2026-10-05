@@ -65,16 +65,23 @@ function getAdmin() {
   }
 }
 
+// Today's rate moves intraday, so a cached hit for date >= today is only trusted for a short TTL.
+const TODAY_CACHE_TTL_MS = 60 * 60 * 1000
+
 async function readCacheExact(currency: string, type: ArsRateTypeValue, date: string): Promise<number | null> {
   const admin = getAdmin()
   if (!admin) return null
   const { data } = await admin
     .from("exchange_rates")
-    .select("ars_per_unit")
+    .select("ars_per_unit, fetched_at")
     .eq("currency", currency)
     .eq("rate_type", type)
     .eq("rate_date", date)
     .maybeSingle()
+  if (data && date >= argentinaToday()) {
+    const fetchedAt = Date.parse(String(data.fetched_at))
+    if (!Number.isFinite(fetchedAt) || Date.now() - fetchedAt > TODAY_CACHE_TTL_MS) return null
+  }
   const value = data ? Number(data.ars_per_unit) : NaN
   return Number.isFinite(value) && value > 0 ? value : null
 }

@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
-import { recalculateAllBalances } from '@/lib/database-api';
-import { getUserSettings } from '@/lib/user-settings-api';
+import { recalculateAllBalances } from '@/lib/balances';
+import { getUserSettingsStrict } from '@/lib/user-settings-api';
 import { validateAndParse } from './schema';
 import type { JSONObject, JSONValue } from './schema';
 import type {
@@ -401,7 +401,7 @@ export async function importMerge(
 
   if (inserted.transactions > 0) {
     try {
-      await recalculateAllBalances(userId);
+      await recalculateAllBalances(userId, supabase);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`Recalculo de balances falló: ${msg}`);
@@ -411,7 +411,7 @@ export async function importMerge(
   // Rows exported under another base currency stay in it until the reconversion job runs.
   let mismatchedBase: string | null = null;
   try {
-    const settings = await getUserSettings(userId);
+    const settings = await getUserSettingsStrict(userId);
     const importedBases = [
       ...remapped.transactions,
       ...remapped.credit_purchases,
@@ -421,8 +421,10 @@ export async function importMerge(
       ...remapped.loan_payments,
     ].map((r) => r.base_currency);
     mismatchedBase = importedBases.find((b) => b !== settings.base_currency) ?? null;
-  } catch {
-    // Without settings we cannot compare: the user can still run the reconversion from Moneda.
+  } catch (e) {
+    // Never assume ARS when settings cannot be read: report it, the user can run the reconversion from Moneda.
+    const msg = e instanceof Error ? e.message : String(e);
+    errors.push(`No se pudo verificar la moneda base: ${msg}`);
   }
 
   return { inserted, errors, mismatchedBase };
