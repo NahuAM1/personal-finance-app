@@ -11,12 +11,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Settings, Crown, Star, Users, ChevronDown, ChevronRight, BarChart2, LayoutDashboard, Database } from 'lucide-react';
+import { LogOut, Settings, Crown, Star, Users, ChevronDown, ChevronRight, BarChart2, LayoutDashboard, Database, Coins } from 'lucide-react';
 import { USER_ROLES } from '@/types/database';
 import { AdminUsersDialog } from '@/components/admin-users-dialog';
 import { ChartPreferencesDialog } from '@/components/chart-preferences-dialog';
 import { SectionsPreferencesDialog } from '@/components/sections-preferences-dialog';
 import { DataPortabilityDialog } from '@/components/data-portability-dialog';
+import { CurrencySettingsDialog } from '@/components/currency/currency-settings-dialog';
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -28,6 +29,7 @@ export function UserProfile() {
   const [showChartPrefsDialog, setShowChartPrefsDialog] = useState(false);
   const [showSectionsPrefsDialog, setShowSectionsPrefsDialog] = useState(false);
   const [showDataPortabilityDialog, setShowDataPortabilityDialog] = useState(false);
+  const [showCurrencyDialog, setShowCurrencyDialog] = useState(false);
   const [prefsExpanded, setPrefsExpanded] = useState(false);
 
   if (!user) {
@@ -79,6 +81,7 @@ export function UserProfile() {
     <ChartPreferencesDialog open={showChartPrefsDialog} onOpenChange={setShowChartPrefsDialog} />
     <SectionsPreferencesDialog open={showSectionsPrefsDialog} onOpenChange={setShowSectionsPrefsDialog} />
     <DataPortabilityDialog open={showDataPortabilityDialog} onOpenChange={setShowDataPortabilityDialog} />
+    <CurrencySettingsDialog open={showCurrencyDialog} onOpenChange={setShowCurrencyDialog} />
     <DropdownMenu onOpenChange={(open) => { if (!open) setPrefsExpanded(false); }}>
       <DropdownMenuTrigger asChild>
         <Button
@@ -174,6 +177,13 @@ export function UserProfile() {
             >
               <LayoutDashboard className='mr-2 h-4 w-4 text-muted-foreground' />
               <span>Secciones</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setShowCurrencyDialog(true)}
+              className='pl-8 text-sm'
+            >
+              <Coins className='mr-2 h-4 w-4 text-muted-foreground' />
+              <span>Moneda</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setShowDataPortabilityDialog(true)}

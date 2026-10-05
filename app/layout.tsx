@@ -5,6 +5,7 @@ import { GeistMono } from 'geist/font/mono';
 import { Toaster } from 'sonner';
 import { FormProvider } from '@/contexts/form-context';
 import { AuthProvider } from '@/contexts/auth-context';
+import { CurrencyProvider } from '@/contexts/currency-context';
 import { AgentProvider } from '@/contexts/agent-context';
 import './globals.css';
 
@@ -38,6 +39,7 @@ export default function RootLayout({
     <html lang='es' className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <body className={GeistSans.className}>
         <AuthProvider>
+        <CurrencyProvider>
         <FormProvider>
         <AgentProvider>
           {children}
@@ -51,6 +53,7 @@ export default function RootLayout({
           />
         </AgentProvider>
         </FormProvider>
+        </CurrencyProvider>
         </AuthProvider>
       </body>
     </html>

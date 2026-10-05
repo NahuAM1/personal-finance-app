@@ -702,6 +702,22 @@ export interface Database {
           settled_at?: string | null
         }
       }
+      user_settings: {
+        Row: UserSettings
+        Insert: {
+          user_id: string
+          ars_rate_type?: ArsRateType
+        }
+        Update: {
+          ars_rate_type?: ArsRateType
+          updated_at?: string
+        }
+      }
+      exchange_rates: {
+        Row: ExchangeRate
+        Insert: ExchangeRate
+        Update: Partial<ExchangeRate>
+      }
       notifications: {
         Row: {
           id: string
