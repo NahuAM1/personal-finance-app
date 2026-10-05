@@ -13,7 +13,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { computeLoanTotal } from '@/lib/loans';
-import type { LoanEditableFields } from '@/lib/database-api';
+import type { LoanEditableFields, LoanRateOverride } from '@/lib/database-api';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { useCurrency } from '@/hooks/use-currency';
+import { roundAmount } from '@/lib/currency/money';
+import { formatRateInput, parseDecimal, type MoneyInputState } from '@/lib/currency/money-input';
 import type { Loan, LoanPayment } from '@/types/database';
 
 // ---- Edit loan ----
@@ -21,24 +25,33 @@ import type { Loan, LoanPayment } from '@/types/database';
 interface EditLoanDialogProps {
   loan: Loan;
   onClose: () => void;
-  onSave: (loanId: string, fields: LoanEditableFields) => Promise<void>;
+  onSave: (loanId: string, fields: LoanEditableFields, rate?: LoanRateOverride) => Promise<void>;
 }
 
 export function EditLoanDialog({ loan, onClose, onSave }: EditLoanDialogProps): React.JSX.Element {
   const isPlan = loan.loan_type === 'payment_plan';
+  const { baseCurrency, format: formatCurrency } = useCurrency();
+  const foreign = loan.currency !== baseCurrency;
+  // The principal is edited in the loan currency; the saved rate is kept (and editable).
+  const [principalMoney, setPrincipalMoney] = useState<MoneyInputState>({
+    amount: roundAmount(loan.principal_amount / loan.exchange_rate).toString(),
+    currency: foreign ? loan.currency : null,
+    rate: foreign ? formatRateInput(loan.exchange_rate) : '',
+    rateSource: loan.rate_source,
+  });
   const [form, setForm] = useState({
     counterpartyName: loan.counterparty_name,
     description: loan.description,
-    principalAmount: loan.principal_amount.toString(),
     interestRate: loan.interest_rate.toString(),
     startDate: loan.start_date,
     dueDate: loan.due_date ?? '',
   });
   const [saving, setSaving] = useState(false);
 
-  const principal = Number.parseFloat(form.principalAmount);
+  const principal = parseDecimal(principalMoney.amount);
+  const newRate = foreign ? parseDecimal(principalMoney.rate) : 1;
   const rate = Number.parseFloat(form.interestRate) || 0;
-  const isValid = form.counterpartyName.trim() !== '' && principal > 0 && rate >= 0 && form.startDate !== '';
+  const isValid = form.counterpartyName.trim() !== '' && principal > 0 && rate >= 0 && form.startDate !== '' && newRate > 0;
   const total = isValid ? computeLoanTotal(principal, rate) : 0;
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -53,7 +66,7 @@ export function EditLoanDialog({ loan, onClose, onSave }: EditLoanDialogProps): 
         interest_rate: rate,
         start_date: form.startDate,
         due_date: form.dueDate || null,
-      });
+      }, foreign ? { rate: newRate, source: principalMoney.rateSource } : undefined);
       onClose();
     } finally {
       setSaving(false);
@@ -90,20 +103,15 @@ export function EditLoanDialog({ loan, onClose, onSave }: EditLoanDialogProps): 
           </div>
 
           <div className='grid gap-4 sm:grid-cols-2'>
-            <div className='space-y-2'>
-              <Label htmlFor='edit-principal'>Monto Principal</Label>
-              <Input
-                id='edit-principal'
-                type='number'
-                inputMode='decimal'
-                min={0}
-                step='0.01'
-                value={form.principalAmount}
-                onChange={(e) => setForm({ ...form, principalAmount: e.target.value })}
-                className='tabular-nums'
-                required
-              />
-            </div>
+            <AmountWithCurrencyInput
+              idPrefix='edit-principal'
+              label='Monto Principal'
+              value={principalMoney}
+              onChange={setPrincipalMoney}
+              date={form.startDate}
+              autoFetch={false}
+              lockCurrency
+            />
             <div className='space-y-2'>
               <Label htmlFor='edit-rate'>Tasa de Interes (%)</Label>
               <Input
@@ -123,7 +131,7 @@ export function EditLoanDialog({ loan, onClose, onSave }: EditLoanDialogProps): 
             <div className='flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800 text-sm'>
               <span className='text-amber-700 dark:text-amber-300'>Nuevo total:</span>
               <span className='font-bold tabular-nums text-amber-800 dark:text-amber-200'>
-                ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(total, loan.currency)}
               </span>
             </div>
           )}
@@ -173,7 +181,7 @@ interface EditLoanPaymentDialogProps {
 }
 
 export function EditLoanPaymentDialog({ payment, onClose, onSave }: EditLoanPaymentDialogProps): React.JSX.Element {
-  const [amount, setAmount] = useState(payment.amount.toString());
+  const [amount, setAmount] = useState(payment.original_amount.toString());
   const [dueDate, setDueDate] = useState(payment.due_date);
   const [saving, setSaving] = useState(false);
 
@@ -208,7 +216,7 @@ export function EditLoanPaymentDialog({ payment, onClose, onSave }: EditLoanPaym
         </DialogHeader>
         <form onSubmit={handleSubmit} className='space-y-4'>
           <div className='space-y-2'>
-            <Label htmlFor='edit-payment-amount'>Monto</Label>
+            <Label htmlFor='edit-payment-amount'>Monto ({payment.loan.currency})</Label>
             <Input
               id='edit-payment-amount'
               type='number'

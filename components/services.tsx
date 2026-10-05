@@ -8,7 +8,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -36,6 +35,11 @@ import type { Service } from '@/types/database';
 import { sortByPaymentPriority, type ServiceWithStatus } from '@/lib/services';
 import type { Database } from '@/types/database';
 import { cn } from '@/lib/utils';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { useCurrency } from '@/hooks/use-currency';
+import { moneyInputToFields, type MoneyInputState } from '@/lib/currency/money-input';
+import type { MoneyFields } from '@/lib/currency/money';
+import { toast } from 'sonner';
 
 type ServiceInsert = Database['public']['Tables']['services']['Insert'];
 
@@ -45,19 +49,30 @@ interface PayDialogProps {
   item: ServiceWithStatus;
   open: boolean;
   onClose: () => void;
-  onPay: (service: Service, amount: number) => Promise<void>;
+  onPay: (service: Service, amount: number, money?: MoneyFields) => Promise<void>;
 }
 
 function PayDialog({ item, open, onClose, onPay }: PayDialogProps): React.JSX.Element {
-  const [amount, setAmount] = useState<string>(item.service.amount.toString());
+  const { baseCurrency } = useCurrency();
+  const [money, setMoney] = useState<MoneyInputState>({
+    amount: item.service.original_amount.toString(),
+    currency: item.service.currency === baseCurrency ? null : item.service.currency,
+    rate: '',
+    rateSource: 'auto',
+  });
   const [paying, setPaying] = useState(false);
+  const payDate = format(new Date(), 'yyyy-MM-dd');
 
   const handlePay = async (): Promise<void> => {
-    const parsed = Number.parseFloat(amount);
-    if (Number.isNaN(parsed) || parsed <= 0) return;
+    const fields = moneyInputToFields(money, baseCurrency);
+    if (!fields || fields.original_amount <= 0) {
+      toast.error('Ingresá un monto y una cotización válidos');
+      return;
+    }
     setPaying(true);
     try {
-      await onPay(item.service, parsed);
+      // The payment is converted at the pay-date rate (editable above), not the provisional one.
+      await onPay(item.service, fields.original_amount, fields);
       onClose();
     } finally {
       setPaying(false);
@@ -74,28 +89,18 @@ function PayDialog({ item, open, onClose, onPay }: PayDialogProps): React.JSX.El
           </DialogDescription>
         </DialogHeader>
         <div className='space-y-4 pt-2'>
-          <div className='space-y-2'>
-            <label htmlFor='pay-amount' className='text-sm font-medium'>
-              Monto
-            </label>
-            <Input
-              id='pay-amount'
-              type='number'
-              inputMode='decimal'
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              min={0.01}
-              step='0.01'
-              autoComplete='off'
-              className='tabular-nums'
-              autoFocus
-            />
-          </div>
+          <AmountWithCurrencyInput
+            idPrefix='pay'
+            value={money}
+            onChange={setMoney}
+            date={payDate}
+            lockCurrency
+          />
           <div className='flex gap-3'>
             <Button
               className='flex-1'
               onClick={handlePay}
-              disabled={paying || Number.parseFloat(amount) <= 0}
+              disabled={paying || !(Number.parseFloat(money.amount) > 0)}
             >
               Confirmar pago
             </Button>
@@ -113,7 +118,7 @@ function PayDialog({ item, open, onClose, onPay }: PayDialogProps): React.JSX.El
 
 interface ServiceCardProps {
   item: ServiceWithStatus;
-  onPay: (service: Service, amount: number) => Promise<void>;
+  onPay: (service: Service, amount: number, money?: MoneyFields) => Promise<void>;
   onEdit: (service: Service) => void;
   onDelete: (id: string) => Promise<void>;
 }

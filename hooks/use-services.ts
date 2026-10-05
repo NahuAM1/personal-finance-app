@@ -8,6 +8,7 @@ import { deriveServiceStatus } from '@/lib/services';
 import type { ServiceWithStatus } from '@/lib/services';
 import type { Database } from '@/types/database';
 import * as servicesApi from '@/lib/services-api';
+import type { MoneyFields } from '@/lib/currency/money';
 
 type ServiceInsert = Database['public']['Tables']['services']['Insert'];
 type ServiceUpdate = Database['public']['Tables']['services']['Update'];
@@ -20,7 +21,7 @@ export function useServices(enabled = true): {
   createService: (input: Omit<ServiceInsert, 'user_id'>) => Promise<void>;
   updateService: (id: string, updates: ServiceUpdate) => Promise<void>;
   deleteService: (id: string) => Promise<void>;
-  payService: (service: Service, amount: number) => Promise<void>;
+  payService: (service: Service, amount: number, money?: MoneyFields) => Promise<void>;
   refetchServices: () => Promise<void>;
 } {
   const { user } = useAuth();
@@ -150,11 +151,11 @@ export function useServices(enabled = true): {
   );
 
   const payService = useCallback(
-    async (service: Service, amount: number): Promise<void> => {
+    async (service: Service, amount: number, money?: MoneyFields): Promise<void> => {
       if (!user) return;
 
       try {
-        const tx = await servicesApi.payService(service, amount, user.id);
+        const tx = await servicesApi.payService(service, amount, user.id, new Date(), money);
         // Push the new transaction so servicesWithStatus immediately flips to "paid"
         // without a full refetch.
         setServiceTransactions((prev) => [tx, ...prev]);

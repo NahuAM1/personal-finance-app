@@ -3,7 +3,6 @@
 import type React from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -18,6 +17,10 @@ import type { Transaction, OmitNew } from '@/types/database';
 import { expenseCategories } from '@/public/constants';
 import { TransactionsTypes } from '@/public/enums';
 import { useFormContext } from '@/contexts/form-context';
+import { useCurrency } from '@/hooks/use-currency';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { moneyInputToFields } from '@/lib/currency/money-input';
+import { toast } from 'sonner';
 
 interface ExpenseFormProps {
   onSubmit: (
@@ -31,11 +34,13 @@ interface ExpenseFormProps {
 export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   const {
     expenseForm,
-    setExpenseAmount,
+    setExpenseMoney,
     setExpenseCategory,
     setExpenseDescription,
     resetExpenseForm,
   } = useFormContext();
+  const { baseCurrency } = useCurrency();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,12 +53,18 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
       return;
     }
 
+    const money = moneyInputToFields(expenseForm, baseCurrency);
+    if (!money) {
+      toast.error('Ingresá un monto y una cotización válidos');
+      return;
+    }
+
     const transaction = {
       type: TransactionsTypes.EXPENSE,
-      amount: Number.parseFloat(expenseForm.amount),
+      ...money,
       category: expenseForm.category,
       description: expenseForm.description,
-      date: format(new Date(), 'yyyy-MM-dd'),
+      date: today,
       is_recurring: null,
       installments: null,
       current_installment: null,
@@ -69,23 +80,12 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className='space-y-4'>
-      <div className='space-y-2'>
-        <Label htmlFor='expense-amount'>Monto</Label>
-        <Input
-          id='expense-amount'
-          name='expense-amount'
-          type='number'
-          inputMode='decimal'
-          placeholder='0.00'
-          value={expenseForm.amount}
-          onChange={(e) => setExpenseAmount(e.target.value)}
-          required
-          min={0}
-          step='0.01'
-          autoComplete='off'
-          className='tabular-nums'
-        />
-      </div>
+      <AmountWithCurrencyInput
+        idPrefix='expense'
+        value={expenseForm}
+        onChange={setExpenseMoney}
+        date={today}
+      />
 
       <div className='space-y-2'>
         <Label htmlFor='category'>Categoría</Label>

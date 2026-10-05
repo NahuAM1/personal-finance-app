@@ -55,6 +55,7 @@ import { AccessControl } from '@/components/access-control';
 import { AgentFloatingButton } from '@/components/agent/agent-floating-button';
 import { useAgentContext } from '@/contexts/agent-context';
 import { ChartPreferencesProvider } from '@/contexts/chart-preferences-context';
+import type { MoneyFields } from '@/lib/currency/money';
 
 type InstallmentWithPurchase = CreditInstallment & {
   credit_purchase: CreditPurchase;
@@ -234,12 +235,12 @@ function FinanceAppContent() {
     }
   };
 
-  const payCreditInstallment = async (installmentId: string) => {
+  const payCreditInstallment = async (installmentId: string, money?: MoneyFields) => {
     if (!user) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      await api.payCreditInstallment(installmentId, user.id, today);
+      await api.payCreditInstallment(installmentId, user.id, today, money);
 
       toast({
         title: 'Éxito',
@@ -611,12 +612,12 @@ function FinanceAppContent() {
     }
   };
 
-  const payLoanPayment = async (paymentId: string) => {
+  const payLoanPayment = async (paymentId: string, money?: MoneyFields) => {
     if (!user) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      await api.payLoanPayment(paymentId, user.id, today);
+      await api.payLoanPayment(paymentId, user.id, today, money);
 
       toast({
         title: 'Exito',
@@ -636,11 +637,15 @@ function FinanceAppContent() {
     }
   };
 
-  const updateLoan = async (loanId: string, fields: api.LoanEditableFields) => {
+  const updateLoan = async (
+    loanId: string,
+    fields: api.LoanEditableFields,
+    rate?: api.LoanRateOverride
+  ) => {
     if (!user) return;
 
     try {
-      await api.updateLoan(loanId, user.id, fields);
+      await api.updateLoan(loanId, user.id, fields, rate);
 
       toast({
         title: 'Exito',

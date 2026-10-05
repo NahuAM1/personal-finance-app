@@ -22,6 +22,12 @@ import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Investment } from '@/types/database';
 import { TrendingUp, Calendar, DollarSign, Percent } from 'lucide-react';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { RateInput } from '@/components/currency/rate-input';
+import { useCurrency } from '@/hooks/use-currency';
+import { isSupportedCurrency } from '@/lib/currency/currencies';
+import type { RateSource } from '@/lib/currency/money';
+import { emptyMoneyInput, moneyInputToFields, parseDecimal, type MoneyInputState } from '@/lib/currency/money-input';
 
 interface InvestmentLiquidateFormProps {
   investments: Investment[];
@@ -44,8 +50,11 @@ const investmentTypeLabels: Record<string, string> = {
 
 export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySale }: InvestmentLiquidateFormProps) {
   const [selectedInvestment, setSelectedInvestment] = useState('');
-  // For regular investments: total amount received
-  const [totalReceived, setTotalReceived] = useState('');
+  // For regular investments: total amount received (any currency, converted to the base)
+  const [received, setReceived] = useState<MoneyInputState>(emptyMoneyInput());
+  const { baseCurrency, format: formatCurrency } = useCurrency();
+  const [sellRateSource, setSellRateSource] = useState<RateSource>('auto');
+  const today = format(new Date(), 'yyyy-MM-dd');
   // For currency investments
   const [unitsToSell, setUnitsToSell] = useState('');
   const [sellExchangeRate, setSellExchangeRate] = useState('');
@@ -57,6 +66,11 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
   );
 
   const isCurrencyInvestment = selectedInvestmentData?.investment_type === 'compra_divisas';
+  const heldCurrency = selectedInvestmentData?.currency ?? baseCurrency;
+  const sellsBaseCurrency = heldCurrency === baseCurrency;
+  const effectiveSellRate = sellsBaseCurrency ? '1' : sellExchangeRate;
+  const receivedFields = moneyInputToFields(received, baseCurrency);
+  const receivedBase = receivedFields ? receivedFields.amount : 0;
 
   // Calculate total currency units available
   const totalCurrencyUnits = isCurrencyInvestment && selectedInvestmentData?.exchange_rate
@@ -64,8 +78,8 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
     : 0;
 
   // Calculate profit/loss for currency investments
-  const currencySaleAmount = unitsToSell && sellExchangeRate
-    ? Number.parseFloat(unitsToSell) * Number.parseFloat(sellExchangeRate)
+  const currencySaleAmount = unitsToSell && effectiveSellRate
+    ? Number.parseFloat(unitsToSell) * Number.parseFloat(effectiveSellRate)
     : 0;
 
   // Calculate the proportional cost of the units being sold
@@ -76,31 +90,32 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
   const currencyReturn = currencySaleAmount - proportionalCost;
 
   // Calculate profit/loss for regular investments
-  const regularReturn = totalReceived && selectedInvestmentData
-    ? Number.parseFloat(totalReceived) - selectedInvestmentData.amount
+  const regularReturn = receivedFields && selectedInvestmentData
+    ? receivedBase - selectedInvestmentData.amount
     : 0;
 
   const handleLiquidate = () => {
     if (!selectedInvestment || !selectedInvestmentData) return;
 
     if (isCurrencyInvestment) {
-      if (!unitsToSell || !sellExchangeRate) return;
+      if (!unitsToSell || !effectiveSellRate) return;
       // Use the new currency sale function that handles partial sales
       onCurrencySale(
         selectedInvestment,
         Number.parseFloat(unitsToSell),
-        Number.parseFloat(sellExchangeRate)
+        Number.parseFloat(effectiveSellRate)
       );
     } else {
-      if (!totalReceived) return;
+      if (!receivedFields) return;
       onLiquidate(selectedInvestment, regularReturn);
     }
 
     // Reset form
     setSelectedInvestment('');
-    setTotalReceived('');
+    setReceived(emptyMoneyInput());
     setUnitsToSell('');
     setSellExchangeRate('');
+    setSellRateSource('auto');
   };
 
   // Set all units when selecting currency investment
@@ -146,9 +161,15 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
             value={selectedInvestment}
             onValueChange={(value) => {
               setSelectedInvestment(value);
-              setTotalReceived('');
+              const chosen = activeInvestments.find((inv) => inv.id === value);
+              // Proceeds default to the currency the investment is held in.
+              setReceived({
+                ...emptyMoneyInput(),
+                currency: chosen && chosen.currency !== baseCurrency ? chosen.currency : null,
+              });
               setUnitsToSell('');
               setSellExchangeRate('');
+              setSellRateSource(chosen && isSupportedCurrency(chosen.currency) ? 'auto' : 'manual');
             }}
           >
             <SelectTrigger id='investment-select'>
@@ -167,7 +188,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         {investmentTypeLabels[investment.investment_type]}
                       </span>
                       <span className='font-semibold'>
-                        ${investment.amount.toLocaleString('es-AR')}
+                        {formatCurrency(investment.amount)}
                       </span>
                       {isMatured && <span className='text-xs text-green-600 font-semibold'>✓ Vencida</span>}
                     </div>
@@ -206,7 +227,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                     Capital Invertido:
                   </span>
                   <span className='font-medium text-blue-900 dark:text-blue-100'>
-                    ${selectedInvestmentData.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    {formatCurrency(selectedInvestmentData.amount)}
                   </span>
                 </div>
 
@@ -260,7 +281,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         TC Compra:
                       </span>
                       <span className='font-medium text-blue-900 dark:text-blue-100'>
-                        ${selectedInvestmentData.exchange_rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(selectedInvestmentData.exchange_rate)}
                       </span>
                     </div>
                     <div className='flex items-center justify-between'>
@@ -281,7 +302,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         Ganancia estimada:
                       </span>
                       <span className='font-semibold text-green-600 dark:text-green-400'>
-                        +${selectedInvestmentData.estimated_return.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        +{formatCurrency(selectedInvestmentData.estimated_return)}
                       </span>
                     </div>
                   </div>
@@ -330,20 +351,21 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
               />
             </div>
 
-            <div className='space-y-2'>
-              <Label htmlFor='sell-exchange-rate'>Tipo de Cambio de Venta (ARS)</Label>
-              <Input
-                id='sell-exchange-rate'
-                type='number'
-                step='0.01'
-                placeholder='1150.00'
-                value={sellExchangeRate}
-                onChange={(e) => setSellExchangeRate(e.target.value)}
-                required
-              />
-            </div>
+            <RateInput
+              currency={heldCurrency}
+              value={{ rate: sellExchangeRate, rateSource: sellRateSource }}
+              onChange={(next) => {
+                setSellExchangeRate(next.rate);
+                setSellRateSource(next.rateSource);
+              }}
+              date={today}
+              amount={null}
+              idPrefix='sell'
+              autoFetch={isSupportedCurrency(heldCurrency)}
+              hideEquivalent
+            />
 
-            {unitsToSell && sellExchangeRate && Number.parseFloat(sellExchangeRate) > 0 && Number.parseFloat(unitsToSell) > 0 && (
+            {unitsToSell && effectiveSellRate && Number.parseFloat(effectiveSellRate) > 0 && Number.parseFloat(unitsToSell) > 0 && (
               <Card className={`${currencyReturn >= 0 ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800'}`}>
                 <CardContent className='pt-4'>
                   <div className='space-y-2'>
@@ -360,7 +382,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         Costo proporcional:
                       </span>
                       <span className={`font-medium ${currencyReturn >= 0 ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
-                        ${proportionalCost.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(proportionalCost)}
                       </span>
                     </div>
                     <div className='flex items-center justify-between text-sm'>
@@ -368,7 +390,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         Monto a recibir:
                       </span>
                       <span className={`font-medium ${currencyReturn >= 0 ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
-                        ${currencySaleAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(currencySaleAmount)}
                       </span>
                     </div>
                     <div className='pt-2 border-t border-current opacity-20' />
@@ -377,7 +399,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         {currencyReturn >= 0 ? 'Ganancia:' : 'Pérdida:'}
                       </span>
                       <span className={`font-bold text-xl ${currencyReturn >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {currencyReturn >= 0 ? '+' : ''}${currencyReturn.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {currencyReturn >= 0 ? '+' : ''}{formatCurrency(currencyReturn)}
                       </span>
                     </div>
                     <div className='flex items-center justify-between text-xs'>
@@ -385,7 +407,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         Variación TC:
                       </span>
                       <span className={`font-medium ${currencyReturn >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {(((Number.parseFloat(sellExchangeRate) - (selectedInvestmentData.exchange_rate || 0)) / (selectedInvestmentData.exchange_rate || 1)) * 100).toFixed(2)}%
+                        {(((Number.parseFloat(effectiveSellRate) - (selectedInvestmentData.exchange_rate || 0)) / (selectedInvestmentData.exchange_rate || 1)) * 100).toFixed(2)}%
                       </span>
                     </div>
                     {/* Show remaining units if partial sale */}
@@ -416,22 +438,19 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
         {selectedInvestment && !isCurrencyInvestment && selectedInvestmentData && (
           <div className='space-y-4'>
             <div className='space-y-2'>
-              <Label htmlFor='total-received'>Monto Total Recibido (ARS)</Label>
-              <Input
-                id='total-received'
-                type='number'
-                step='0.01'
-                placeholder={`Ej: ${(selectedInvestmentData.amount + selectedInvestmentData.estimated_return).toFixed(2)}`}
-                value={totalReceived}
-                onChange={(e) => setTotalReceived(e.target.value)}
-                required
+              <AmountWithCurrencyInput
+                idPrefix='total-received'
+                label='Monto Total Recibido'
+                value={received}
+                onChange={setReceived}
+                date={today}
               />
               <p className='text-xs text-gray-500'>
                 Ingresa el monto total que recibiste (capital + intereses/ganancias)
               </p>
             </div>
 
-            {totalReceived && Number.parseFloat(totalReceived) > 0 && (
+            {receivedFields && receivedFields.original_amount > 0 && (
               <Card className={`${regularReturn >= 0 ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800'}`}>
                 <CardContent className='pt-4'>
                   <div className='space-y-2'>
@@ -440,7 +459,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         Capital invertido:
                       </span>
                       <span className={`font-medium ${regularReturn >= 0 ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
-                        ${selectedInvestmentData.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(selectedInvestmentData.amount)}
                       </span>
                     </div>
                     <div className='flex items-center justify-between text-sm'>
@@ -448,7 +467,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         Total recibido:
                       </span>
                       <span className={`font-medium ${regularReturn >= 0 ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
-                        ${Number.parseFloat(totalReceived).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(receivedBase)}
                       </span>
                     </div>
                     <div className='pt-2 border-t border-current opacity-20' />
@@ -457,7 +476,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         {regularReturn >= 0 ? 'Ganancia:' : 'Pérdida:'}
                       </span>
                       <span className={`font-bold text-xl ${regularReturn >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {regularReturn >= 0 ? '+' : ''}${regularReturn.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {regularReturn >= 0 ? '+' : ''}{formatCurrency(regularReturn)}
                       </span>
                     </div>
                     {selectedInvestmentData.estimated_return > 0 && (
@@ -467,7 +486,7 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
                         </span>
                         <span className={`font-medium ${regularReturn >= selectedInvestmentData.estimated_return ? 'text-green-600' : 'text-amber-600'}`}>
                           {regularReturn >= selectedInvestmentData.estimated_return ? '+' : ''}
-                          ${(regularReturn - selectedInvestmentData.estimated_return).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                          {formatCurrency((regularReturn - selectedInvestmentData.estimated_return))}
                         </span>
                       </div>
                     )}
@@ -483,8 +502,8 @@ export function InvestmentLiquidateForm({ investments, onLiquidate, onCurrencySa
           disabled={
             !selectedInvestment ||
             (isCurrencyInvestment
-              ? (!unitsToSell || !sellExchangeRate || Number.parseFloat(unitsToSell) <= 0)
-              : (!totalReceived || Number.parseFloat(totalReceived) <= 0)
+              ? (!unitsToSell || !effectiveSellRate || Number.parseFloat(unitsToSell) <= 0)
+              : (!receivedFields || receivedFields.original_amount <= 0)
             )
           }
           className='w-full bg-green-600 hover:bg-green-700'

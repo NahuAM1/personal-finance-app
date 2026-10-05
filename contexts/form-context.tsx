@@ -1,9 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { emptyMoneyInput, type MoneyInputState } from '@/lib/currency/money-input';
 
-interface FormData {
-  amount: string;
+// Amount, currency and rate live together so the forms can hand them to AmountWithCurrencyInput.
+interface FormData extends MoneyInputState {
   category: string;
   description: string;
 }
@@ -12,9 +13,11 @@ interface FormContextType {
   incomeForm: FormData;
   expenseForm: FormData;
   setIncomeAmount: (amount: string) => void;
+  setIncomeMoney: (money: MoneyInputState) => void;
   setIncomeCategory: (category: string) => void;
   setIncomeDescription: (description: string) => void;
   setExpenseAmount: (amount: string) => void;
+  setExpenseMoney: (money: MoneyInputState) => void;
   setExpenseCategory: (category: string) => void;
   setExpenseDescription: (description: string) => void;
   resetIncomeForm: () => void;
@@ -35,21 +38,30 @@ interface FormProviderProps {
   children: ReactNode;
 }
 
-export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
-  const [incomeForm, setIncomeForm] = useState<FormData>({
-    amount: '',
-    category: '',
-    description: '',
-  });
+// Forms hand over their whole state object: keep only the money fields.
+const pickMoney = (m: MoneyInputState): MoneyInputState => ({
+  amount: m.amount,
+  currency: m.currency,
+  rate: m.rate,
+  rateSource: m.rateSource,
+});
 
-  const [expenseForm, setExpenseForm] = useState<FormData>({
-    amount: '',
-    category: '',
-    description: '',
-  });
+const emptyForm = (): FormData => ({
+  ...emptyMoneyInput(),
+  category: '',
+  description: '',
+});
+
+export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
+  const [incomeForm, setIncomeForm] = useState<FormData>(emptyForm);
+  const [expenseForm, setExpenseForm] = useState<FormData>(emptyForm);
 
   const setIncomeAmount = (amount: string) => {
     setIncomeForm(prev => ({ ...prev, amount }));
+  };
+
+  const setIncomeMoney = (money: MoneyInputState) => {
+    setIncomeForm(prev => ({ ...prev, ...pickMoney(money) }));
   };
 
   const setIncomeCategory = (category: string) => {
@@ -64,6 +76,10 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
     setExpenseForm(prev => ({ ...prev, amount }));
   };
 
+  const setExpenseMoney = (money: MoneyInputState) => {
+    setExpenseForm(prev => ({ ...prev, ...pickMoney(money) }));
+  };
+
   const setExpenseCategory = (category: string) => {
     setExpenseForm(prev => ({ ...prev, category }));
   };
@@ -73,28 +89,22 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
   };
 
   const resetIncomeForm = () => {
-    setIncomeForm({
-      amount: '',
-      category: '',
-      description: '',
-    });
+    setIncomeForm(emptyForm());
   };
 
   const resetExpenseForm = () => {
-    setExpenseForm({
-      amount: '',
-      category: '',
-      description: '',
-    });
+    setExpenseForm(emptyForm());
   };
 
   const value: FormContextType = {
     incomeForm,
     expenseForm,
     setIncomeAmount,
+    setIncomeMoney,
     setIncomeCategory,
     setIncomeDescription,
     setExpenseAmount,
+    setExpenseMoney,
     setExpenseCategory,
     setExpenseDescription,
     resetIncomeForm,
