@@ -15,6 +15,7 @@ import {
 import { useNotifications } from '@/hooks/use-notifications';
 import type { Notification } from '@/types/database';
 import { cn } from '@/lib/utils';
+import { TripInviteActions } from '@/components/trips/trip-invite-actions';
 
 export interface NotificationActionHelpers {
   markRead: (id: string) => Promise<void>;
@@ -27,7 +28,11 @@ type NotificationActionRenderer = (
 ) => ReactNode;
 
 // Per-type action renderers. Types without an entry render no actions.
-const ACTION_RENDERERS: Record<string, NotificationActionRenderer> = {};
+const ACTION_RENDERERS: Record<string, NotificationActionRenderer> = {
+  trip_invite: (notification, helpers) => (
+    <TripInviteActions notification={notification} onAnswered={helpers.refetch} />
+  ),
+};
 
 function formatRelative(date: string): string {
   try {

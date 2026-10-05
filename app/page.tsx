@@ -24,6 +24,7 @@ import { Loans } from '@/components/loans';
 import { History } from '@/components/history';
 import { Services } from '@/components/services';
 import { Trips } from '@/components/trips/trips';
+import { NAVIGATE_TAB_EVENT } from '@/lib/app-events';
 import {
   BarChart3,
   PlusCircle,
@@ -93,6 +94,18 @@ function FinanceAppContent() {
     setActiveTab(value);
     sessionStorage.setItem('activeTab', value);
   };
+
+  // Lets global UI (e.g. accepting a trip invite from the bell) switch tabs.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const tab = (event as CustomEvent<string>).detail;
+      if (typeof tab !== 'string') return;
+      setActiveTab(tab);
+      sessionStorage.setItem('activeTab', tab);
+    };
+    window.addEventListener(NAVIGATE_TAB_EVENT, handler);
+    return () => window.removeEventListener(NAVIGATE_TAB_EVENT, handler);
+  }, []);
 
   const {
     setIncomeAmount,

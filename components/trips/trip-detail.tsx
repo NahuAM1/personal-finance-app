@@ -223,7 +223,10 @@ export function TripDetail({
               trip={trip}
               members={members}
               currentUserId={currentUserId}
+              isAdmin={isAdmin}
+              isCreator={isCreator}
               onChanged={loadData}
+              onLeft={() => { onTripChanged(); onBack(); }}
             />
           </TabsContent>
 

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import * as tripsApi from '@/lib/trips-api';
 import type { TripWithTotals } from '@/lib/trips-api';
+import { TRIPS_CHANGED_EVENT } from '@/lib/app-events';
 
 export function useTrips(): {
   trips: TripWithTotals[];
@@ -37,6 +38,13 @@ export function useTrips(): {
 
   useEffect(() => {
     refetchTrips();
+  }, [refetchTrips]);
+
+  // e.g. an invitation accepted from the notification bell.
+  useEffect(() => {
+    const handler = () => { refetchTrips(); };
+    window.addEventListener(TRIPS_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(TRIPS_CHANGED_EVENT, handler);
   }, [refetchTrips]);
 
   return { trips, loading, refetchTrips };
