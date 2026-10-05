@@ -3,6 +3,7 @@
 import type { DeleteTransactionPayload } from '@/types/agent';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface ConfirmDeleteTransactionProps {
   payload: DeleteTransactionPayload;
@@ -11,6 +12,7 @@ interface ConfirmDeleteTransactionProps {
 }
 
 export function ConfirmDeleteTransaction({ payload, onConfirm, onCancel }: ConfirmDeleteTransactionProps) {
+  const { format: formatCurrency } = useCurrency();
   const sign = payload.transactionType === 'income' ? '+' : '-';
   const amountColor = payload.transactionType === 'income'
     ? 'text-green-600 dark:text-green-400'
@@ -29,7 +31,7 @@ export function ConfirmDeleteTransaction({ payload, onConfirm, onCancel }: Confi
         <div className="flex justify-between">
           <span className="text-gray-500">Monto:</span>
           <span className={`font-semibold ${amountColor}`}>
-            {sign}${Math.abs(payload.amount).toLocaleString('es-AR')}
+            {sign}{formatCurrency(Math.abs(payload.amount))}
           </span>
         </div>
         <div className="flex justify-between">

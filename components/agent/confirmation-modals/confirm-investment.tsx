@@ -3,6 +3,7 @@
 import type { CreateInvestmentPayload } from '@/types/agent';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface ConfirmInvestmentProps {
   payload: CreateInvestmentPayload;
@@ -24,6 +25,7 @@ const INVESTMENT_TYPE_LABELS: Record<string, string> = {
 };
 
 export function ConfirmInvestment({ payload, onConfirm, onCancel }: ConfirmInvestmentProps) {
+  const { format: formatCurrency } = useCurrency();
   return (
     <Card className="border-2 border-purple-200 dark:border-purple-800">
       <CardHeader className="pb-2">
@@ -36,7 +38,7 @@ export function ConfirmInvestment({ payload, onConfirm, onCancel }: ConfirmInves
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Monto:</span>
-          <span className="font-semibold">${payload.amount.toLocaleString('es-AR')}</span>
+          <span className="font-semibold">{formatCurrency(payload.amount)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Descripción:</span>

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import type { DataQueryParams } from '@/types/agent';
+import { getBaseCurrency, makeMoney, type MoneyFormatter } from '@/lib/agent/base-currency';
 
 interface TransactionQueryRow {
   type: string;
@@ -66,6 +67,7 @@ async function fetchTransactions(
   transactionType: string,
   category: string,
   queryIntent: string,
+  money: MoneyFormatter,
 ): Promise<string> {
   let query = supabase
     .from('transactions')
@@ -102,10 +104,10 @@ async function fetchTransactions(
 
   let result = `=== TRANSACCIONES (${dateFrom} a ${dateTo}) ===\n`;
   result += `Total transacciones encontradas: ${transactions.length}\n`;
-  result += `Ingresos: $${totalIncome.toLocaleString('es-AR')}\n`;
-  result += `Gastos: $${totalExpense.toLocaleString('es-AR')}\n`;
-  if (totalCredit > 0) result += `Pagos tarjeta: $${totalCredit.toLocaleString('es-AR')}\n`;
-  result += `Balance: $${(totalIncome - totalExpense - totalCredit).toLocaleString('es-AR')}\n\n`;
+  result += `Ingresos: ${money(totalIncome)}\n`;
+  result += `Gastos: ${money(totalExpense)}\n`;
+  if (totalCredit > 0) result += `Pagos tarjeta: ${money(totalCredit)}\n`;
+  result += `Balance: ${money((totalIncome - totalExpense - totalCredit))}\n\n`;
 
   // Category breakdown
   if (queryIntent === 'sum' || queryIntent === 'compare' || queryIntent === 'trend') {
@@ -118,7 +120,7 @@ async function fetchTransactions(
     result += 'Desglose por categoria:\n';
     const sorted = Object.entries(byCategory).sort((a, b) => b[1].total - a[1].total);
     for (const [cat, info] of sorted) {
-      result += `- ${cat}: $${info.total.toLocaleString('es-AR')} (${info.count} transacciones)\n`;
+      result += `- ${cat}: ${money(info.total)} (${info.count} transacciones)\n`;
     }
     result += '\n';
   }
@@ -139,7 +141,7 @@ async function fetchTransactions(
     for (const mk of sortedMonths) {
       const m = byMonth[mk];
       const balance = m.income - m.expense - m.credit;
-      result += `- ${mk}: Ingresos $${m.income.toLocaleString('es-AR')} | Gastos $${m.expense.toLocaleString('es-AR')}${m.credit > 0 ? ` | Tarjeta $${m.credit.toLocaleString('es-AR')}` : ''} | Balance $${balance.toLocaleString('es-AR')}\n`;
+      result += `- ${mk}: Ingresos ${money(m.income)} | Gastos ${money(m.expense)}${m.credit > 0 ? ` | Tarjeta ${money(m.credit)}` : ''} | Balance ${money(balance)}\n`;
     }
     result += '\n';
   }
@@ -149,7 +151,7 @@ async function fetchTransactions(
     result += 'Detalle de transacciones:\n';
     for (const t of transactions) {
       const sign = t.type === 'income' ? '+' : '-';
-      result += `[${t.date}] ${sign}$${t.amount.toLocaleString('es-AR')} | ${t.category} | ${t.description}\n`;
+      result += `[${t.date}] ${sign}${money(t.amount)} | ${t.category} | ${t.description}\n`;
     }
   }
 
@@ -161,6 +163,7 @@ async function fetchInvestments(
   userId: string,
   dateFrom: string,
   dateTo: string,
+  money: MoneyFormatter,
 ): Promise<string> {
   const { data, error } = await supabase
     .from('investments')
@@ -178,10 +181,10 @@ async function fetchInvestments(
 
   const total = investments.reduce((s, i) => s + i.amount, 0);
   let result = `=== INVERSIONES (${dateFrom} a ${dateTo}) ===\n`;
-  result += `Total invertido: $${total.toLocaleString('es-AR')} en ${investments.length} inversiones\n\n`;
+  result += `Total invertido: ${money(total)} en ${investments.length} inversiones\n\n`;
 
   for (const inv of investments) {
-    result += `- [${inv.start_date}] ${inv.investment_type}: $${inv.amount.toLocaleString('es-AR')} | ${inv.description}`;
+    result += `- [${inv.start_date}] ${inv.investment_type}: ${money(inv.amount)} | ${inv.description}`;
     if (inv.currency) result += ` (${inv.currency})`;
     result += ` | ${inv.is_liquidated ? 'Liquidada' : 'Activa'}\n`;
   }
@@ -194,6 +197,7 @@ async function fetchCreditPurchases(
   userId: string,
   dateFrom: string,
   dateTo: string,
+  money: MoneyFormatter,
 ): Promise<string> {
   const { data, error } = await supabase
     .from('credit_purchases')
@@ -211,10 +215,10 @@ async function fetchCreditPurchases(
 
   const total = purchases.reduce((s, p) => s + p.total_amount, 0);
   let result = `=== COMPRAS EN CUOTAS (${dateFrom} a ${dateTo}) ===\n`;
-  result += `Total: $${total.toLocaleString('es-AR')} en ${purchases.length} compras\n\n`;
+  result += `Total: ${money(total)} en ${purchases.length} compras\n\n`;
 
   for (const p of purchases) {
-    result += `- [${p.start_date}] ${p.description}: $${p.total_amount.toLocaleString('es-AR')} en ${p.installments} cuotas | ${p.category}\n`;
+    result += `- [${p.start_date}] ${p.description}: ${money(p.total_amount)} en ${p.installments} cuotas | ${p.category}\n`;
   }
 
   return result;
@@ -223,6 +227,7 @@ async function fetchCreditPurchases(
 async function fetchSavingsGoals(
   supabase: SupabaseClient<Database>,
   userId: string,
+  money: MoneyFormatter,
 ): Promise<string> {
   const { data, error } = await supabase
     .from('expense_plans')
@@ -238,7 +243,7 @@ async function fetchSavingsGoals(
   let result = '=== METAS DE AHORRO ===\n';
   for (const g of goals) {
     const progress = g.target_amount > 0 ? Math.round((g.current_amount / g.target_amount) * 100) : 0;
-    result += `- ${g.name}: $${g.current_amount.toLocaleString('es-AR')} / $${g.target_amount.toLocaleString('es-AR')} (${progress}%) | Fecha: ${g.deadline} | ${g.category}\n`;
+    result += `- ${g.name}: ${money(g.current_amount)} / ${money(g.target_amount)} (${progress}%) | Fecha: ${g.deadline} | ${g.category}\n`;
   }
 
   return result;
@@ -251,36 +256,39 @@ export async function fetchDataForQuery(
 ): Promise<string> {
   const { dateFrom, dateTo, compDateFrom, compDateTo } = validateAndClampDates(params);
   const parts: string[] = [];
+  const baseCurrency = await getBaseCurrency(supabase, userId);
+  const money = makeMoney(baseCurrency);
+  parts.push(`Moneda base: ${baseCurrency}. Todos los montos están expresados en ${baseCurrency}.`);
 
   const scope = params.dataScope;
 
   if (scope === 'all' || scope === 'transactions') {
-    parts.push(await fetchTransactions(supabase, userId, dateFrom, dateTo, params.transactionType, params.category, params.queryIntent));
+    parts.push(await fetchTransactions(supabase, userId, dateFrom, dateTo, params.transactionType, params.category, params.queryIntent, money));
   }
 
   if (scope === 'all' || scope === 'investments') {
-    parts.push(await fetchInvestments(supabase, userId, dateFrom, dateTo));
+    parts.push(await fetchInvestments(supabase, userId, dateFrom, dateTo, money));
   }
 
   if (scope === 'all' || scope === 'credit_purchases') {
-    parts.push(await fetchCreditPurchases(supabase, userId, dateFrom, dateTo));
+    parts.push(await fetchCreditPurchases(supabase, userId, dateFrom, dateTo, money));
   }
 
   if (scope === 'all' || scope === 'savings_goals') {
-    parts.push(await fetchSavingsGoals(supabase, userId));
+    parts.push(await fetchSavingsGoals(supabase, userId, money));
   }
 
   // Comparison period
   if (compDateFrom && compDateTo && params.queryIntent === 'compare') {
     parts.push('\n=== PERIODO DE COMPARACION ===');
     if (scope === 'all' || scope === 'transactions') {
-      parts.push(await fetchTransactions(supabase, userId, compDateFrom, compDateTo, params.transactionType, params.category, 'sum'));
+      parts.push(await fetchTransactions(supabase, userId, compDateFrom, compDateTo, params.transactionType, params.category, 'sum', money));
     }
     if (scope === 'all' || scope === 'investments') {
-      parts.push(await fetchInvestments(supabase, userId, compDateFrom, compDateTo));
+      parts.push(await fetchInvestments(supabase, userId, compDateFrom, compDateTo, money));
     }
     if (scope === 'all' || scope === 'credit_purchases') {
-      parts.push(await fetchCreditPurchases(supabase, userId, compDateFrom, compDateTo));
+      parts.push(await fetchCreditPurchases(supabase, userId, compDateFrom, compDateTo, money));
     }
   }
 

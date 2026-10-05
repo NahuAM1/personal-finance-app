@@ -3,6 +3,7 @@
 import type { CreditPurchasePayload } from '@/types/agent';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface ConfirmCreditPurchaseProps {
   payload: CreditPurchasePayload;
@@ -11,6 +12,7 @@ interface ConfirmCreditPurchaseProps {
 }
 
 export function ConfirmCreditPurchase({ payload, onConfirm, onCancel }: ConfirmCreditPurchaseProps) {
+  const { format: formatCurrency } = useCurrency();
   const monthlyAmount = Math.ceil((payload.totalAmount / payload.installments) * 100) / 100;
 
   return (
@@ -29,11 +31,11 @@ export function ConfirmCreditPurchase({ payload, onConfirm, onCancel }: ConfirmC
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Total:</span>
-          <span className="font-semibold">${payload.totalAmount.toLocaleString('es-AR')}</span>
+          <span className="font-semibold">{formatCurrency(payload.totalAmount)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Cuotas:</span>
-          <span>{payload.installments} cuotas de ${monthlyAmount.toLocaleString('es-AR')}</span>
+          <span>{payload.installments} cuotas de {formatCurrency(monthlyAmount)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Inicio:</span>

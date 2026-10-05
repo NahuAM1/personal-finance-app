@@ -3,6 +3,7 @@
 import type { SavingsDepositPayload } from '@/types/agent';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface ConfirmSavingsDepositProps {
   payload: SavingsDepositPayload;
@@ -11,6 +12,7 @@ interface ConfirmSavingsDepositProps {
 }
 
 export function ConfirmSavingsDeposit({ payload, onConfirm, onCancel }: ConfirmSavingsDepositProps) {
+  const { format: formatCurrency } = useCurrency();
   const progress = Math.min(100, payload.progressPercent);
 
   return (
@@ -26,12 +28,12 @@ export function ConfirmSavingsDeposit({ payload, onConfirm, onCancel }: ConfirmS
         <div className="flex justify-between">
           <span className="text-gray-500">Depósito:</span>
           <span className="font-semibold text-green-600 dark:text-green-400">
-            +${payload.depositAmount.toLocaleString('es-AR')}
+            +{formatCurrency(payload.depositAmount)}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Nuevo total:</span>
-          <span className="font-semibold">${payload.newTotal.toLocaleString('es-AR')}</span>
+          <span className="font-semibold">{formatCurrency(payload.newTotal)}</span>
         </div>
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-gray-500">

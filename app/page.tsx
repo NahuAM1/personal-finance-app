@@ -58,6 +58,7 @@ import { useAgentContext } from '@/contexts/agent-context';
 import { ChartPreferencesProvider } from '@/contexts/chart-preferences-context';
 import { roundAmount, type MoneyFields } from '@/lib/currency/money';
 import { resolveRate } from '@/lib/currency/resolve-money';
+import { isSupportedCurrency } from '@/lib/currency/currencies';
 import { useCurrency } from '@/hooks/use-currency';
 
 type InstallmentWithPurchase = CreditInstallment & {
@@ -66,7 +67,7 @@ type InstallmentWithPurchase = CreditInstallment & {
 
 function FinanceAppContent() {
   const { user } = useAuth();
-  const { rateType } = useCurrency();
+  const { rateType, baseCurrency } = useCurrency();
   const { toast } = useToast();
   const { setOnActionCompleted } = useAgentContext();
   const [loading, setLoading] = useState(true);
@@ -113,10 +114,10 @@ function FinanceAppContent() {
   }, []);
 
   const {
-    setIncomeAmount,
+    setIncomeMoney,
     setIncomeCategory,
     setIncomeDescription,
-    setExpenseAmount,
+    setExpenseMoney,
     setExpenseCategory,
     setExpenseDescription,
   } = useFormContext();
@@ -744,6 +745,7 @@ function FinanceAppContent() {
           amount: number;
           category: string;
           description: string;
+          currency?: string | null;
         }
   ): void => {
     let response: {
@@ -751,6 +753,7 @@ function FinanceAppContent() {
       amount: number;
       category: string;
       description: string;
+      currency?: string | null;
     };
 
     if (typeof rawResponse === 'string') {
@@ -770,13 +773,18 @@ function FinanceAppContent() {
     }
 
     const { type, amount, category, description } = response;
+    // Detected currency (default: the base currency); the form prefills the rate for it.
+    const detected = typeof response.currency === 'string' ? response.currency.toUpperCase() : null;
+    const currency =
+      detected && isSupportedCurrency(detected) && detected !== baseCurrency ? detected : null;
+    const money = { amount: amount.toString(), currency, rate: '', rateSource: 'auto' as const };
 
     if (type === 'income') {
-      setIncomeAmount(amount.toString());
+      setIncomeMoney(money);
       setIncomeCategory(category);
       setIncomeDescription(description);
     } else if (type === 'expense') {
-      setExpenseAmount(amount.toString());
+      setExpenseMoney(money);
       setExpenseCategory(category);
       setExpenseDescription(description);
     }

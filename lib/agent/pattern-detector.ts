@@ -82,12 +82,15 @@ const FREQUENCY_LABELS: Record<string, string> = {
   monthly: 'mensual',
 };
 
-export function formatPatterns(patterns: RecurringPattern[]): string {
+export function formatPatterns(
+  patterns: RecurringPattern[],
+  money: (amount: number) => string = (amount) => amount.toLocaleString('es-AR'),
+): string {
   if (patterns.length === 0) return '';
 
   let result = '=== PATRONES RECURRENTES DETECTADOS ===\n';
   for (const p of patterns) {
-    result += `- ${p.description}: ~$${p.averageAmount.toLocaleString('es-AR')}/${FREQUENCY_LABELS[p.frequency]} (${p.frequency}, ${p.occurrences} ocurrencias)\n`;
+    result += `- ${p.description}: ~${money(p.averageAmount)}/${FREQUENCY_LABELS[p.frequency]} (${p.frequency}, ${p.occurrences} ocurrencias)\n`;
   }
   return result + '\n';
 }

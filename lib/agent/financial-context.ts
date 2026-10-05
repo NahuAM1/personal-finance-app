@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { detectRecurringPatterns, formatPatterns } from '@/lib/agent/pattern-detector';
+import { getBaseCurrency, makeMoney } from '@/lib/agent/base-currency';
 
 interface TransactionRow {
   id?: string;
@@ -53,6 +54,8 @@ export async function buildUserFinancialContext(
   userId: string,
   includeTransactionIds = false,
 ): Promise<string> {
+  const baseCurrency = await getBaseCurrency(supabase, userId);
+  const money = makeMoney(baseCurrency);
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth(); // 0-indexed
@@ -175,11 +178,12 @@ export async function buildUserFinancialContext(
   const parts: string[] = [];
 
   // === SUMMARY ===
-  let summary = `<summary month="${monthName}">\n`;
-  summary += `Ingresos: $${totalIncome.toLocaleString('es-AR')}\n`;
-  summary += `Gastos: $${totalExpenses.toLocaleString('es-AR')}\n`;
-  summary += `Tarjeta: $${totalCredit.toLocaleString('es-AR')}\n`;
-  summary += `Balance: $${(totalIncome - totalExpenses - totalCredit).toLocaleString('es-AR')}\n`;
+  let summary = `<summary month="${monthName}" currency="${baseCurrency}">\n`;
+  summary += `Moneda base: ${baseCurrency}. Todos los montos están expresados en ${baseCurrency} (los movimientos en otra moneda ya fueron convertidos).\n`;
+  summary += `Ingresos: ${money(totalIncome)}\n`;
+  summary += `Gastos: ${money(totalExpenses)}\n`;
+  summary += `Tarjeta: ${money(totalCredit)}\n`;
+  summary += `Balance: ${money((totalIncome - totalExpenses - totalCredit))}\n`;
   summary += `</summary>`;
   parts.push(summary);
 
@@ -220,8 +224,8 @@ export async function buildUserFinancialContext(
       : 0;
 
     let comparison = `<comparison prev_month="${prevMonthName}">\n`;
-    comparison += `Gastos anterior: $${totalPrevExpenses.toLocaleString('es-AR')} | Actual: $${totalExpenses.toLocaleString('es-AR')} (${expenseChange >= 0 ? '+' : ''}${expenseChange}%)\n`;
-    comparison += `Ingresos anterior: $${totalPrevIncome.toLocaleString('es-AR')} | Actual: $${totalIncome.toLocaleString('es-AR')}\n`;
+    comparison += `Gastos anterior: ${money(totalPrevExpenses)} | Actual: ${money(totalExpenses)} (${expenseChange >= 0 ? '+' : ''}${expenseChange}%)\n`;
+    comparison += `Ingresos anterior: ${money(totalPrevIncome)} | Actual: ${money(totalIncome)}\n`;
 
     const increases = categoryChanges.filter(c => c.change > 0).sort((a, b) => b.change - a.change).slice(0, 3);
     const decreases = categoryChanges.filter(c => c.change < 0).sort((a, b) => a.change - b.change).slice(0, 3);
@@ -236,7 +240,7 @@ export async function buildUserFinancialContext(
     const prevBalance = totalPrevIncome - totalPrevExpenses;
     const currentBalance = totalIncome - totalExpenses - totalCredit;
     const trend = currentBalance >= prevBalance ? 'Mejorando' : 'Empeorando';
-    comparison += `Tendencia: $${prevBalance.toLocaleString('es-AR')} → $${currentBalance.toLocaleString('es-AR')} (${trend})\n`;
+    comparison += `Tendencia: ${money(prevBalance)} → ${money(currentBalance)} (${trend})\n`;
     comparison += '</comparison>';
     parts.push(comparison);
   }
@@ -247,7 +251,7 @@ export async function buildUserFinancialContext(
     for (const t of transactions.slice(0, 15)) {
       const sign = t.type === 'income' ? '+' : '-';
       const idPart = (includeTransactionIds && t.id) ? ` id="${t.id}"` : '';
-      txns += `<transaction date="${t.date}"${idPart} amount="${sign}$${t.amount.toLocaleString('es-AR')}" type="${t.type}" category="${t.category}" description="${t.description}" />\n`;
+      txns += `<transaction date="${t.date}"${idPart} amount="${sign}${money(t.amount)}" type="${t.type}" category="${t.category}" description="${t.description}" />\n`;
     }
     txns += '</recent_transactions>';
     parts.push(txns);
@@ -308,7 +312,7 @@ export async function buildUserFinancialContext(
     for (const inv of investments) {
       invs += `<investment type="${inv.investment_type}" amount="${inv.amount}" description="${inv.description}"${inv.currency ? ` currency="${inv.currency}"` : ''} />\n`;
     }
-    invs += `Total: $${totalInvestments.toLocaleString('es-AR')}\n`;
+    invs += `Total: ${money(totalInvestments)}\n`;
     invs += '</investments>';
     parts.push(invs);
 
@@ -357,7 +361,7 @@ export async function buildUserFinancialContext(
         notable += '<significant>(>10% del ingreso)\n';
         for (const t of significantExpenses.slice(0, 5)) {
           const pct = Math.round((t.amount / totalIncome) * 100);
-          notable += `  ${t.date}: $${t.amount.toLocaleString('es-AR')} | ${t.category} | ${t.description} (${pct}% del ingreso)\n`;
+          notable += `  ${t.date}: ${money(t.amount)} | ${t.category} | ${t.description} (${pct}% del ingreso)\n`;
         }
         notable += '</significant>\n';
       }
@@ -365,7 +369,7 @@ export async function buildUserFinancialContext(
       if (antExpenses.length > 0) {
         notable += '<ant_expenses>(5+ transacciones pequeñas en misma categoría)\n';
         for (const [cat, data] of antExpenses) {
-          notable += `  ${cat}: ${data.count} transacciones, $${data.total.toLocaleString('es-AR')} (promedio $${data.avgAmount.toLocaleString('es-AR')})\n`;
+          notable += `  ${cat}: ${data.count} transacciones, ${money(data.total)} (promedio ${money(data.avgAmount)})\n`;
         }
         notable += '</ant_expenses>\n';
       }
@@ -373,7 +377,7 @@ export async function buildUserFinancialContext(
       if (risingCategories.length > 0) {
         notable += '<rising>(>30% vs mes anterior)\n';
         for (const c of risingCategories) {
-          notable += `  ${c.category}: +${c.change}% ($${c.previous.toLocaleString('es-AR')} → $${c.current.toLocaleString('es-AR')})\n`;
+          notable += `  ${c.category}: +${c.change}% (${money(c.previous)} → ${money(c.current)})\n`;
         }
         notable += '</rising>\n';
       }
@@ -423,11 +427,11 @@ export async function buildUserFinancialContext(
   const hasSavingsGoals = plans.length > 0;
 
   let precomputed = '<precomputed>\n';
-  precomputed += `Surplus: $${surplus.toLocaleString('es-AR')}\n`;
+  precomputed += `Surplus: ${money(surplus)}\n`;
   if (top3Categories.length > 0) {
-    precomputed += `Top3: ${top3Categories.map(([cat, data], i) => `${i + 1}. ${cat} ($${data.total.toLocaleString('es-AR')})`).join(', ')}\n`;
+    precomputed += `Top3: ${top3Categories.map(([cat, data], i) => `${i + 1}. ${cat} (${money(data.total)})`).join(', ')}\n`;
   }
-  precomputed += `Installments_30d: $${upcomingInstallmentsTotal.toLocaleString('es-AR')} (${userInstallments.length} cuotas)\n`;
+  precomputed += `Installments_30d: ${money(upcomingInstallmentsTotal)} (${userInstallments.length} cuotas)\n`;
   precomputed += `Day_of_month: ${dayOfMonth}/30\n`;
   precomputed += `Has_emergency_fund: ${hasSavingsGoals ? 'Yes' : 'No'}\n`;
   precomputed += '</precomputed>';
@@ -473,7 +477,7 @@ export async function buildUserFinancialContext(
   const allTransactionsForPatterns = [...transactions, ...prevTransactions];
   const patterns = detectRecurringPatterns(allTransactionsForPatterns);
   if (patterns.length > 0) {
-    partsFinal.push(`<patterns>\n${formatPatterns(patterns)}\n</patterns>`);
+    partsFinal.push(`<patterns>\n${formatPatterns(patterns, money)}\n</patterns>`);
   }
 
   // === BUDGET ADHERENCE ===

@@ -14,6 +14,7 @@ export const transcriptionPrompt = `Sos un asistente financiero especializado en
 4. Generá una descripción breve y clara (máximo 10 palabras) que resuma la transacción.
 5. Si el monto no es claro o no se menciona, usá 0.
 6. En caso de ambigüedad entre gasto e ingreso, asumí que es un gasto.
+7. Detectá la moneda del monto con su código ISO: "dólares", "usd", "verdes", "dolarucos" → "USD"; "euros" → "EUR"; "reales" → "BRL"; "libras" → "GBP". Si no se menciona ninguna moneda, usá null (se usará la moneda base del usuario). No asumas que los montos son pesos.
 
 ## Categorías permitidas
 
@@ -28,19 +29,23 @@ Respondé SOLO con un JSON válido, sin markdown, sin explicaciones, sin texto a
   "type": "expense",
   "amount": 2000,
   "category": "Compras",
-  "description": "Compras del supermercado"
+  "description": "Compras del supermercado",
+  "currency": null
 }
 
 ## Ejemplos
 
 Transcripción: "gasté un luca en el super"
-{"type": "expense", "amount": 1000, "category": "Compras", "description": "Supermercado"}
+{"type": "expense", "amount": 1000, "category": "Compras", "description": "Supermercado", "currency": null}
 
 Transcripción: "me pagaron dos palos de salario"
-{"type": "income", "amount": 2000000, "category": "Salario", "description": "Salario mensual"}
+{"type": "income", "amount": 2000000, "category": "Salario", "description": "Salario mensual", "currency": null}
 
 Transcripción: "cargué nafta por cincuenta lucas"
-{"type": "expense", "amount": 50000, "category": "Auto", "description": "Carga de nafta"}
+{"type": "expense", "amount": 50000, "category": "Auto", "description": "Carga de nafta", "currency": null}
+
+Transcripción: "gasté veinte dólares en una cena"
+{"type": "expense", "amount": 20, "category": "Comida", "description": "Cena", "currency": "USD"}
 
 Transcripción: "pagué el alquiler, cuatro pinos"
 {"type": "expense", "amount": 400000, "category": "Hogar", "description": "Alquiler mensual"}
