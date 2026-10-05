@@ -23,6 +23,7 @@ import { ExpensePlans } from '@/components/expense-plans';
 import { Loans } from '@/components/loans';
 import { History } from '@/components/history';
 import { Services } from '@/components/services';
+import { Trips } from '@/components/trips/trips';
 import {
   BarChart3,
   PlusCircle,
@@ -32,6 +33,7 @@ import {
   TrendingUp,
   Wallet,
   Receipt,
+  Plane,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
@@ -73,7 +75,7 @@ function FinanceAppContent() {
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem('activeTab') || 'dashboard';
-      const validTabs = ['dashboard', 'expenses', 'installments', 'growth', 'servicios', 'history'];
+      const validTabs = ['dashboard', 'expenses', 'installments', 'growth', 'servicios', 'trips', 'history'];
       // Migrate old tab values to new ones
       const migrationMap: Record<string, string> = {
         credit: 'installments',
@@ -776,27 +778,31 @@ function FinanceAppContent() {
                 className='flex items-center gap-2'
               >
                 <BarChart3 className='h-4 w-4' />
-                <span className='hidden sm:inline'>Dashboard</span>
+                <span className='hidden xl:inline'>Dashboard</span>
               </TabsTrigger>
               <TabsTrigger value='expenses' className='flex items-center gap-2'>
                 <PlusCircle className='h-4 w-4' />
-                <span className='hidden sm:inline'>Transacciones</span>
+                <span className='hidden xl:inline'>Transacciones</span>
               </TabsTrigger>
               <TabsTrigger value='installments' className='flex items-center gap-2'>
                 <Wallet className='h-4 w-4' />
-                <span className='hidden sm:inline'>Cuotas y Pagos</span>
+                <span className='hidden xl:inline'>Cuotas y Pagos</span>
               </TabsTrigger>
               <TabsTrigger value='growth' className='flex items-center gap-2'>
                 <TrendingUp className='h-4 w-4' />
-                <span className='hidden sm:inline'>Inversiones y Metas</span>
+                <span className='hidden xl:inline'>Inversiones y Metas</span>
               </TabsTrigger>
               <TabsTrigger value='servicios' className='flex items-center gap-2'>
                 <Receipt className='h-4 w-4' />
-                <span className='hidden sm:inline'>Servicios</span>
+                <span className='hidden xl:inline'>Servicios</span>
+              </TabsTrigger>
+              <TabsTrigger value='trips' className='flex items-center gap-2'>
+                <Plane className='h-4 w-4' />
+                <span className='hidden xl:inline'>Viajes</span>
               </TabsTrigger>
               <TabsTrigger value='history' className='flex items-center gap-2'>
                 <ClipboardList className='h-4 w-4' />
-                <span className='hidden sm:inline'>Historial</span>
+                <span className='hidden xl:inline'>Historial</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1008,6 +1014,10 @@ function FinanceAppContent() {
 
           <TabsContent value='servicios'>
             <Services />
+          </TabsContent>
+
+          <TabsContent value='trips'>
+            <Trips onTransactionsChanged={() => loadData()} />
           </TabsContent>
 
           <TabsContent value='history'>

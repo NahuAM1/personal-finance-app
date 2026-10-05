@@ -1,0 +1,119 @@
+'use client';
+
+import { useState } from 'react';
+import { Crown, Loader2, UserPlus } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import type { Trip, TripMember } from '@/types/database';
+import * as tripsApi from '@/lib/trips-api';
+import { useToast } from '@/hooks/use-toast';
+
+interface TripMembersProps {
+  trip: Trip;
+  members: TripMember[];
+  currentUserId: string;
+  onChanged: () => void;
+}
+
+export function TripMembers({ trip, members, currentUserId, onChanged }: TripMembersProps): React.JSX.Element {
+  const { toast } = useToast();
+  const [guestName, setGuestName] = useState('');
+  const [addingGuest, setAddingGuest] = useState(false);
+
+  const handleAddGuest = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    const name = guestName.trim();
+    if (!name) return;
+    if (members.some((m) => m.display_name.trim().toLowerCase() === name.toLowerCase())) {
+      toast({ title: 'Error', description: 'Ya hay una persona con ese nombre', variant: 'destructive' });
+      return;
+    }
+    setAddingGuest(true);
+    try {
+      await tripsApi.addGuestMember(trip.id, name);
+      setGuestName('');
+      toast({ title: 'Persona agregada', description: `${name} se sumó al viaje` });
+      onChanged();
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo agregar a la persona', variant: 'destructive' });
+    } finally {
+      setAddingGuest(false);
+    }
+  };
+
+  return (
+    <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+      <Card className='min-w-0'>
+        <CardHeader className='pb-2'>
+          <CardTitle className='text-base'>Personas del viaje</CardTitle>
+        </CardHeader>
+        <CardContent className='space-y-2'>
+          {members.map((m) => (
+            <div key={m.id} className='flex items-center gap-3 rounded-lg border p-3 min-w-0'>
+              <div className='h-8 w-8 shrink-0 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-sm font-bold text-emerald-700 dark:text-emerald-300'>
+                {m.display_name.charAt(0).toUpperCase()}
+              </div>
+              <div className='min-w-0 flex-1'>
+                <p className='text-sm font-medium truncate'>
+                  {m.display_name}
+                  {m.user_id === currentUserId && <span className='text-muted-foreground'> (vos)</span>}
+                </p>
+                <p className='text-xs text-muted-foreground truncate'>
+                  {m.user_id ? m.email || 'Con cuenta' : 'Invitado sin cuenta'}
+                </p>
+              </div>
+              <div className='flex items-center gap-1 shrink-0'>
+                {m.is_admin && (
+                  <Crown className='h-4 w-4 text-amber-500' aria-label='Administrador' />
+                )}
+                {m.invite_status === 'pending' && (
+                  <Badge variant='outline' className='text-amber-700 border-amber-300'>Pendiente</Badge>
+                )}
+                {m.invite_status === 'declined' && (
+                  <Badge variant='outline' className='text-red-600 border-red-300'>Rechazó</Badge>
+                )}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className='min-w-0'>
+        <CardHeader className='pb-2'>
+          <CardTitle className='text-base'>Agregar invitado sin cuenta</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAddGuest} className='space-y-3'>
+            <p className='text-sm text-muted-foreground'>
+              Para personas que no usan la app. Los demás cargan los gastos por ellas.
+            </p>
+            <div className='flex flex-col sm:flex-row gap-2'>
+              <Input
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder='Nombre'
+                maxLength={60}
+                aria-label='Nombre del invitado'
+                className='min-w-0'
+              />
+              <Button
+                type='submit'
+                disabled={addingGuest || !guestName.trim()}
+                className='bg-emerald-600 hover:bg-emerald-700 text-white shrink-0'
+              >
+                {addingGuest ? (
+                  <Loader2 className='h-4 w-4 animate-spin' aria-hidden='true' />
+                ) : (
+                  <UserPlus className='h-4 w-4 mr-2' />
+                )}
+                Agregar
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
