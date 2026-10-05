@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Receipt, ShoppingCart, Users } from 'lucide-react';
+import { Receipt, ShoppingCart } from 'lucide-react';
 import { AuthGuard } from '@/components/auth-guard';
 import { AccessControl } from '@/components/access-control';
 import { USER_ROLES } from '@/types/database';
@@ -13,15 +13,12 @@ import { ReceiptList } from '@/components/smartpocket/receipt-list';
 import { ReceiptDetail } from '@/components/smartpocket/receipt-detail';
 import { ShoppingDashboard } from '@/components/smartpocket/shopping-dashboard';
 import { ShoppingRecommendations } from '@/components/smartpocket/shopping-recommendations';
-import { SplitGroups } from '@/components/smartpocket/split-groups';
-import { SplitGroupDetail } from '@/components/smartpocket/split-group-detail';
 import { useTickets } from '@/hooks/use-tickets';
-import { useSplitGroups } from '@/hooks/use-split-groups';
 import { Loader } from '@/components/loader';
 
 import SmartPocketLogo from '@/assets/images/smartPocketLogo.svg';
 
-const VALID_TABS = ['tickets', 'shopping', 'split'] as const;
+const VALID_TABS = ['tickets', 'shopping'] as const;
 type TabValue = (typeof VALID_TABS)[number];
 
 function SmartPocketContent() {
@@ -33,7 +30,6 @@ function SmartPocketContent() {
     ? (rawTab as TabValue)
     : 'tickets';
 
-  const ticketsEnabled = activeTab === 'tickets' || activeTab === 'shopping';
   const {
     tickets,
     loading: ticketsLoading,
@@ -42,16 +38,7 @@ function SmartPocketContent() {
     clearSelectedTicket,
     refetchTickets,
     deleteTicket,
-  } = useTickets(ticketsEnabled);
-
-  const {
-    groups,
-    loading: groupsLoading,
-    selectedGroup,
-    selectGroup,
-    clearSelectedGroup,
-    refetchGroups,
-  } = useSplitGroups(activeTab === 'split');
+  } = useTickets();
 
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -59,8 +46,7 @@ function SmartPocketContent() {
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
-  const isLoading = (ticketsEnabled && ticketsLoading) || (activeTab === 'split' && groupsLoading);
-  if (isLoading) {
+  if (ticketsLoading) {
     return <Loader />;
   }
 
@@ -81,13 +67,6 @@ function SmartPocketContent() {
           >
             <ShoppingCart className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">Compras Inteligentes</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="split"
-            className="flex items-center gap-2 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 focus-visible:ring-purple-500"
-          >
-            <Users className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Dividir Gastos</span>
           </TabsTrigger>
         </TabsList>
       </div>
@@ -121,22 +100,6 @@ function SmartPocketContent() {
           <ShoppingRecommendations />
         </div>
       </TabsContent>
-
-      <TabsContent value="split">
-        {selectedGroup ? (
-          <SplitGroupDetail
-            group={selectedGroup}
-            onBack={clearSelectedGroup}
-            onUpdate={refetchGroups}
-          />
-        ) : (
-          <SplitGroups
-            groups={groups}
-            onSelectGroup={selectGroup}
-            onGroupCreated={refetchGroups}
-          />
-        )}
-      </TabsContent>
     </Tabs>
   );
 }
@@ -154,8 +117,8 @@ function SmartPocketPremiumGate() {
             SmartPocket es Premium
           </h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-md mb-6">
-            Accede a funcionalidades avanzadas como el scanner de tickets con IA,
-            dashboard inteligente de compras y dividir gastos con amigos.
+            Accede a funcionalidades avanzadas como el scanner de tickets con IA
+            y el dashboard inteligente de compras.
           </p>
           <a
             href="/"
