@@ -54,7 +54,9 @@ GRANT SELECT ON exchange_rates TO authenticated;
 DROP POLICY IF EXISTS "rates readable" ON exchange_rates;
 CREATE POLICY "rates readable" ON exchange_rates FOR SELECT TO authenticated USING (true);
 
--- 3. Widen money columns (only when the current precision is lower)
+-- 3. Widen money columns (only when the current precision is lower).
+-- Unconstrained NUMERIC (numeric_precision IS NULL) is already unbounded: it is never altered, so
+-- existing values keep their full precision instead of being rounded to 2 decimals.
 DO $$ DECLARE c RECORD; BEGIN
   FOR c IN SELECT * FROM (VALUES
     ('transactions','amount',18),('transactions','balance_total',20),
@@ -66,7 +68,8 @@ DO $$ DECLARE c RECORD; BEGIN
     ('trip_expense_shares','share_amount',18)) AS x(tbl,col,prec)
   LOOP
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public'
-               AND table_name=c.tbl AND column_name=c.col AND COALESCE(numeric_precision,0) < c.prec) THEN
+               AND table_name=c.tbl AND column_name=c.col AND data_type='numeric'
+               AND numeric_precision IS NOT NULL AND numeric_precision < c.prec) THEN
       EXECUTE format('ALTER TABLE public.%I ALTER COLUMN %I TYPE NUMERIC(%s,2)', c.tbl, c.col, c.prec);
     END IF; END LOOP; END $$;
 
@@ -139,6 +142,104 @@ UPDATE investments SET currency=COALESCE(NULLIF(currency,''),'ARS'),
   exchange_rate=CASE WHEN exchange_rate IS NULL OR exchange_rate <= 0 THEN 1 ELSE exchange_rate END,
   base_currency=COALESCE(base_currency,'ARS')
   WHERE currency IS NULL OR currency='' OR exchange_rate IS NULL OR exchange_rate <= 0 OR base_currency IS NULL;
+-- Legacy free-text currencies (e.g. 'Bitcoin', 'USDT ') must satisfy the investments currency CHECK
+-- (^[A-Z0-9]{2,10}$) or the migration would abort when the constraint is added in step 8. Choice:
+-- strip every non-alphanumeric character from the upper-cased value and cap it at 10 characters;
+-- when fewer than 2 characters remain, use the ISO "no currency" code XXX. The CHECK is then added
+-- fully validated (never NOT VALID, which would block later updates of legacy rows). Such rows are
+-- marked rate_source='manual' below because their currency is not a supported one.
+UPDATE investments SET currency = CASE
+    WHEN length(regexp_replace(upper(currency), '[^A-Z0-9]', '', 'g')) >= 2
+      THEN left(regexp_replace(upper(currency), '[^A-Z0-9]', '', 'g'), 10)
+    ELSE 'XXX' END
+  WHERE currency IS NOT NULL AND currency <> '' AND currency !~ '^[A-Z0-9]{2,10}
+UPDATE investments SET rate_source = CASE
+    WHEN currency IN ('ARS','USD','EUR','BRL','GBP','CHF','JPY','CAD','AUD','MXN','CNY') THEN 'auto' ELSE 'manual' END
+  WHERE rate_source IS NULL OR (rate_source='auto' AND currency NOT IN ('ARS','USD','EUR','BRL','GBP','CHF','JPY','CAD','AUD','MXN','CNY'));
+UPDATE trip_expenses e SET currency=COALESCE(e.currency,t.currency,'ARS'), original_amount=COALESCE(e.original_amount,e.amount),
+  exchange_rate=COALESCE(e.exchange_rate,1), rate_source=COALESCE(e.rate_source,'auto')
+  FROM trips t WHERE t.id=e.trip_id AND (e.currency IS NULL OR e.original_amount IS NULL OR e.exchange_rate IS NULL OR e.rate_source IS NULL);
+
+-- 8. Constraints (idempotent helper; currency regex is relaxed for investments)
+CREATE OR REPLACE FUNCTION pg_temp.add_check(tbl TEXT, nm TEXT, def TEXT) RETURNS void LANGUAGE plpgsql AS $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = nm) THEN
+    EXECUTE format('ALTER TABLE public.%I ADD CONSTRAINT %I CHECK (%s)', tbl, nm, def); END IF; END $$;
+DO $$ DECLARE t TEXT; BEGIN
+  FOREACH t IN ARRAY ARRAY['transactions','credit_purchases','credit_installments','loans','loan_payments','services','investments'] LOOP
+    EXECUTE format('ALTER TABLE public.%I ALTER COLUMN currency SET NOT NULL, ALTER COLUMN original_amount SET NOT NULL,
+      ALTER COLUMN exchange_rate SET NOT NULL, ALTER COLUMN rate_source SET NOT NULL, ALTER COLUMN base_currency SET NOT NULL', t);
+    PERFORM pg_temp.add_check(t, t||'_rate_source_chk', 'rate_source IN (''auto'',''manual'')');
+    PERFORM pg_temp.add_check(t, t||'_exchange_rate_chk', 'exchange_rate > 0');
+    PERFORM pg_temp.add_check(t, t||'_original_amount_chk', 'original_amount >= 0');
+    PERFORM pg_temp.add_check(t, t||'_base_currency_chk', 'base_currency ~ ''^[A-Z]{3}$''');
+    PERFORM pg_temp.add_check(t, t||'_currency_chk',
+      CASE WHEN t='investments' THEN 'currency ~ ''^[A-Z0-9]{2,10}$''' ELSE 'currency ~ ''^[A-Z]{3}$''' END);
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON public.%I (%s, base_currency)', 'idx_'||t||'_base', t,
+      CASE t WHEN 'credit_installments' THEN 'credit_purchase_id' WHEN 'loan_payments' THEN 'loan_id' ELSE 'user_id' END);
+  END LOOP;
+  PERFORM pg_temp.add_check('investments','investments_amount_nonneg','amount >= 0');
+  PERFORM pg_temp.add_check('loans','loans_principal_nonneg','principal_amount >= 0');
+  PERFORM pg_temp.add_check('loans','loans_total_nonneg','total_amount >= 0');
+  PERFORM pg_temp.add_check('loan_payments','loan_payments_amount_nonneg','amount >= 0');
+  ALTER TABLE trip_expenses ALTER COLUMN currency SET NOT NULL, ALTER COLUMN original_amount SET NOT NULL,
+    ALTER COLUMN exchange_rate SET NOT NULL, ALTER COLUMN rate_source SET NOT NULL;
+  PERFORM pg_temp.add_check('trip_expenses','trip_expenses_rate_source_chk','rate_source IN (''auto'',''manual'')');
+  PERFORM pg_temp.add_check('trip_expenses','trip_expenses_exchange_rate_chk','exchange_rate > 0');
+END $$;
+
+-- 9. Defaults trigger: covers all tables; child tables inherit from their parent
+CREATE OR REPLACE FUNCTION public.fill_money_defaults() RETURNS trigger LANGUAGE plpgsql
+SECURITY INVOKER SET search_path = public AS $$
+DECLARE b TEXT; p_cur TEXT; p_rate NUMERIC; p_src TEXT; p_base TEXT; has_parent BOOLEAN := false; base_amt NUMERIC; old_amt NUMERIC;
+BEGIN
+  IF TG_TABLE_NAME = 'trip_expenses' THEN
+    IF TG_OP = 'INSERT' AND NEW.currency IS NULL THEN
+      SELECT currency INTO b FROM trips WHERE id = NEW.trip_id; NEW.currency := COALESCE(b, 'ARS'); END IF;
+    base_amt := NEW.amount;
+    IF TG_OP = 'UPDATE' THEN old_amt := OLD.amount; END IF;
+  ELSE
+    IF TG_OP = 'INSERT' THEN
+      IF TG_TABLE_NAME = 'credit_installments' THEN
+        SELECT currency, exchange_rate, rate_source, base_currency INTO p_cur, p_rate, p_src, p_base
+          FROM credit_purchases WHERE id = NEW.credit_purchase_id; has_parent := FOUND;
+      ELSIF TG_TABLE_NAME = 'loan_payments' THEN
+        SELECT currency, exchange_rate, rate_source, base_currency INTO p_cur, p_rate, p_src, p_base
+          FROM loans WHERE id = NEW.loan_id; has_parent := FOUND;
+      END IF;
+      IF has_parent THEN  -- child: inherit from parent
+        NEW.currency := COALESCE(NEW.currency, p_cur); NEW.base_currency := COALESCE(NEW.base_currency, p_base);
+        IF NEW.original_amount IS NULL THEN NEW.exchange_rate := p_rate; NEW.rate_source := p_src; END IF;
+      ELSE
+        IF TG_TABLE_NAME NOT IN ('credit_installments','loan_payments') THEN
+          SELECT base_currency INTO b FROM user_settings WHERE user_id = NEW.user_id; END IF;
+        NEW.base_currency := COALESCE(NEW.base_currency, b, 'ARS');
+        NEW.currency := COALESCE(NEW.currency, NEW.base_currency);
+      END IF;
+    END IF;
+    IF TG_TABLE_NAME IN ('credit_purchases','loans') THEN
+      base_amt := NEW.total_amount; IF TG_OP = 'UPDATE' THEN old_amt := OLD.total_amount; END IF;
+    ELSE
+      base_amt := NEW.amount; IF TG_OP = 'UPDATE' THEN old_amt := OLD.amount; END IF;
+    END IF;
+  END IF;
+  NEW.exchange_rate := COALESCE(NEW.exchange_rate, 1); NEW.rate_source := COALESCE(NEW.rate_source, 'auto');
+  IF TG_OP = 'INSERT' THEN
+    NEW.original_amount := COALESCE(NEW.original_amount, base_amt / NEW.exchange_rate);
+  ELSIF base_amt IS DISTINCT FROM old_amt AND NEW.original_amount IS NOT DISTINCT FROM OLD.original_amount
+        AND NEW.exchange_rate IS NOT DISTINCT FROM OLD.exchange_rate THEN
+    NEW.original_amount := base_amt / NEW.exchange_rate;  -- legacy paths that update only amount
+  END IF;
+  RETURN NEW; END $$;
+REVOKE EXECUTE ON FUNCTION public.fill_money_defaults() FROM PUBLIC, anon, authenticated;
+DO $$ DECLARE t TEXT; BEGIN
+  FOREACH t IN ARRAY ARRAY['transactions','credit_purchases','credit_installments','loans','loan_payments',
+                           'services','investments','trip_expenses'] LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS trg_fill_money_defaults ON public.%I', t);
+    EXECUTE format('CREATE TRIGGER trg_fill_money_defaults BEFORE INSERT OR UPDATE ON public.%I
+                    FOR EACH ROW EXECUTE FUNCTION public.fill_money_defaults()', t);
+  END LOOP; END $$;
+COMMIT;
+;
 UPDATE investments SET original_amount = amount / exchange_rate WHERE original_amount IS NULL;
 UPDATE investments SET rate_source = CASE
     WHEN currency IN ('ARS','USD','EUR','BRL','GBP','CHF','JPY','CAD','AUD','MXN','CNY') THEN 'auto' ELSE 'manual' END
