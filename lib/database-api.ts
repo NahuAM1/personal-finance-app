@@ -307,6 +307,22 @@ export async function payCreditInstallment(
   return { installment: updatedInstallment, transaction: transactionData }
 }
 
+// Pay several installments at once (e.g. a whole statement month).
+// SEQUENTIAL: addTransaction recomputes cumulative balance_total on every call;
+// parallel inserts would race on balance_total and corrupt it.
+export async function payCreditInstallments(
+  installmentIds: string[],
+  userId: string,
+  paidDate: string
+): Promise<number> {
+  let paid = 0
+  for (const id of installmentIds) {
+    await payCreditInstallment(id, userId, paidDate)
+    paid++
+  }
+  return paid
+}
+
 export async function deleteCreditTransaction(transactionId: string, userId: string) {
   // First, check if this is a credit transaction and get the related installment
   const { data: transaction, error: fetchError } = await supabase
