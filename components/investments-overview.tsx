@@ -35,6 +35,8 @@ import { format, differenceInDays, isPast, isToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Investment } from '@/types/database';
 import { TrendingUp, Calendar, DollarSign, CheckCircle2, Clock, Percent, Trash2, Edit2 } from 'lucide-react';
+import { useCurrency } from '@/hooks/use-currency';
+import { OriginalAmount } from '@/components/currency/original-amount';
 
 interface InvestmentsOverviewProps {
   investments: Investment[];
@@ -82,6 +84,7 @@ const investmentTypeColors: Record<string, string> = {
 };
 
 export function InvestmentsOverview({ investments, onDelete, onUpdate }: InvestmentsOverviewProps) {
+  const { baseCurrency, format: formatCurrency } = useCurrency();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [investmentToDelete, setInvestmentToDelete] = useState<string | null>(null);
@@ -203,7 +206,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                   Capital Invertido
                 </div>
                 <div className='text-sm md:text-2xl font-bold text-blue-600 dark:text-blue-400'>
-                  ${totalInvested.toLocaleString('es-AR')}
+                  {formatCurrency(totalInvested)}
                 </div>
               </div>
               <div className='text-center'>
@@ -211,7 +214,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                   Ganancia Estimada
                 </div>
                 <div className='text-sm md:text-2xl font-bold text-green-600 dark:text-green-400'>
-                  +${totalEstimatedReturns.toLocaleString('es-AR')}
+                  +{formatCurrency(totalEstimatedReturns)}
                 </div>
               </div>
             </div>
@@ -333,10 +336,13 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                     <div className='grid grid-cols-2 gap-3 text-sm'>
                       <div className='p-3 bg-blue-100 dark:bg-blue-900 rounded'>
                         <div className='text-xs text-blue-700 dark:text-blue-300 mb-1'>
-                          Invertido (ARS)
+                          Invertido ({baseCurrency})
                         </div>
                         <div className='font-bold text-blue-900 dark:text-blue-100'>
-                          ${investment.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                          {formatCurrency(investment.amount)}
+                          {investment.investment_type !== 'compra_divisas' && investment.investment_type !== 'crypto' && (
+                            <OriginalAmount originalAmount={investment.original_amount} currency={investment.currency} />
+                          )}
                         </div>
                       </div>
                       <div className='p-3 bg-emerald-100 dark:bg-emerald-900 rounded'>
@@ -354,7 +360,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                         <DollarSign className='h-3 w-3' />
                         TC Compra:
                       </span>
-                      <span className='font-semibold'>${investment.exchange_rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                      <span className='font-semibold'>{formatCurrency(investment.exchange_rate)}</span>
                     </div>
                     {/* Show actual return if liquidated */}
                     {investment.is_liquidated && (
@@ -363,7 +369,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                           {(investment.actual_return || 0) >= 0 ? 'Ganancia' : 'Pérdida'}
                         </div>
                         <div className={`font-bold ${(investment.actual_return || 0) >= 0 ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                          {(investment.actual_return || 0) >= 0 ? '+' : ''}${(investment.actual_return || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                          {(investment.actual_return || 0) >= 0 ? '+' : ''}{formatCurrency((investment.actual_return || 0))}
                         </div>
                       </div>
                     )}
@@ -375,7 +381,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                         Capital
                       </div>
                       <div className='font-bold text-blue-900 dark:text-blue-100'>
-                        ${investment.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(investment.amount)}
                       </div>
                     </div>
                     <div className='p-3 bg-green-100 dark:bg-green-900 rounded'>
@@ -383,7 +389,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                         {investment.is_liquidated ? 'Ganancia Real' : 'Ganancia Est.'}
                       </div>
                       <div className='font-bold text-green-800 dark:text-green-200'>
-                        +${(investment.is_liquidated ? investment.actual_return || 0 : investment.estimated_return).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        +{formatCurrency((investment.is_liquidated ? investment.actual_return || 0 : investment.estimated_return))}
                       </div>
                     </div>
                   </div>
@@ -459,7 +465,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                         Total Liquidado:
                       </span>
                       <span className={`text-xl font-bold ${(investment.amount + (investment.actual_return || 0)) >= investment.amount ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        ${(investment.amount + (investment.actual_return || 0)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {formatCurrency((investment.amount + (investment.actual_return || 0)))}
                       </span>
                     </div>
                   ) : investment.investment_type === 'compra_divisas' ? (
@@ -468,7 +474,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                         Capital Invertido:
                       </span>
                       <span className='text-xl font-bold text-gray-900 dark:text-gray-100'>
-                        ${investment.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(investment.amount)}
                       </span>
                     </div>
                   ) : (
@@ -477,7 +483,7 @@ export function InvestmentsOverview({ investments, onDelete, onUpdate }: Investm
                         Total {investment.is_liquidated ? 'Liquidado' : 'Esperado'}:
                       </span>
                       <span className='text-xl font-bold text-gray-900 dark:text-gray-100'>
-                        ${(investment.amount + (investment.is_liquidated ? investment.actual_return || 0 : investment.estimated_return)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {formatCurrency((investment.amount + (investment.is_liquidated ? investment.actual_return || 0 : investment.estimated_return)))}
                       </span>
                     </div>
                   )}

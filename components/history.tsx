@@ -14,6 +14,8 @@ import { Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import { useCurrency } from '@/hooks/use-currency';
+import { OriginalAmount } from '@/components/currency/original-amount';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +37,7 @@ interface HistoryProps {
 export function History({ onTransactionDeleted, investments = [] }: HistoryProps = {}) {
   const { toast } = useToast();
   const { transactions, loading, error, deleteTransaction } = useTransactions();
+  const { format: formatCurrency } = useCurrency();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -215,7 +218,7 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                                   <span className={`font-medium ${
                                     transaction.balance_total >= 0 ? 'text-green-600' : 'text-red-600'
                                   }`}>
-                                    ${transaction.balance_total.toLocaleString()}
+                                    {formatCurrency(transaction.balance_total)}
                                   </span>
                                 </span>
                                 <span>•</span>
@@ -224,7 +227,7 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                                   <span className={`font-medium ${
                                     liquidBalanceAtTransaction! >= 0 ? 'text-blue-600' : 'text-red-600'
                                   }`}>
-                                    ${liquidBalanceAtTransaction!.toLocaleString()}
+                                    {formatCurrency(liquidBalanceAtTransaction!)}
                                   </span>
                                 </span>
                               </>
@@ -237,12 +240,17 @@ export function History({ onTransactionDeleted, investments = [] }: HistoryProps
                         </div>
                         <div className='flex items-center gap-2 flex-shrink-0'>
                           <span
-                            className={`font-bold text-lg whitespace-nowrap ${getTypeColor(
+                            className={`font-bold text-lg whitespace-nowrap text-right ${getTypeColor(
                               transaction.type
                             )}`}
                           >
-                            {transaction.type === 'expense' || transaction.type === 'credit' ? '-' : '+'} $
-                            {transaction.amount.toLocaleString()}
+                            {transaction.type === 'expense' || transaction.type === 'credit' ? '-' : '+'}{' '}
+                            {formatCurrency(transaction.amount)}
+                            <OriginalAmount
+                              originalAmount={transaction.original_amount}
+                              currency={transaction.currency}
+                              className='text-right'
+                            />
                           </span>
                           <Button
                             variant='ghost'

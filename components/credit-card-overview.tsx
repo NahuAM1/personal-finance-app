@@ -13,6 +13,7 @@ import { format, isPast, isToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Transaction } from '@/types/database';
 import { CheckCircle2, Clock, AlertCircle, CreditCard, Calendar } from 'lucide-react';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface CreditCardOverviewProps {
   transactions: Transaction[];
@@ -33,6 +34,7 @@ interface PurchaseGroup {
 }
 
 export function CreditCardOverview({ transactions }: CreditCardOverviewProps) {
+  const { format: formatCurrency } = useCurrency();
   // Filter only credit transactions
   const creditTransactions = transactions.filter((t) => t.type === 'credit');
 
@@ -195,7 +197,7 @@ export function CreditCardOverview({ transactions }: CreditCardOverviewProps) {
                       Total
                     </div>
                     <div className='font-bold text-gray-900 dark:text-gray-100'>
-                      ${purchase.totalAmount.toFixed(2)}
+                      {formatCurrency(purchase.totalAmount)}
                     </div>
                   </div>
                   <div className='text-center p-2 bg-green-100 dark:bg-green-900 rounded'>
@@ -203,7 +205,7 @@ export function CreditCardOverview({ transactions }: CreditCardOverviewProps) {
                       Pagado
                     </div>
                     <div className='font-bold text-green-800 dark:text-green-200'>
-                      ${purchase.totalPaid.toFixed(2)}
+                      {formatCurrency(purchase.totalPaid)}
                     </div>
                   </div>
                   <div className='text-center p-2 bg-amber-100 dark:bg-amber-900 rounded'>
@@ -211,7 +213,7 @@ export function CreditCardOverview({ transactions }: CreditCardOverviewProps) {
                       Pendiente
                     </div>
                     <div className='font-bold text-amber-800 dark:text-amber-200'>
-                      ${purchase.totalPending.toFixed(2)}
+                      {formatCurrency(purchase.totalPending)}
                     </div>
                   </div>
                 </div>
@@ -267,7 +269,7 @@ export function CreditCardOverview({ transactions }: CreditCardOverviewProps) {
                             </span>
                             <div className='flex items-center gap-2'>
                               <span className='font-semibold'>
-                                ${installment.amount.toFixed(2)}
+                                {formatCurrency(installment.amount)}
                               </span>
                               {installment.due_date && (
                                 <span className='text-xs opacity-75'>

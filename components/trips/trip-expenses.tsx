@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { Trip, TripMember } from '@/types/database';
+import { OriginalAmount } from '@/components/currency/original-amount';
 import { formatTripMoney, type TripExpenseWithShares } from '@/lib/trips';
 import * as tripsApi from '@/lib/trips-api';
 import { useToast } from '@/hooks/use-toast';
@@ -121,8 +122,14 @@ export function TripExpenses({
                     </p>
                   </div>
                   <div className='flex items-center justify-between sm:justify-end gap-2'>
-                    <span className='font-semibold tabular-nums'>
+                    <span className='font-semibold tabular-nums text-right'>
                       {formatTripMoney(Number(expense.amount), trip.currency)}
+                      <OriginalAmount
+                        originalAmount={Number(expense.original_amount)}
+                        currency={expense.currency}
+                        className='text-right'
+                        targetCurrency={trip.currency}
+                      />
                     </span>
                     <div className='flex items-center'>
                       {locked ? (

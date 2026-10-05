@@ -52,3 +52,15 @@ export function formatMoney(
   const value = Number.isFinite(amount) ? amount : 0
   return getFormatter(currency, options).format(value)
 }
+
+/** Currency symbol or code for masked amounts, e.g. "$" for ARS, "US$" for USD. */
+export function currencySymbol(currency: string = "ARS"): string {
+  try {
+    const part = new Intl.NumberFormat(LOCALE, { style: "currency", currency })
+      .formatToParts(0)
+      .find((p) => p.type === "currency")
+    return part?.value ?? currency
+  } catch {
+    return currency
+  }
+}

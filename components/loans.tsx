@@ -57,6 +57,7 @@ import { buildMoneyFields, roundAmount, type MoneyFields } from '@/lib/currency/
 import { parseDecimal } from '@/lib/currency/money-input';
 import { toast } from 'sonner';
 import { EditLoanDialog, EditLoanPaymentDialog } from '@/components/loan-edit-dialogs';
+import { OriginalAmount } from '@/components/currency/original-amount';
 
 interface LoansProps {
   loans: Loan[];
@@ -275,7 +276,7 @@ export function Loans({
                   <>
                     <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
                       <div className='text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums'>
-                        ${totalPaymentPlans.toLocaleString()}
+                        {formatCurrency(totalPaymentPlans)}
                       </div>
                       <div className='text-sm text-gray-600 dark:text-gray-400'>Total Comprometido</div>
                     </div>
@@ -290,13 +291,13 @@ export function Loans({
                   <>
                     <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
                       <div className='text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums'>
-                        ${totalGiven.toLocaleString()}
+                        {formatCurrency(totalGiven)}
                       </div>
                       <div className='text-sm text-gray-600 dark:text-gray-400'>Prestado (por cobrar)</div>
                     </div>
                     <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
                       <div className='text-2xl font-bold text-orange-600 dark:text-orange-400 tabular-nums'>
-                        ${totalReceived.toLocaleString()}
+                        {formatCurrency(totalReceived)}
                       </div>
                       <div className='text-sm text-gray-600 dark:text-gray-400'>Recibido (por pagar)</div>
                     </div>
@@ -571,8 +572,9 @@ export function Loans({
                           </div>
                         </div>
                         <div className='flex items-center gap-3'>
-                          <span className='font-bold tabular-nums'>
-                            ${payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          <span className='font-bold tabular-nums text-right'>
+                            {formatCurrency(payment.amount)}
+                            <OriginalAmount originalAmount={payment.original_amount} currency={payment.currency} className='text-right' />
                           </span>
                           <Button
                             variant='ghost'
@@ -621,7 +623,7 @@ export function Loans({
                         </div>
                         <div className='flex items-center gap-1'>
                           <span className='text-sm text-gray-400 tabular-nums'>
-                            ${payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatCurrency(payment.amount)}
                           </span>
                           <Button
                             variant='ghost'
@@ -732,7 +734,7 @@ export function Loans({
                             <DollarSign className='h-4 w-4 text-gray-400' aria-hidden="true" />
                             <div>
                               <div className='text-gray-500'>Capital</div>
-                              <div className='font-medium tabular-nums'>${loan.principal_amount.toLocaleString()}</div>
+                              <div className='font-medium tabular-nums'>{formatCurrency(loan.principal_amount)}</div>
                             </div>
                           </div>
                           {loan.interest_rate > 0 && (
@@ -748,7 +750,10 @@ export function Loans({
                             <DollarSign className='h-4 w-4 text-gray-400' aria-hidden="true" />
                             <div>
                               <div className='text-gray-500'>Total</div>
-                              <div className='font-bold tabular-nums'>${loan.total_amount.toLocaleString()}</div>
+                              <div className='font-bold tabular-nums'>
+                                {formatCurrency(loan.total_amount)}
+                                <OriginalAmount originalAmount={loan.original_amount} currency={loan.currency} />
+                              </div>
                             </div>
                           </div>
                           <div className='flex items-center gap-2'>
@@ -762,8 +767,8 @@ export function Loans({
 
                         <div>
                           <div className='flex justify-between text-sm mb-2 tabular-nums'>
-                            <span className='font-medium'>${paidAmount.toLocaleString()}</span>
-                            <span className='text-gray-600'>${loan.total_amount.toLocaleString()}</span>
+                            <span className='font-medium'>{formatCurrency(paidAmount)}</span>
+                            <span className='text-gray-600'>{formatCurrency(loan.total_amount)}</span>
                           </div>
                           <Progress value={progress} className='h-2' />
                         </div>

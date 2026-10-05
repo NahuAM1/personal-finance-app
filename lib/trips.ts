@@ -1,6 +1,7 @@
 // Pure business logic for trips (no I/O). Keep it framework-free so it can be
 // unit tested later.
 import type { TripMember, TripExpense, TripExpenseShare } from '@/types/database';
+import { formatMoney } from '@/lib/currency/format';
 
 export type SplitMethod = 'equal' | 'custom' | 'percentage';
 
@@ -311,17 +312,9 @@ export function getSharesToSettle(
 // Formatting helpers
 // ============================================
 
+/** Alias of formatMoney kept so the trip components keep their existing import. */
 export function formatTripMoney(amount: number, currency = 'ARS'): string {
-  try {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `${currency} ${amount.toFixed(2)}`;
-  }
+  return formatMoney(amount, currency);
 }
 
 export function buildTripTransactionDescription(tripName: string, expenseDescription: string): string {
