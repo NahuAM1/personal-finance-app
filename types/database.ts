@@ -573,6 +573,38 @@ export interface Database {
           settled_at?: string | null
         }
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          title: string
+          body: string | null
+          data: Record<string, unknown>
+          read_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          title: string
+          body?: string | null
+          data?: Record<string, unknown>
+          read_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: string
+          title?: string
+          body?: string | null
+          data?: Record<string, unknown>
+          read_at?: string | null
+          created_at?: string
+        }
+      }
     }
   }
 }
@@ -599,3 +631,4 @@ export type SplitExpenseShare = Database["public"]["Tables"]["split_expense_shar
 export type Loan = Database["public"]["Tables"]["loans"]["Row"]
 export type LoanPayment = Database["public"]["Tables"]["loan_payments"]["Row"]
 export type Service = Database["public"]["Tables"]["services"]["Row"]
+export type Notification = Database["public"]["Tables"]["notifications"]["Row"]

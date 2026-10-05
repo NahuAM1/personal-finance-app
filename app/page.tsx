@@ -41,6 +41,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment } from '@/types/database';
 import { USER_ROLES } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
+import { NotificationBell } from '@/components/notification-bell';
 import Image from 'next/image';
 import Link from 'next/link';
 import Logo from '../assets/images/logo.svg';
@@ -754,14 +755,17 @@ function FinanceAppContent() {
   return (
     <div className='min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800'>
       <div className='container mx-auto p-4 max-w-7xl'>
-        <div className='flex items-center justify-between py-3 px-6 mb-6 bg-white rounded-full shadow-md'>
-          <div className='flex items-center justify-center gap-2'>
+        <div className='flex items-center justify-between gap-2 py-3 px-4 sm:px-6 mb-6 bg-white rounded-full shadow-md'>
+          <div className='flex items-center justify-center gap-2 min-w-0'>
             <Image src={Logo} width={60} height={60} alt='Personal Wallet logo' className='shrink-0 w-10 h-10 lg:w-[60px] lg:h-[60px]' />
-            <h1 className='text-xl lg:text-3xl font-bold text-[#466E45] dark:text-white'>
+            <h1 className='text-xl lg:text-3xl font-bold text-[#466E45] dark:text-white truncate'>
               Personal Wallet
             </h1>
           </div>
-          <UserProfile />
+          <div className='flex items-center gap-1 shrink-0'>
+            <NotificationBell />
+            <UserProfile />
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className='space-y-6'>
