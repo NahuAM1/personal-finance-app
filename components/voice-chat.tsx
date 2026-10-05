@@ -46,7 +46,7 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
       const data = await response.json();
 
       if (onResponse) {
-        onResponse(data.choices[0]?.message?.content);
+        onResponse(data.content);
       }
     } catch (err) {
       console.error('[VoiceChat] Error sending to OpenAI:', err);

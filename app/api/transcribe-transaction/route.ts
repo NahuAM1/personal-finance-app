@@ -1,14 +1,8 @@
-import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
-import { HuggingFaceModels } from "@/public/enums";
-import { getMessage } from "@/public/utils/openAI";
+import { GeminiModels } from "@/public/enums";
+import { generateContentWithRetry } from "@/lib/gemini";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { USER_ROLES, UserRole } from "@/types/database";
-
-const openai = new OpenAI({
-  apiKey: process.env.HUGGING_FACE_KEY,
-  baseURL: process.env.HUGGING_FACE_BASE_URL,
-});
 
 export async function POST(request: NextRequest) {
   // Verify authentication and role
@@ -31,17 +25,17 @@ export async function POST(request: NextRequest) {
   }
 
   const { message } = await request.json();
-  const messages = new Array(getMessage(message));
   try {
-    const response = await openai.chat.completions.create({
-      model: HuggingFaceModels.QWEN_3_5_9B,
-      messages,
-      temperature: 0.1,
+    const response = await generateContentWithRetry({
+      model: GeminiModels.GEMINI_3_5_FLASH,
+      contents: message,
+      config: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      },
     });
 
-    return new NextResponse(JSON.stringify(response), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return NextResponse.json({ content: response.text ?? "" });
   } catch (error) {
     console.error("Error generating response:", error);
     return new Response("Error generating response", { status: 500 });
