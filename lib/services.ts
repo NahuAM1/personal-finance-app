@@ -68,6 +68,14 @@ export function deriveServiceStatus(
   }
 }
 
+// Order for display: pending first (closest due date first), then paid (by due date).
+export function sortByPaymentPriority(items: ServiceWithStatus[]): ServiceWithStatus[] {
+  return [...items].sort((a, b) => {
+    if (a.status !== b.status) return a.status === "pending" ? -1 : 1
+    return a.dueDate.localeCompare(b.dueDate)
+  })
+}
+
 // Build the transaction payload (WITHOUT user_id) for a service payment in a period.
 // The amount may be overridden (manual services with variable amounts).
 // `date` is decided by the caller: actual pay day for manual payments,
