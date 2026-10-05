@@ -51,9 +51,9 @@ export default function VoiceChat({ onResponse }: VoiceChatProps) {
     } catch (err) {
       console.error('[VoiceChat] Error sending to OpenAI:', err);
       toast({
-        title: 'Limite de creditos de IA',
+        title: 'No se pudo procesar la transacción',
         description:
-          'Se alcanzaron los limites de creditos diarios de la IA, lamentamos la molestia.',
+          'El servicio de IA no está disponible en este momento. Probá de nuevo en unos minutos.',
         variant: 'destructive',
       });
     } finally {

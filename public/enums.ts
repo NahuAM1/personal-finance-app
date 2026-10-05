@@ -33,6 +33,7 @@ export enum HuggingFaceModels {
 // Google Gemini models
 export enum GeminiModels {
   GEMINI_3_5_FLASH = "gemini-3.5-flash",
+  GEMINI_2_5_FLASH = "gemini-2.5-flash",
 }
 
 // Alias para compatibilidad con el código existente

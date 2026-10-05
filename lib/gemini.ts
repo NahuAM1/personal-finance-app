@@ -13,13 +13,21 @@ interface RetryOptions {
   maxRetries?: number;
   baseDelayMs?: number;
   maxDelayMs?: number;
+  // Models tried in order when the primary one keeps failing with a
+  // retryable error (e.g. 503 "model overloaded").
+  fallbackModels?: string[];
 }
 
 const DEFAULT_OPTIONS: Required<RetryOptions> = {
   maxRetries: 4,
   baseDelayMs: 1000,
   maxDelayMs: 16000,
+  fallbackModels: [],
 };
+
+function isRetryable(error: unknown): error is ApiError {
+  return error instanceof ApiError && RETRYABLE_STATUSES.has(error.status);
+}
 
 let _client: GoogleGenAI | null = null;
 
@@ -44,23 +52,16 @@ function computeBackoff(
   return Math.min(exponential + jitter, maxDelayMs);
 }
 
-export async function generateContentWithRetry(
+async function generateWithBackoff(
+  client: GoogleGenAI,
   params: GenerateContentParameters,
-  options: RetryOptions = {},
+  config: Required<RetryOptions>,
 ): Promise<GenerateContentResponse> {
-  const config: Required<RetryOptions> = { ...DEFAULT_OPTIONS, ...options };
-  const client = getClient();
-
   for (let attempt = 0; ; attempt++) {
     try {
       return await client.models.generateContent(params);
     } catch (error) {
-      if (!(error instanceof ApiError) || attempt >= config.maxRetries) {
-        throw error;
-      }
-
-      const status: number = error.status;
-      if (!RETRYABLE_STATUSES.has(status)) {
+      if (!isRetryable(error) || attempt >= config.maxRetries) {
         throw error;
       }
 
@@ -71,12 +72,35 @@ export async function generateContentWithRetry(
       );
 
       console.warn(
-        `[gemini] Retryable error (status=${status}) on attempt ${
+        `[gemini] Retryable error (model=${params.model}, status=${error.status}) on attempt ${
           attempt + 1
         }/${config.maxRetries + 1}. Retrying in ${Math.round(delay)}ms`,
       );
 
       await sleep(delay);
+    }
+  }
+}
+
+export async function generateContentWithRetry(
+  params: GenerateContentParameters,
+  options: RetryOptions = {},
+): Promise<GenerateContentResponse> {
+  const config: Required<RetryOptions> = { ...DEFAULT_OPTIONS, ...options };
+  const client = getClient();
+  const models: string[] = [params.model, ...config.fallbackModels];
+
+  for (let i = 0; ; i++) {
+    try {
+      return await generateWithBackoff(client, { ...params, model: models[i] }, config);
+    } catch (error) {
+      const next: string | undefined = models[i + 1];
+      if (!isRetryable(error) || next === undefined) {
+        throw error;
+      }
+      console.warn(
+        `[gemini] Model ${models[i]} unavailable (status=${error.status}). Falling back to ${next}`,
+      );
     }
   }
 }

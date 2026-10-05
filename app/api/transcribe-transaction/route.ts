@@ -33,6 +33,10 @@ export async function POST(request: NextRequest) {
         temperature: 0.1,
         responseMimeType: "application/json",
       },
+    }, {
+      // Voice input is interactive: fail over fast instead of retrying a saturated model
+      maxRetries: 2,
+      fallbackModels: [GeminiModels.GEMINI_2_5_FLASH],
     });
 
     return NextResponse.json({ content: response.text ?? "" });
