@@ -4,6 +4,7 @@ import type { AddTransactionPayload } from '@/types/agent';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface ConfirmTransactionProps {
   payload: AddTransactionPayload;
@@ -13,6 +14,7 @@ interface ConfirmTransactionProps {
 }
 
 export function ConfirmTransaction({ payload, imagePreview, onConfirm, onCancel }: ConfirmTransactionProps) {
+  const { format: formatCurrency } = useCurrency();
   const isIncome = payload.type === 'income';
 
   return (
@@ -38,7 +40,7 @@ export function ConfirmTransaction({ payload, imagePreview, onConfirm, onCancel 
         )}
         <div className="flex justify-between">
           <span className="text-gray-500">Monto:</span>
-          <span className="font-semibold">${payload.amount.toLocaleString('es-AR')}</span>
+          <span className="font-semibold">{formatCurrency(payload.amount)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Categoría:</span>

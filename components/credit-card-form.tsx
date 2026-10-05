@@ -4,7 +4,6 @@ import type React from 'react';
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -22,12 +21,18 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { format, addMonths } from 'date-fns';
-import type { CreditPurchase, CreditInstallment } from '@/types/database';
+import type { CreditPurchase, CreditInstallment, OmitNew } from '@/types/database';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { useMoneyInput } from '@/hooks/use-money-input';
+import { useCurrency } from '@/hooks/use-currency';
+import { buildMoneyFields, roundAmount } from '@/lib/currency/money';
+import { parseDecimal } from '@/lib/currency/money-input';
+import { toast } from 'sonner';
 
 interface CreditCardFormProps {
   onSubmit: (data: {
-    purchase: Omit<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
-    installments: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
+    purchase: OmitNew<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+    installments: OmitNew<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
   }) => void;
 }
 
@@ -43,40 +48,60 @@ const creditCategories = [
 ];
 
 export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
-  const [totalAmount, setTotalAmount] = useState('');
+  const { state: money, setState: setMoney, toFields, reset: resetMoney, baseCurrency } = useMoneyInput();
+  const { format: formatCurrency } = useCurrency();
   const [installments, setInstallments] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
 
-  const monthlyAmount =
-    totalAmount && installments
-      ? (
-          Number.parseFloat(totalAmount) / Number.parseInt(installments)
-        ).toFixed(2)
-      : '0.00';
+  const purchaseDate = format(new Date(), 'yyyy-MM-dd');
+  const currency = money.currency ?? baseCurrency;
+  const totalOriginal = parseDecimal(money.amount);
+  const monthlyOriginal =
+    Number.isFinite(totalOriginal) && installments
+      ? roundAmount(totalOriginal / Number.parseInt(installments))
+      : 0;
+  const monthlyAmount = monthlyOriginal.toFixed(2);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!totalAmount || !installments || !category || !description) return;
+    if (!money.amount || !installments || !category || !description) return;
+
+    const totalMoney = toFields();
+    if (!totalMoney) {
+      toast.error('Ingresá un monto y una cotización válidos');
+      return;
+    }
 
     const numInstallments = Number.parseInt(installments);
-    const totalAmountValue = Number.parseFloat(totalAmount);
-    const monthlyAmountValue = Number.parseFloat(monthlyAmount);
+    // The provisional rate is frozen until each installment is paid.
+    const monthlyMoney = buildMoneyFields({
+      originalAmount: monthlyOriginal,
+      currency: totalMoney.currency,
+      base: totalMoney.base_currency,
+      rate: totalMoney.exchange_rate,
+      source: totalMoney.rate_source,
+    });
     const today = new Date();
 
     // Create the purchase object
-    const purchase: Omit<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
+    const purchase: OmitNew<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
       description,
       category,
-      total_amount: totalAmountValue,
+      total_amount: totalMoney.amount,
+      currency: totalMoney.currency,
+      original_amount: totalMoney.original_amount,
+      exchange_rate: totalMoney.exchange_rate,
+      rate_source: totalMoney.rate_source,
+      base_currency: totalMoney.base_currency,
       installments: numInstallments,
-      monthly_amount: monthlyAmountValue,
+      monthly_amount: monthlyMoney.amount,
       start_date: format(today, 'yyyy-MM-dd'),
     };
 
     // Create array of installments
-    const installmentsData: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = Array.from(
+    const installmentsData: OmitNew<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = Array.from(
       { length: numInstallments },
       (_, index) => {
         const installmentNumber = index + 1;
@@ -87,7 +112,7 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
         return {
           installment_number: installmentNumber,
           due_date: format(dueDate, 'yyyy-MM-dd'),
-          amount: monthlyAmountValue,
+          ...monthlyMoney,
           paid: false,
           paid_date: null,
           transaction_id: null,
@@ -97,7 +122,7 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
 
     onSubmit({ purchase, installments: installmentsData });
 
-    setTotalAmount('');
+    resetMoney();
     setInstallments('');
     setCategory('');
     setDescription('');
@@ -119,23 +144,13 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
 
       <form onSubmit={handleSubmit} className='space-y-4'>
         <div className='grid gap-4 md:grid-cols-2'>
-          <div className='space-y-2'>
-            <Label htmlFor='total-amount'>Monto Total</Label>
-            <Input
-              id='total-amount'
-              name='total-amount'
-              type='number'
-              inputMode='decimal'
-              placeholder='0.00'
-              value={totalAmount}
-              onChange={(e) => setTotalAmount(e.target.value)}
-              required
-              min={0}
-              step='0.01'
-              autoComplete='off'
-              className='tabular-nums'
-            />
-          </div>
+          <AmountWithCurrencyInput
+            idPrefix='total'
+            label='Monto Total'
+            value={money}
+            onChange={setMoney}
+            date={purchaseDate}
+          />
 
           <div className='space-y-2'>
             <Label htmlFor='installments'>Cantidad de Cuotas</Label>
@@ -187,7 +202,7 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
           />
         </div>
 
-        {totalAmount && installments && (
+        {money.amount && installments && (
           <Card className='bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800'>
             <CardContent className='pt-6'>
               <div className='text-center'>
@@ -195,7 +210,7 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
                   {installments === '1' ? 'Pago único' : 'Cuota mensual'}
                 </div>
                 <div className='text-2xl font-bold text-green-800 dark:text-green-200 tabular-nums'>
-                  ${monthlyAmount}
+                  {formatCurrency(monthlyOriginal, currency)}
                 </div>
                 <div className='text-sm text-green-600 dark:text-green-400'>
                   {installments === '1' ? 'pago en 1 cuota' : `durante ${installments} meses`}

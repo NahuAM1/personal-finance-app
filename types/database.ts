@@ -20,6 +20,11 @@ export interface Database {
           ticket_id: string | null
           service_id: string | null
           period_key?: string
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -40,6 +45,11 @@ export interface Database {
           balance_total?: number | null
           ticket_id?: string | null
           service_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -60,6 +70,11 @@ export interface Database {
           balance_total?: number | null
           ticket_id?: string | null
           service_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -74,6 +89,7 @@ export interface Database {
           deadline: string
           category: string
           deleted_at: string | null
+          currency: string
           created_at: string
           updated_at: string
         }
@@ -86,6 +102,7 @@ export interface Database {
           deadline: string
           category: string
           deleted_at?: string | null
+          currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -98,6 +115,7 @@ export interface Database {
           deadline?: string
           category?: string
           deleted_at?: string | null
+          currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -114,6 +132,11 @@ export interface Database {
           color: string | null
           notes: string | null
           is_active: boolean
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -128,6 +151,11 @@ export interface Database {
           color?: string | null
           notes?: string | null
           is_active?: boolean
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -142,6 +170,11 @@ export interface Database {
           color?: string | null
           notes?: string | null
           is_active?: boolean
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -156,6 +189,11 @@ export interface Database {
           installments: number
           monthly_amount: number
           start_date: string
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -168,6 +206,11 @@ export interface Database {
           installments: number
           monthly_amount: number
           start_date: string
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -180,6 +223,11 @@ export interface Database {
           installments?: number
           monthly_amount?: number
           start_date?: string
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -194,6 +242,11 @@ export interface Database {
           paid: boolean
           paid_date: string | null
           transaction_id: string | null
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -206,6 +259,11 @@ export interface Database {
           paid?: boolean
           paid_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -218,6 +276,11 @@ export interface Database {
           paid?: boolean
           paid_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -237,8 +300,11 @@ export interface Database {
           liquidation_date: string | null
           actual_return: number | null
           transaction_id: string | null
-          currency: string | null
-          exchange_rate: number | null
+          currency: string
+          exchange_rate: number
+          original_amount: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -256,8 +322,11 @@ export interface Database {
           liquidation_date?: string | null
           actual_return?: number | null
           transaction_id?: string | null
-          currency?: string | null
-          exchange_rate?: number | null
+          currency?: string
+          exchange_rate?: number
+          original_amount?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -275,8 +344,11 @@ export interface Database {
           liquidation_date?: string | null
           actual_return?: number | null
           transaction_id?: string | null
-          currency?: string | null
-          exchange_rate?: number | null
+          currency?: string
+          exchange_rate?: number
+          original_amount?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -348,111 +420,6 @@ export interface Database {
           created_at?: string
         }
       }
-      split_groups: {
-        Row: {
-          id: string
-          created_by: string
-          name: string
-          description: string | null
-          currency: string
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          created_by: string
-          name: string
-          description?: string | null
-          currency?: string
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          created_by?: string
-          name?: string
-          description?: string | null
-          currency?: string
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      split_group_members: {
-        Row: {
-          id: string
-          group_id: string
-          user_id: string | null
-          display_name: string
-          email: string | null
-          invite_token: string | null
-          invite_status: "pending" | "accepted" | "declined"
-          is_admin: boolean
-          joined_at: string
-        }
-        Insert: {
-          id?: string
-          group_id: string
-          user_id?: string | null
-          display_name: string
-          email?: string | null
-          invite_token?: string | null
-          invite_status?: "pending" | "accepted" | "declined"
-          is_admin?: boolean
-          joined_at?: string
-        }
-        Update: {
-          id?: string
-          group_id?: string
-          user_id?: string | null
-          display_name?: string
-          email?: string | null
-          invite_token?: string | null
-          invite_status?: "pending" | "accepted" | "declined"
-          is_admin?: boolean
-          joined_at?: string
-        }
-      }
-      split_expenses: {
-        Row: {
-          id: string
-          group_id: string
-          paid_by_member_id: string
-          description: string
-          amount: number
-          category: string | null
-          expense_date: string
-          split_method: "equal" | "custom" | "percentage"
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          group_id: string
-          paid_by_member_id: string
-          description: string
-          amount: number
-          category?: string | null
-          expense_date: string
-          split_method?: "equal" | "custom" | "percentage"
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          group_id?: string
-          paid_by_member_id?: string
-          description?: string
-          amount?: number
-          category?: string | null
-          expense_date?: string
-          split_method?: "equal" | "custom" | "percentage"
-          created_at?: string
-          updated_at?: string
-        }
-      }
       loans: {
         Row: {
           id: string
@@ -469,6 +436,11 @@ export interface Database {
           start_date: string
           due_date: string | null
           transaction_id: string | null
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -487,6 +459,11 @@ export interface Database {
           start_date: string
           due_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -505,6 +482,11 @@ export interface Database {
           start_date?: string
           due_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -519,6 +501,11 @@ export interface Database {
           paid: boolean
           paid_date: string | null
           transaction_id: string | null
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          base_currency: string
           created_at: string
           updated_at: string
         }
@@ -531,6 +518,11 @@ export interface Database {
           paid?: boolean
           paid_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -543,11 +535,148 @@ export interface Database {
           paid?: boolean
           paid_date?: string | null
           transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          base_currency?: string
           created_at?: string
           updated_at?: string
         }
       }
-      split_expense_shares: {
+      trips: {
+        Row: {
+          id: string
+          created_by: string
+          name: string
+          description: string | null
+          destination: string | null
+          start_date: string | null
+          end_date: string | null
+          budget: number | null
+          currency: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          created_by: string
+          name: string
+          description?: string | null
+          destination?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          budget?: number | null
+          currency?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          created_by?: string
+          name?: string
+          description?: string | null
+          destination?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          budget?: number | null
+          currency?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      trip_members: {
+        Row: {
+          id: string
+          trip_id: string
+          user_id: string | null
+          display_name: string
+          email: string | null
+          invite_token: string | null
+          invite_status: "pending" | "accepted" | "declined"
+          is_admin: boolean
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          trip_id: string
+          user_id?: string | null
+          display_name: string
+          email?: string | null
+          invite_token?: string | null
+          invite_status?: "pending" | "accepted" | "declined"
+          is_admin?: boolean
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          trip_id?: string
+          user_id?: string | null
+          display_name?: string
+          email?: string | null
+          invite_token?: string | null
+          invite_status?: "pending" | "accepted" | "declined"
+          is_admin?: boolean
+          joined_at?: string
+        }
+      }
+      trip_expenses: {
+        Row: {
+          id: string
+          trip_id: string
+          paid_by_member_id: string
+          description: string
+          amount: number
+          category: string | null
+          expense_date: string
+          split_method: "equal" | "custom" | "percentage"
+          transaction_id: string | null
+          currency: string
+          original_amount: number
+          exchange_rate: number
+          rate_source: "auto" | "manual"
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          trip_id: string
+          paid_by_member_id: string
+          description: string
+          amount: number
+          category?: string | null
+          expense_date: string
+          split_method?: "equal" | "custom" | "percentage"
+          transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          trip_id?: string
+          paid_by_member_id?: string
+          description?: string
+          amount?: number
+          category?: string | null
+          expense_date?: string
+          split_method?: "equal" | "custom" | "percentage"
+          transaction_id?: string | null
+          currency?: string
+          original_amount?: number
+          exchange_rate?: number
+          rate_source?: "auto" | "manual"
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      trip_expense_shares: {
         Row: {
           id: string
           expense_id: string
@@ -573,8 +702,89 @@ export interface Database {
           settled_at?: string | null
         }
       }
+      user_settings: {
+        Row: UserSettings
+        Insert: {
+          user_id: string
+          ars_rate_type?: ArsRateType
+        }
+        Update: {
+          ars_rate_type?: ArsRateType
+          updated_at?: string
+        }
+      }
+      exchange_rates: {
+        Row: ExchangeRate
+        Insert: ExchangeRate
+        Update: Partial<ExchangeRate>
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          title: string
+          body: string | null
+          data: Record<string, unknown>
+          read_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          title: string
+          body?: string | null
+          data?: Record<string, unknown>
+          read_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: string
+          title?: string
+          body?: string | null
+          data?: Record<string, unknown>
+          read_at?: string | null
+          created_at?: string
+        }
+      }
     }
   }
+}
+
+type MoneyKeys = "currency" | "original_amount" | "exchange_rate" | "rate_source" | "base_currency"
+
+/**
+ * Like Omit<T, K>, but the multi-currency money fields become optional so callers
+ * that do not set them fall back to the database defaults trigger.
+ */
+export type OmitNew<T, K extends keyof T> = Omit<T, K | Extract<MoneyKeys, keyof T>> &
+  Partial<Pick<T, Extract<MoneyKeys, keyof T>>>
+
+export type RateSource = "auto" | "manual"
+export type ArsRateType = "oficial" | "blue" | "bolsa" | "tarjeta"
+
+export interface UserSettings {
+  user_id: string
+  base_currency: string
+  ars_rate_type: ArsRateType
+  pending_base_currency: string | null
+  reconversion_status: "idle" | "running" | "failed"
+  reconversion_started_at: string | null
+  reconversion_error: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ExchangeRate {
+  rate_date: string
+  currency: string
+  rate_type: ArsRateType
+  ars_per_unit: number
+  source: string
+  fetched_at: string
 }
 
 export const USER_ROLES = {
@@ -592,10 +802,11 @@ export type CreditInstallment = Database["public"]["Tables"]["credit_installment
 export type Investment = Database["public"]["Tables"]["investments"]["Row"]
 export type Ticket = Database["public"]["Tables"]["tickets"]["Row"]
 export type TicketItem = Database["public"]["Tables"]["ticket_items"]["Row"]
-export type SplitGroup = Database["public"]["Tables"]["split_groups"]["Row"]
-export type SplitGroupMember = Database["public"]["Tables"]["split_group_members"]["Row"]
-export type SplitExpense = Database["public"]["Tables"]["split_expenses"]["Row"]
-export type SplitExpenseShare = Database["public"]["Tables"]["split_expense_shares"]["Row"]
 export type Loan = Database["public"]["Tables"]["loans"]["Row"]
 export type LoanPayment = Database["public"]["Tables"]["loan_payments"]["Row"]
 export type Service = Database["public"]["Tables"]["services"]["Row"]
+export type Trip = Database["public"]["Tables"]["trips"]["Row"]
+export type TripMember = Database["public"]["Tables"]["trip_members"]["Row"]
+export type TripExpense = Database["public"]["Tables"]["trip_expenses"]["Row"]
+export type TripExpenseShare = Database["public"]["Tables"]["trip_expense_shares"]["Row"]
+export type Notification = Database["public"]["Tables"]["notifications"]["Row"]

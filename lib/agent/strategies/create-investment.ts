@@ -26,7 +26,7 @@ Mapeo de términos comunes:
 
 Reglas:
 - "investmentType" debe ser EXACTAMENTE uno de los tipos válidos listados
-- "amount" debe ser un número positivo (monto de la inversión en pesos)
+- "amount" debe ser un número positivo (monto de la inversión en la moneda base del usuario)
 - "description" debe ser breve y descriptiva
 - "startDate" debe ser la fecha en formato YYYY-MM-DD. Si no se menciona, usá hoy: ${new Date().toISOString().split('T')[0]}
 

@@ -15,13 +15,16 @@ import type {
   ScanReceiptPayload,
   ConversationMessage,
 } from '@/types/agent';
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, OmitNew } from '@/types/database';
 import type { SavingsDepositPayload, DeleteTransactionPayload } from '@/types/agent';
 import { classifyIntent, executeStrategy, fetchPostConfirmMessage, fetchWelcomeMessage } from '@/lib/agent/agent-service';
 import { createTTSService } from '@/lib/agent/tts/tts-service';
 import type { TTSService } from '@/lib/agent/tts/tts-service';
 import { useAuth } from '@/contexts/auth-context';
 import * as api from '@/lib/database-api';
+import { useCurrency } from '@/hooks/use-currency';
+import { resolveMoney } from '@/lib/currency/resolve-money';
+import { isSupportedCurrency } from '@/lib/currency/currencies';
 
 interface ScanCompleteData {
   storeName: string;
@@ -87,6 +90,7 @@ const DISPLAY_ACTIONS: Set<AgentActionType> = new Set([
 
 export function AgentProvider({ children }: AgentProviderProps) {
   const { user } = useAuth();
+  const { baseCurrency, rateType } = useCurrency();
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<AgentStatus>('idle');
   const [messages, setMessages] = useState<AgentMessage[]>([]);
@@ -299,10 +303,30 @@ export function AgentProvider({ children }: AgentProviderProps) {
         case AgentAction.ADD_EXPENSE:
         case AgentAction.ADD_INCOME: {
           const p = pendingPayload as AddTransactionPayload;
-          const transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'> = {
+          // A foreign currency is converted at the movement date (same path as the forms);
+          // a failed rate lookup throws, so nothing is saved without a rate.
+          const payloadCurrency = p.currency?.toUpperCase();
+          const money =
+            payloadCurrency && payloadCurrency !== baseCurrency && isSupportedCurrency(payloadCurrency)
+              ? await resolveMoney({
+                  currency: payloadCurrency,
+                  originalAmount: p.amount,
+                  base: baseCurrency,
+                  date: p.date,
+                  rateType,
+                })
+              : null;
+          const transaction: OmitNew<Transaction, 'id' | 'created_at' | 'updated_at'> = {
             user_id: user.id,
             type: p.type,
-            amount: p.amount,
+            amount: money ? money.amount : p.amount,
+            ...(money && {
+              currency: money.currency,
+              original_amount: money.original_amount,
+              exchange_rate: money.exchange_rate,
+              rate_source: money.rate_source,
+              base_currency: money.base_currency,
+            }),
             category: p.category,
             description: p.description,
             date: p.date,
@@ -322,7 +346,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
 
         case AgentAction.CREATE_SAVINGS_GOAL: {
           const p = pendingPayload as CreateSavingsGoalPayload;
-          const plan: Omit<ExpensePlan, 'id' | 'deleted_at' | 'created_at' | 'updated_at'> = {
+          const plan: OmitNew<ExpensePlan, 'id' | 'deleted_at' | 'created_at' | 'updated_at'> = {
             user_id: user.id,
             name: p.name,
             target_amount: p.targetAmount,
@@ -338,7 +362,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
           const p = pendingPayload as CreditPurchasePayload;
           const monthlyAmount = Math.ceil((p.totalAmount / p.installments) * 100) / 100;
 
-          const purchase: Omit<CreditPurchase, 'id' | 'created_at' | 'updated_at'> = {
+          const purchase: OmitNew<CreditPurchase, 'id' | 'created_at' | 'updated_at'> = {
             user_id: user.id,
             description: p.description,
             category: p.category,
@@ -348,7 +372,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
             start_date: p.startDate,
           };
 
-          const installments: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = [];
+          const installments: OmitNew<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = [];
           const startDate = new Date(p.startDate);
 
           for (let i = 0; i < p.installments; i++) {
@@ -372,7 +396,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
 
         case AgentAction.CREATE_INVESTMENT: {
           const p = pendingPayload as CreateInvestmentPayload;
-          const investment: Omit<Investment, 'id' | 'created_at' | 'updated_at'> = {
+          const investment: OmitNew<Investment, 'id' | 'created_at' | 'updated_at'> = {
             user_id: user.id,
             investment_type: p.investmentType,
             amount: p.amount,
@@ -385,8 +409,8 @@ export function AgentProvider({ children }: AgentProviderProps) {
             liquidation_date: null,
             actual_return: null,
             transaction_id: null,
-            currency: null,
-            exchange_rate: null,
+            currency: undefined,
+            exchange_rate: undefined,
           };
           await api.createInvestment(investment);
           break;
@@ -443,7 +467,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
       setPendingPayload(null);
       setPendingImagePreview(null);
     }
-  }, [pendingPayload, user, addMessage, speakIfEnabled, updateSessionPreferences, pendingSequenceCount, buildFollowUpSuggestion]);
+  }, [pendingPayload, user, baseCurrency, rateType, addMessage, speakIfEnabled, updateSessionPreferences, pendingSequenceCount, buildFollowUpSuggestion]);
 
   const cancelAction = useCallback(() => {
     setPendingPayload(null);

@@ -49,12 +49,20 @@ export interface ExportOptions {
 export type ExportFormat = 'json' | 'xlsx';
 
 export interface CanonicalMetadata {
-  schemaVersion: 1;
+  /** 2 adds the multi-currency fields; v1 files are still accepted on import. */
+  schemaVersion: 1 | 2;
   exportedAt: string;
   exportedBy: string;
   dateRange: DateRange | null;
   appVersion: string;
   entities: EntityKey[];
+  /** Base currency of the exporting user (v2). Rows are expressed in it. */
+  baseCurrency?: string;
+}
+
+export interface CanonicalSettings {
+  base_currency: string;
+  ars_rate_type: string;
 }
 
 export interface CanonicalData {
@@ -71,6 +79,8 @@ export interface CanonicalData {
 
 export interface CanonicalExport {
   metadata: CanonicalMetadata;
+  /** User currency settings (v2). Informational: import never overwrites the settings. */
+  settings?: CanonicalSettings;
   data: CanonicalData;
 }
 
@@ -95,4 +105,9 @@ export interface ValidationResult {
 export interface ImportResult {
   inserted: EntityCounts;
   errors: string[];
+  /**
+   * Base currency of imported rows when it differs from the user base currency. The caller
+   * offers the reconversion job in that case.
+   */
+  mismatchedBase?: string | null;
 }

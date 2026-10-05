@@ -1,3 +1,9 @@
+-- NOTE: The split_* tables below (split groups/expenses) were migrated to
+-- Trips ("Viajes") by scripts/migrate-split-to-trips.sql, which renames them
+-- to trips / trip_members / trip_expenses / trip_expense_shares and replaces
+-- their RLS policies and helper functions. This file is kept as history; for a
+-- new database run it and then migrate-split-to-trips.sql.
+
 -- ============================================
 -- SmartPocket Tables - Personal Wallet Premium
 -- ============================================

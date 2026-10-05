@@ -20,35 +20,21 @@ import {
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CheckCircle2, Calendar, CreditCard } from 'lucide-react';
+import type { CreditInstallment, CreditPurchase } from '@/types/database';
+import { RateInput, type RateInputValue } from '@/components/currency/rate-input';
+import { useCurrency } from '@/hooks/use-currency';
+import { buildMoneyFields, type MoneyFields } from '@/lib/currency/money';
+import { parseDecimal } from '@/lib/currency/money-input';
+import { toast } from 'sonner';
 
-interface CreditInstallmentWithPurchase {
-  id: string;
-  credit_purchase_id: string;
-  installment_number: number;
-  due_date: string;
-  amount: number;
-  paid: boolean;
-  paid_date: string | null;
-  transaction_id: string | null;
-  created_at: string;
-  updated_at: string;
-  credit_purchase: {
-    id: string;
-    user_id: string;
-    description: string;
-    category: string;
-    total_amount: number;
-    installments: number;
-    monthly_amount: number;
-    start_date: string;
-    created_at: string;
-    updated_at: string;
-  };
-}
+type CreditInstallmentWithPurchase = CreditInstallment & {
+  credit_purchase: CreditPurchase;
+};
 
 interface CreditPaymentFormProps {
   installments: CreditInstallmentWithPurchase[];
-  onPayInstallment: (installmentId: string) => void;
+  /** `money` is only set when the user edited the rate of a foreign-currency installment. */
+  onPayInstallment: (installmentId: string, money?: MoneyFields) => void;
   onPayInstallments: (installmentIds: string[]) => Promise<void>;
 }
 
@@ -56,6 +42,15 @@ export function CreditPaymentFormNew({ installments, onPayInstallment, onPayInst
   const [selectedInstallment, setSelectedInstallment] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
   const [payingMonth, setPayingMonth] = useState(false);
+  const [payRate, setPayRate] = useState<RateInputValue>({ rate: '', rateSource: 'auto' });
+  const { baseCurrency, format: formatCurrency } = useCurrency();
+  const today = new Date().toISOString().split('T')[0];
+
+  // Shows the original amount, plus the base equivalent when the currency differs.
+  const formatInstallment = (inst: CreditInstallment): string =>
+    inst.currency === baseCurrency
+      ? formatCurrency(inst.amount)
+      : `${formatCurrency(inst.original_amount, inst.currency)} (≈ ${formatCurrency(inst.amount)})`;
 
   // Filter only unpaid installments
   const unpaidInstallments = installments.filter((inst) => !inst.paid);
@@ -99,15 +94,33 @@ export function CreditPaymentFormNew({ installments, onPayInstallment, onPayInst
     return acc;
   }, {} as Record<string, { purchase: CreditInstallmentWithPurchase['credit_purchase']; installments: CreditInstallmentWithPurchase[] }>);
 
-  const handlePayment = () => {
-    if (!selectedInstallment) return;
-    onPayInstallment(selectedInstallment);
-    setSelectedInstallment('');
-  };
-
   const selectedInstallmentData = unpaidInstallments.find(
     (inst) => inst.id === selectedInstallment
   );
+
+  const handlePayment = () => {
+    if (!selectedInstallmentData) return;
+
+    let money: MoneyFields | undefined;
+    if (selectedInstallmentData.currency !== baseCurrency) {
+      const rate = parseDecimal(payRate.rate);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        toast.error('Ingresá una cotización válida para registrar el pago');
+        return;
+      }
+      money = buildMoneyFields({
+        originalAmount: selectedInstallmentData.original_amount,
+        currency: selectedInstallmentData.currency,
+        base: baseCurrency,
+        rate,
+        source: payRate.rateSource,
+      });
+    }
+
+    onPayInstallment(selectedInstallmentData.id, money);
+    setSelectedInstallment('');
+    setPayRate({ rate: '', rateSource: 'auto' });
+  };
 
   if (unpaidInstallments.length === 0) {
     return (
@@ -175,12 +188,12 @@ export function CreditPaymentFormNew({ installments, onPayInstallment, onPayInst
                   <span className='min-w-0 truncate'>
                     {inst.credit_purchase.description} — Cuota {inst.installment_number}/{inst.credit_purchase.installments}
                   </span>
-                  <span className='shrink-0 tabular-nums'>${inst.amount.toFixed(2)}</span>
+                  <span className='shrink-0 tabular-nums'>{formatInstallment(inst)}</span>
                 </li>
               ))}
               <li className='flex items-center justify-between gap-3 pt-3 font-semibold'>
                 <span>Total</span>
-                <span className='tabular-nums'>${monthTotal.toFixed(2)}</span>
+                <span className='tabular-nums'>{formatCurrency(monthTotal)}</span>
               </li>
             </ul>
           )}
@@ -226,7 +239,7 @@ export function CreditPaymentFormNew({ installments, onPayInstallment, onPayInst
                               <span>
                                 Cuota {installment.installment_number}/{data.purchase.installments}
                               </span>
-                              <span className='font-semibold'>${installment.amount.toFixed(2)}</span>
+                              <span className='font-semibold'>{formatInstallment(installment)}</span>
                               <span className={`text-xs ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
                                 {format(new Date(installment.due_date), 'dd/MM/yyyy')}
                                 {isOverdue && ' ⚠️'}
@@ -281,7 +294,7 @@ export function CreditPaymentFormNew({ installments, onPayInstallment, onPayInst
                       Monto a pagar:
                     </span>
                     <span className='text-2xl font-bold text-blue-900 dark:text-blue-100'>
-                      ${selectedInstallmentData.amount.toFixed(2)}
+                      {formatCurrency(selectedInstallmentData.original_amount, selectedInstallmentData.currency)}
                     </span>
                   </div>
                 </div>
@@ -289,6 +302,15 @@ export function CreditPaymentFormNew({ installments, onPayInstallment, onPayInst
                 <div className='text-xs text-blue-600 dark:text-blue-400'>
                   Categoría: {selectedInstallmentData.credit_purchase.category}
                 </div>
+
+                <RateInput
+                  currency={selectedInstallmentData.currency}
+                  value={payRate}
+                  onChange={setPayRate}
+                  date={today}
+                  amount={selectedInstallmentData.original_amount}
+                  idPrefix='pay-installment'
+                />
               </div>
             </CardContent>
           </Card>

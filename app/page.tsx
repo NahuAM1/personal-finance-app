@@ -23,6 +23,9 @@ import { ExpensePlans } from '@/components/expense-plans';
 import { Loans } from '@/components/loans';
 import { History } from '@/components/history';
 import { Services } from '@/components/services';
+import { Trips } from '@/components/trips/trips';
+import { NAVIGATE_TAB_EVENT, DATA_CHANGED_EVENT } from '@/lib/app-events';
+import { ReconversionProgress } from '@/components/currency/reconversion-progress';
 import {
   BarChart3,
   PlusCircle,
@@ -32,15 +35,17 @@ import {
   TrendingUp,
   Wallet,
   Receipt,
+  Plane,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthGuard } from '@/components/auth-guard';
 import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, OmitNew } from '@/types/database';
 import { USER_ROLES } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
+import { NotificationBell } from '@/components/notification-bell';
 import Image from 'next/image';
 import Link from 'next/link';
 import Logo from '../assets/images/logo.svg';
@@ -51,6 +56,10 @@ import { AccessControl } from '@/components/access-control';
 import { AgentFloatingButton } from '@/components/agent/agent-floating-button';
 import { useAgentContext } from '@/contexts/agent-context';
 import { ChartPreferencesProvider } from '@/contexts/chart-preferences-context';
+import { roundAmount, type MoneyFields } from '@/lib/currency/money';
+import { resolveRate } from '@/lib/currency/resolve-money';
+import { isSupportedCurrency } from '@/lib/currency/currencies';
+import { useCurrency } from '@/hooks/use-currency';
 
 type InstallmentWithPurchase = CreditInstallment & {
   credit_purchase: CreditPurchase;
@@ -58,6 +67,7 @@ type InstallmentWithPurchase = CreditInstallment & {
 
 function FinanceAppContent() {
   const { user } = useAuth();
+  const { rateType, baseCurrency } = useCurrency();
   const { toast } = useToast();
   const { setOnActionCompleted } = useAgentContext();
   const [loading, setLoading] = useState(true);
@@ -72,7 +82,7 @@ function FinanceAppContent() {
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem('activeTab') || 'dashboard';
-      const validTabs = ['dashboard', 'expenses', 'installments', 'growth', 'servicios', 'history'];
+      const validTabs = ['dashboard', 'expenses', 'installments', 'growth', 'servicios', 'trips', 'history'];
       // Migrate old tab values to new ones
       const migrationMap: Record<string, string> = {
         credit: 'installments',
@@ -91,11 +101,23 @@ function FinanceAppContent() {
     sessionStorage.setItem('activeTab', value);
   };
 
+  // Lets global UI (e.g. accepting a trip invite from the bell) switch tabs.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const tab = (event as CustomEvent<string>).detail;
+      if (typeof tab !== 'string') return;
+      setActiveTab(tab);
+      sessionStorage.setItem('activeTab', tab);
+    };
+    window.addEventListener(NAVIGATE_TAB_EVENT, handler);
+    return () => window.removeEventListener(NAVIGATE_TAB_EVENT, handler);
+  }, []);
+
   const {
-    setIncomeAmount,
+    setIncomeMoney,
     setIncomeCategory,
     setIncomeDescription,
-    setExpenseAmount,
+    setExpenseMoney,
     setExpenseCategory,
     setExpenseDescription,
   } = useFormContext();
@@ -133,6 +155,14 @@ function FinanceAppContent() {
     }
   };
 
+  // Reload everything after the base currency was reconverted.
+  useEffect(() => {
+    const handler = () => { void loadData(); };
+    window.addEventListener(DATA_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const hasLoadedOnce = useRef(false);
 
   useEffect(() => {
@@ -146,7 +176,7 @@ function FinanceAppContent() {
   }, [setOnActionCompleted]);
 
   const addTransaction = async (
-    transaction: Omit<
+    transaction: OmitNew<
       Transaction,
       'id' | 'user_id' | 'created_at' | 'updated_at'
     >
@@ -184,8 +214,8 @@ function FinanceAppContent() {
   };
 
   const addCreditPurchase = async (data: {
-    purchase: Omit<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
-    installments: Omit<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
+    purchase: OmitNew<CreditPurchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+    installments: OmitNew<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[];
   }) => {
     if (!user) {
       return;
@@ -218,12 +248,12 @@ function FinanceAppContent() {
     }
   };
 
-  const payCreditInstallment = async (installmentId: string) => {
+  const payCreditInstallment = async (installmentId: string, money?: MoneyFields) => {
     if (!user) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      await api.payCreditInstallment(installmentId, user.id, today);
+      await api.payCreditInstallment(installmentId, user.id, today, money);
 
       toast({
         title: 'Éxito',
@@ -271,7 +301,7 @@ function FinanceAppContent() {
   };
 
   const addInvestment = async (
-    investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+    investment: OmitNew<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>
   ) => {
     if (!user) return;
 
@@ -492,7 +522,7 @@ function FinanceAppContent() {
   };
 
   const addExpensePlan = async (
-    plan: Omit<ExpensePlan, 'id' | 'user_id' | 'deleted_at' | 'created_at' | 'updated_at'>
+    plan: OmitNew<ExpensePlan, 'id' | 'user_id' | 'deleted_at' | 'created_at' | 'updated_at'>
   ) => {
     if (!user) return;
 
@@ -516,13 +546,21 @@ function FinanceAppContent() {
     }
   };
 
-  const updateExpensePlan = async (id: string, amount: number) => {
+  // `amount` is in `depositCurrency` (defaults to the plan currency) and is converted to the plan
+  // currency at the deposit date.
+  const updateExpensePlan = async (id: string, amount: number, depositCurrency?: string) => {
     const plan = expensePlans.find((p) => p.id === id);
     if (!plan) return;
 
     try {
+      let amountInPlanCurrency = amount;
+      if (depositCurrency && depositCurrency !== plan.currency) {
+        const today = new Date().toISOString().split('T')[0];
+        const rate = await resolveRate(depositCurrency, plan.currency, today, rateType);
+        amountInPlanCurrency = roundAmount(amount * rate);
+      }
       const newAmount = Math.min(
-        plan.current_amount + amount,
+        plan.current_amount + amountInPlanCurrency,
         plan.target_amount
       );
       const updatedPlan = await api.updateExpensePlan(id, {
@@ -564,8 +602,8 @@ function FinanceAppContent() {
   };
 
   const addLoan = async (data: {
-    loan: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'>;
-    payments: Omit<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[];
+    loan: OmitNew<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'>;
+    payments: OmitNew<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[];
   }) => {
     if (!user) return;
 
@@ -595,12 +633,12 @@ function FinanceAppContent() {
     }
   };
 
-  const payLoanPayment = async (paymentId: string) => {
+  const payLoanPayment = async (paymentId: string, money?: MoneyFields) => {
     if (!user) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      await api.payLoanPayment(paymentId, user.id, today);
+      await api.payLoanPayment(paymentId, user.id, today, money);
 
       toast({
         title: 'Exito',
@@ -620,11 +658,15 @@ function FinanceAppContent() {
     }
   };
 
-  const updateLoan = async (loanId: string, fields: api.LoanEditableFields) => {
+  const updateLoan = async (
+    loanId: string,
+    fields: api.LoanEditableFields,
+    rate?: api.LoanRateOverride
+  ) => {
     if (!user) return;
 
     try {
-      await api.updateLoan(loanId, user.id, fields);
+      await api.updateLoan(loanId, user.id, fields, rate);
 
       toast({
         title: 'Exito',
@@ -703,6 +745,7 @@ function FinanceAppContent() {
           amount: number;
           category: string;
           description: string;
+          currency?: string | null;
         }
   ): void => {
     let response: {
@@ -710,6 +753,7 @@ function FinanceAppContent() {
       amount: number;
       category: string;
       description: string;
+      currency?: string | null;
     };
 
     if (typeof rawResponse === 'string') {
@@ -729,13 +773,18 @@ function FinanceAppContent() {
     }
 
     const { type, amount, category, description } = response;
+    // Detected currency (default: the base currency); the form prefills the rate for it.
+    const detected = typeof response.currency === 'string' ? response.currency.toUpperCase() : null;
+    const currency =
+      detected && isSupportedCurrency(detected) && detected !== baseCurrency ? detected : null;
+    const money = { amount: amount.toString(), currency, rate: '', rateSource: 'auto' as const };
 
     if (type === 'income') {
-      setIncomeAmount(amount.toString());
+      setIncomeMoney(money);
       setIncomeCategory(category);
       setIncomeDescription(description);
     } else if (type === 'expense') {
-      setExpenseAmount(amount.toString());
+      setExpenseMoney(money);
       setExpenseCategory(category);
       setExpenseDescription(description);
     }
@@ -754,16 +803,20 @@ function FinanceAppContent() {
   return (
     <div className='min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800'>
       <div className='container mx-auto p-4 max-w-7xl'>
-        <div className='flex items-center justify-between py-3 px-6 mb-6 bg-white rounded-full shadow-md'>
-          <div className='flex items-center justify-center gap-2'>
+        <div className='flex items-center justify-between gap-2 py-3 px-4 sm:px-6 mb-6 bg-white rounded-full shadow-md'>
+          <div className='flex items-center justify-center gap-2 min-w-0'>
             <Image src={Logo} width={60} height={60} alt='Personal Wallet logo' className='shrink-0 w-10 h-10 lg:w-[60px] lg:h-[60px]' />
-            <h1 className='text-xl lg:text-3xl font-bold text-[#466E45] dark:text-white'>
+            <h1 className='text-xl lg:text-3xl font-bold text-[#466E45] dark:text-white truncate'>
               Personal Wallet
             </h1>
           </div>
-          <UserProfile />
+          <div className='flex items-center gap-1 shrink-0'>
+            <NotificationBell />
+            <UserProfile />
+          </div>
         </div>
 
+        <ReconversionProgress className='mb-4' />
         <Tabs value={activeTab} onValueChange={handleTabChange} className='space-y-6'>
           <div className='flex items-center justify-center'>
             <TabsList className='w-full justify-around'>
@@ -772,27 +825,31 @@ function FinanceAppContent() {
                 className='flex items-center gap-2'
               >
                 <BarChart3 className='h-4 w-4' />
-                <span className='hidden sm:inline'>Dashboard</span>
+                <span className='hidden xl:inline'>Dashboard</span>
               </TabsTrigger>
               <TabsTrigger value='expenses' className='flex items-center gap-2'>
                 <PlusCircle className='h-4 w-4' />
-                <span className='hidden sm:inline'>Transacciones</span>
+                <span className='hidden xl:inline'>Transacciones</span>
               </TabsTrigger>
               <TabsTrigger value='installments' className='flex items-center gap-2'>
                 <Wallet className='h-4 w-4' />
-                <span className='hidden sm:inline'>Cuotas y Pagos</span>
+                <span className='hidden xl:inline'>Cuotas y Pagos</span>
               </TabsTrigger>
               <TabsTrigger value='growth' className='flex items-center gap-2'>
                 <TrendingUp className='h-4 w-4' />
-                <span className='hidden sm:inline'>Inversiones y Metas</span>
+                <span className='hidden xl:inline'>Inversiones y Metas</span>
               </TabsTrigger>
               <TabsTrigger value='servicios' className='flex items-center gap-2'>
                 <Receipt className='h-4 w-4' />
-                <span className='hidden sm:inline'>Servicios</span>
+                <span className='hidden xl:inline'>Servicios</span>
+              </TabsTrigger>
+              <TabsTrigger value='trips' className='flex items-center gap-2'>
+                <Plane className='h-4 w-4' />
+                <span className='hidden xl:inline'>Viajes</span>
               </TabsTrigger>
               <TabsTrigger value='history' className='flex items-center gap-2'>
                 <ClipboardList className='h-4 w-4' />
-                <span className='hidden sm:inline'>Historial</span>
+                <span className='hidden xl:inline'>Historial</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1004,6 +1061,10 @@ function FinanceAppContent() {
 
           <TabsContent value='servicios'>
             <Services />
+          </TabsContent>
+
+          <TabsContent value='trips'>
+            <Trips onTransactionsChanged={() => loadData()} />
           </TabsContent>
 
           <TabsContent value='history'>

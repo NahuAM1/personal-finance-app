@@ -34,32 +34,13 @@ import {
 import { format, isPast, isToday, addMonths, parseISO, getMonth, getYear } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CheckCircle2, Clock, AlertCircle, CreditCard, Calendar, Trash2, Edit2, ChevronsRight } from 'lucide-react';
+import { useCurrency } from '@/hooks/use-currency';
+import { OriginalAmount } from '@/components/currency/original-amount';
+import type { CreditPurchase, CreditInstallment } from '@/types/database';
+import { roundAmount } from '@/lib/currency/money';
 
-interface CreditPurchaseData {
-  id: string;
-  user_id: string;
-  description: string;
-  category: string;
-  total_amount: number;
-  installments: number;
-  monthly_amount: number;
-  start_date: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface CreditInstallmentData {
-  id: string;
-  credit_purchase_id: string;
-  installment_number: number;
-  due_date: string;
-  amount: number;
-  paid: boolean;
-  paid_date: string | null;
-  transaction_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
+type CreditPurchaseData = CreditPurchase;
+type CreditInstallmentData = CreditInstallment;
 
 interface PurchaseWithInstallments {
   purchase: CreditPurchaseData;
@@ -75,6 +56,7 @@ interface CreditCardOverviewNewProps {
 }
 
 export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpdate, onPushForward }: CreditCardOverviewNewProps) {
+  const { format: formatCurrency } = useCurrency();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [pushDialogOpen, setPushDialogOpen] = useState(false);
@@ -103,7 +85,8 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
   const handleEditClick = (purchase: CreditPurchaseData) => {
     setPurchaseToEdit(purchase);
     setEditDescription(purchase.description);
-    setEditTotalAmount(purchase.total_amount.toString());
+    // The total is edited in the purchase currency; the stored rate converts it to the base.
+    setEditTotalAmount(purchase.original_amount.toString());
     setEditDialogOpen(true);
   };
 
@@ -131,13 +114,15 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
   const confirmEdit = () => {
     if (!purchaseToEdit) return;
 
-    const newTotalAmount = Number.parseFloat(editTotalAmount);
-    const newMonthlyAmount = newTotalAmount / purchaseToEdit.installments;
+    const newOriginalTotal = Number.parseFloat(editTotalAmount);
+    const rate = purchaseToEdit.exchange_rate;
+    const monthlyOriginal = roundAmount(newOriginalTotal / purchaseToEdit.installments);
 
     const updates: Partial<CreditPurchaseData> = {
       description: editDescription,
-      total_amount: newTotalAmount,
-      monthly_amount: newMonthlyAmount,
+      original_amount: newOriginalTotal,
+      total_amount: roundAmount(newOriginalTotal * rate),
+      monthly_amount: roundAmount(monthlyOriginal * rate),
     };
 
     onUpdate(purchaseToEdit.id, updates);
@@ -255,7 +240,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                 Total este mes ({currentMonthLabel})
               </div>
               <div className='text-xl font-bold text-blue-900 dark:text-blue-100 tabular-nums mt-1'>
-                ${totalCurrentMonth.toFixed(2)}
+                {formatCurrency(totalCurrentMonth)}
               </div>
             </div>
             <div className='p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800'>
@@ -263,7 +248,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                 Total mes próximo ({nextMonthLabel})
               </div>
               <div className='text-xl font-bold text-indigo-900 dark:text-indigo-100 tabular-nums mt-1'>
-                ${totalNextMonth.toFixed(2)}
+                {formatCurrency(totalNextMonth)}
               </div>
             </div>
             <div className='p-3 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800'>
@@ -271,7 +256,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                 Total pendiente
               </div>
               <div className='text-xl font-bold text-amber-900 dark:text-amber-100 tabular-nums mt-1'>
-                ${totalPendingAll.toFixed(2)}
+                {formatCurrency(totalPendingAll)}
               </div>
             </div>
           </div>
@@ -373,7 +358,8 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                       Total
                     </div>
                     <div className='font-bold text-gray-900 dark:text-gray-100'>
-                      ${data.purchase.total_amount.toFixed(2)}
+                      {formatCurrency(data.purchase.total_amount)}
+                      <OriginalAmount originalAmount={data.purchase.original_amount} currency={data.purchase.currency} />
                     </div>
                   </div>
                   <div className='text-center p-2 bg-green-100 dark:bg-green-900 rounded'>
@@ -381,7 +367,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                       Pagado
                     </div>
                     <div className='font-bold text-green-800 dark:text-green-200'>
-                      ${data.totalPaid.toFixed(2)}
+                      {formatCurrency(data.totalPaid)}
                     </div>
                   </div>
                   <div className='text-center p-2 bg-amber-100 dark:bg-amber-900 rounded'>
@@ -389,7 +375,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                       Pendiente
                     </div>
                     <div className='font-bold text-amber-800 dark:text-amber-200'>
-                      ${data.totalPending.toFixed(2)}
+                      {formatCurrency(data.totalPending)}
                     </div>
                   </div>
                 </div>
@@ -402,7 +388,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                         Este mes ({currentMonthLabel})
                       </div>
                       <div className='font-bold text-blue-900 dark:text-blue-100'>
-                        ${data.currentMonthTotal.toFixed(2)}
+                        {formatCurrency(data.currentMonthTotal)}
                       </div>
                     </div>
                     <div className='p-2 bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800 rounded'>
@@ -410,7 +396,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                         Mes próximo ({nextMonthLabel})
                       </div>
                       <div className='font-bold text-indigo-900 dark:text-indigo-100'>
-                        ${data.nextMonthTotal.toFixed(2)}
+                        {formatCurrency(data.nextMonthTotal)}
                       </div>
                     </div>
                   </div>
@@ -463,8 +449,9 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                             Cuota {installment.installment_number}
                           </span>
                           <div className='flex items-center gap-2'>
-                            <span className='font-semibold'>
-                              ${installment.amount.toFixed(2)}
+                            <span className='font-semibold text-right'>
+                              {formatCurrency(installment.amount)}
+                              <OriginalAmount originalAmount={installment.original_amount} currency={installment.currency} className='text-right' />
                             </span>
                             <span className='text-xs opacity-75'>
                               {format(new Date(installment.due_date), 'dd/MM/yy')}
@@ -533,7 +520,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
             </div>
 
             <div className='space-y-2'>
-              <Label htmlFor='edit-total'>Monto Total</Label>
+              <Label htmlFor='edit-total'>Monto Total{purchaseToEdit ? ` (${purchaseToEdit.currency})` : ''}</Label>
               <Input
                 id='edit-total'
                 type='number'
@@ -543,7 +530,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
               />
               {purchaseToEdit && editTotalAmount && (
                 <p className='text-xs text-gray-500'>
-                  Cuota mensual: ${(Number.parseFloat(editTotalAmount) / purchaseToEdit.installments).toFixed(2)}
+                  Cuota mensual: {formatCurrency(Number.parseFloat(editTotalAmount) / purchaseToEdit.installments, purchaseToEdit.currency)}
                 </p>
               )}
             </div>

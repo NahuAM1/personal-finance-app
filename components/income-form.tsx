@@ -3,7 +3,6 @@
 import type React from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -14,14 +13,18 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
-import type { Transaction } from '@/types/database';
+import type { Transaction, OmitNew } from '@/types/database';
 import { incomeCategories } from '@/public/constants';
 import { TransactionsTypes } from '@/public/enums';
 import { useFormContext } from '@/contexts/form-context';
+import { useCurrency } from '@/hooks/use-currency';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { moneyInputToFields } from '@/lib/currency/money-input';
+import { toast } from 'sonner';
 
 interface IncomeFormProps {
   onSubmit: (
-    transaction: Omit<
+    transaction: OmitNew<
       Transaction,
       'id' | 'user_id' | 'created_at' | 'updated_at'
     >
@@ -31,11 +34,13 @@ interface IncomeFormProps {
 export function IncomeForm({ onSubmit }: IncomeFormProps) {
   const {
     incomeForm,
-    setIncomeAmount,
+    setIncomeMoney,
     setIncomeCategory,
     setIncomeDescription,
     resetIncomeForm,
   } = useFormContext();
+  const { baseCurrency } = useCurrency();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,12 +48,18 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
     if (!incomeForm.amount || !incomeForm.category || !incomeForm.description)
       return;
 
+    const money = moneyInputToFields(incomeForm, baseCurrency);
+    if (!money) {
+      toast.error('Ingresá un monto y una cotización válidos');
+      return;
+    }
+
     onSubmit({
       type: TransactionsTypes.INCOME,
-      amount: Number.parseFloat(incomeForm.amount),
+      ...money,
       category: incomeForm.category,
       description: incomeForm.description,
-      date: format(new Date(), 'yyyy-MM-dd'),
+      date: today,
       is_recurring: null,
       installments: null,
       current_installment: null,
@@ -62,23 +73,12 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className='space-y-4'>
-      <div className='space-y-2'>
-        <Label htmlFor='income-amount'>Monto</Label>
-        <Input
-          id='income-amount'
-          name='income-amount'
-          type='number'
-          inputMode='decimal'
-          placeholder='0.00'
-          value={incomeForm.amount}
-          onChange={(e) => setIncomeAmount(e.target.value)}
-          required
-          min={0}
-          step='0.01'
-          autoComplete='off'
-          className='tabular-nums'
-        />
-      </div>
+      <AmountWithCurrencyInput
+        idPrefix='income'
+        value={incomeForm}
+        onChange={setIncomeMoney}
+        date={today}
+      />
 
       <div className='space-y-2'>
         <Label htmlFor='income-category'>Categoría</Label>

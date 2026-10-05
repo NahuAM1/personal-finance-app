@@ -47,20 +47,29 @@ import {
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Loan, LoanPayment } from '@/types/database';
-import type { LoanEditableFields } from '@/lib/database-api';
+import type { Loan, LoanPayment, OmitNew } from '@/types/database';
+import type { LoanEditableFields, LoanRateOverride } from '@/lib/database-api';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { RateInput, type RateInputValue } from '@/components/currency/rate-input';
+import { useMoneyInput } from '@/hooks/use-money-input';
+import { useCurrency } from '@/hooks/use-currency';
+import { buildMoneyFields, roundAmount, type MoneyFields } from '@/lib/currency/money';
+import { parseDecimal } from '@/lib/currency/money-input';
+import { toast } from 'sonner';
 import { EditLoanDialog, EditLoanPaymentDialog } from '@/components/loan-edit-dialogs';
+import { OriginalAmount } from '@/components/currency/original-amount';
 
 interface LoansProps {
   loans: Loan[];
   loanPayments: LoanPayment[];
   onAddLoan: (data: {
-    loan: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'>;
-    payments: Omit<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[];
+    loan: OmitNew<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'>;
+    payments: OmitNew<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[];
   }) => void;
-  onPayLoanPayment: (paymentId: string) => void;
+  /** `money` is only set when the user edited the rate of a foreign-currency payment. */
+  onPayLoanPayment: (paymentId: string, money?: MoneyFields) => void;
   onDeleteLoan: (loanId: string) => void;
-  onUpdateLoan: (loanId: string, fields: LoanEditableFields) => Promise<void>;
+  onUpdateLoan: (loanId: string, fields: LoanEditableFields, rate?: LoanRateOverride) => Promise<void>;
   onUpdateLoanPayment: (paymentId: string, fields: Pick<LoanPayment, 'amount' | 'due_date'>) => Promise<void>;
   mode?: 'loans' | 'payment_plans';
 }
@@ -69,7 +78,6 @@ interface NewLoanForm {
   loanType: 'given' | 'received' | 'payment_plan' | '';
   counterpartyName: string;
   description: string;
-  principalAmount: string;
   interestRate: string;
   paymentMode: 'single' | 'installments' | '';
   installmentsCount: string;
@@ -81,7 +89,6 @@ const initialFormState: NewLoanForm = {
   loanType: '',
   counterpartyName: '',
   description: '',
-  principalAmount: '',
   interestRate: '0',
   paymentMode: '',
   installmentsCount: '1',
@@ -118,15 +125,20 @@ export function Loans({
     : initialFormState;
 
   const [form, setForm] = useState<NewLoanForm>(defaultFormState);
+  const { state: principalMoney, setState: setPrincipalMoney, reset: resetPrincipal, baseCurrency } = useMoneyInput();
+  const { format: formatCurrency } = useCurrency();
+  const [payRate, setPayRate] = useState<RateInputValue>({ rate: '', rateSource: 'auto' });
+  const loanCurrency = principalMoney.currency ?? baseCurrency;
   const [confirmPayment, setConfirmPayment] = useState<(LoanPayment & { loan: Loan }) | null>(null);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [editingPayment, setEditingPayment] = useState<(LoanPayment & { loan: Loan }) | null>(null);
 
+  // Totals are computed in the loan currency; base amounts use the loan rate on submit.
   const totalAmount = useMemo(() => {
-    const principal = Number.parseFloat(form.principalAmount) || 0;
+    const principal = parseDecimal(principalMoney.amount) || 0;
     const rate = Number.parseFloat(form.interestRate) || 0;
     return principal * (1 + rate / 100);
-  }, [form.principalAmount, form.interestRate]);
+  }, [principalMoney.amount, form.interestRate]);
 
   const paymentPerInstallment = useMemo(() => {
     const count = Number.parseInt(form.installmentsCount) || 1;
@@ -165,19 +177,40 @@ export function Loans({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.loanType || !form.counterpartyName || !form.principalAmount || !form.paymentMode) return;
+    if (!form.loanType || !form.counterpartyName || !principalMoney.amount || !form.paymentMode) return;
+
+    const rateValue = parseDecimal(principalMoney.rate);
+    if (loanCurrency !== baseCurrency && !(Number.isFinite(rateValue) && rateValue > 0)) {
+      toast.error('Ingresá una cotización válida');
+      return;
+    }
+    const rateInput = loanCurrency === baseCurrency ? 1 : rateValue;
+    const buildMoney = (originalAmount: number) =>
+      buildMoneyFields({
+        originalAmount,
+        currency: loanCurrency,
+        base: baseCurrency,
+        rate: rateInput,
+        source: principalMoney.rateSource,
+      });
 
     const loanType = form.loanType as 'given' | 'received' | 'payment_plan';
     const paymentMode = form.paymentMode as 'single' | 'installments';
     const installmentsCount = paymentMode === 'installments' ? Number.parseInt(form.installmentsCount) || 1 : 1;
 
-    const loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'> = {
+    const totalMoney = buildMoney(roundAmount(totalAmount));
+    const loanData: OmitNew<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'transaction_id'> = {
       loan_type: loanType,
       counterparty_name: form.counterpartyName,
       description: form.description,
-      principal_amount: Number.parseFloat(form.principalAmount),
+      principal_amount: buildMoney(parseDecimal(principalMoney.amount)).amount,
       interest_rate: Number.parseFloat(form.interestRate) || 0,
-      total_amount: totalAmount,
+      total_amount: totalMoney.amount,
+      currency: totalMoney.currency,
+      original_amount: totalMoney.original_amount,
+      exchange_rate: totalMoney.exchange_rate,
+      rate_source: totalMoney.rate_source,
+      base_currency: totalMoney.base_currency,
       payment_mode: paymentMode,
       installments_count: installmentsCount,
       status: 'active',
@@ -186,7 +219,7 @@ export function Loans({
     };
 
     // Generate payment schedule
-    const payments: Omit<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[] = [];
+    const payments: OmitNew<LoanPayment, 'id' | 'loan_id' | 'created_at' | 'updated_at'>[] = [];
     const startDate = new Date(form.startDate);
 
     for (let i = 1; i <= installmentsCount; i++) {
@@ -196,7 +229,7 @@ export function Loans({
       payments.push({
         payment_number: i,
         due_date: paymentDueDate.toISOString().split('T')[0],
-        amount: Math.round(paymentPerInstallment * 100) / 100,
+        ...buildMoney(roundAmount(paymentPerInstallment)),
         paid: false,
         paid_date: null,
         transaction_id: null,
@@ -205,6 +238,7 @@ export function Loans({
 
     onAddLoan({ loan: loanData, payments });
     setForm(defaultFormState);
+    resetPrincipal();
   };
 
   const getPaidCount = (loanId: string): number => {
@@ -242,7 +276,7 @@ export function Loans({
                   <>
                     <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
                       <div className='text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums'>
-                        ${totalPaymentPlans.toLocaleString()}
+                        {formatCurrency(totalPaymentPlans)}
                       </div>
                       <div className='text-sm text-gray-600 dark:text-gray-400'>Total Comprometido</div>
                     </div>
@@ -257,13 +291,13 @@ export function Loans({
                   <>
                     <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
                       <div className='text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums'>
-                        ${totalGiven.toLocaleString()}
+                        {formatCurrency(totalGiven)}
                       </div>
                       <div className='text-sm text-gray-600 dark:text-gray-400'>Prestado (por cobrar)</div>
                     </div>
                     <div className='text-center p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
                       <div className='text-2xl font-bold text-orange-600 dark:text-orange-400 tabular-nums'>
-                        ${totalReceived.toLocaleString()}
+                        {formatCurrency(totalReceived)}
                       </div>
                       <div className='text-sm text-gray-600 dark:text-gray-400'>Recibido (por pagar)</div>
                     </div>
@@ -348,22 +382,13 @@ export function Loans({
                 </div>
 
                 <div className='grid gap-4 md:grid-cols-2'>
-                  <div className='space-y-2'>
-                    <Label htmlFor='principal-amount'>Monto Principal</Label>
-                    <Input
-                      id='principal-amount'
-                      type='number'
-                      inputMode='decimal'
-                      placeholder='0.00'
-                      value={form.principalAmount}
-                      onChange={(e) => setForm({ ...form, principalAmount: e.target.value })}
-                      required
-                      min={0}
-                      step='0.01'
-                      autoComplete='off'
-                      className='tabular-nums'
-                    />
-                  </div>
+                  <AmountWithCurrencyInput
+                    idPrefix='principal'
+                    label='Monto Principal'
+                    value={principalMoney}
+                    onChange={setPrincipalMoney}
+                    date={form.startDate}
+                  />
 
                   <div className='space-y-2'>
                     <Label htmlFor='interest-rate'>Tasa de Interes (%)</Label>
@@ -387,7 +412,7 @@ export function Loans({
                     <div className='flex items-center justify-between'>
                       <span className='text-sm text-amber-700 dark:text-amber-300'>Monto Total (con interes):</span>
                       <span className='font-bold text-amber-800 dark:text-amber-200 tabular-nums'>
-                        ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(roundAmount(totalAmount), loanCurrency)}
                       </span>
                     </div>
                   </div>
@@ -444,7 +469,7 @@ export function Loans({
                     />
                     {paymentPerInstallment > 0 && (
                       <p className='text-sm text-gray-500 tabular-nums'>
-                        Cuota mensual: ${paymentPerInstallment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Cuota mensual: {formatCurrency(roundAmount(paymentPerInstallment), loanCurrency)}
                       </p>
                     )}
                   </div>
@@ -473,7 +498,7 @@ export function Loans({
                   </div>
                 </div>
 
-                <Button type='submit' className='w-full' disabled={!form.loanType || !form.counterpartyName || !form.principalAmount || !form.paymentMode}>
+                <Button type='submit' className='w-full' disabled={!form.loanType || !form.counterpartyName || !principalMoney.amount || !form.paymentMode}>
                   {isPaymentPlanMode ? 'Registrar Plan de Pago' : 'Registrar Prestamo'}
                 </Button>
               </form>
@@ -547,8 +572,9 @@ export function Loans({
                           </div>
                         </div>
                         <div className='flex items-center gap-3'>
-                          <span className='font-bold tabular-nums'>
-                            ${payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          <span className='font-bold tabular-nums text-right'>
+                            {formatCurrency(payment.amount)}
+                            <OriginalAmount originalAmount={payment.original_amount} currency={payment.currency} className='text-right' />
                           </span>
                           <Button
                             variant='ghost'
@@ -597,7 +623,7 @@ export function Loans({
                         </div>
                         <div className='flex items-center gap-1'>
                           <span className='text-sm text-gray-400 tabular-nums'>
-                            ${payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatCurrency(payment.amount)}
                           </span>
                           <Button
                             variant='ghost'
@@ -708,7 +734,7 @@ export function Loans({
                             <DollarSign className='h-4 w-4 text-gray-400' aria-hidden="true" />
                             <div>
                               <div className='text-gray-500'>Capital</div>
-                              <div className='font-medium tabular-nums'>${loan.principal_amount.toLocaleString()}</div>
+                              <div className='font-medium tabular-nums'>{formatCurrency(loan.principal_amount)}</div>
                             </div>
                           </div>
                           {loan.interest_rate > 0 && (
@@ -724,7 +750,10 @@ export function Loans({
                             <DollarSign className='h-4 w-4 text-gray-400' aria-hidden="true" />
                             <div>
                               <div className='text-gray-500'>Total</div>
-                              <div className='font-bold tabular-nums'>${loan.total_amount.toLocaleString()}</div>
+                              <div className='font-bold tabular-nums'>
+                                {formatCurrency(loan.total_amount)}
+                                <OriginalAmount originalAmount={loan.original_amount} currency={loan.currency} />
+                              </div>
                             </div>
                           </div>
                           <div className='flex items-center gap-2'>
@@ -738,8 +767,8 @@ export function Loans({
 
                         <div>
                           <div className='flex justify-between text-sm mb-2 tabular-nums'>
-                            <span className='font-medium'>${paidAmount.toLocaleString()}</span>
-                            <span className='text-gray-600'>${loan.total_amount.toLocaleString()}</span>
+                            <span className='font-medium'>{formatCurrency(paidAmount)}</span>
+                            <span className='text-gray-600'>{formatCurrency(loan.total_amount)}</span>
                           </div>
                           <Progress value={progress} className='h-2' />
                         </div>
@@ -802,21 +831,47 @@ export function Loans({
                   </strong>{' '}
                   por{' '}
                   <strong className='tabular-nums'>
-                    ${confirmPayment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {formatCurrency(confirmPayment.original_amount, confirmPayment.currency)}
                   </strong>.
                   {' '}Se creará una transacción automáticamente.
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {confirmPayment && (
+            <RateInput
+              currency={confirmPayment.currency}
+              value={payRate}
+              onChange={setPayRate}
+              date={new Date().toISOString().split('T')[0]}
+              amount={confirmPayment.original_amount}
+              idPrefix='pay-loan'
+            />
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (confirmPayment) {
-                  onPayLoanPayment(confirmPayment.id);
-                  setConfirmPayment(null);
+              onClick={(e) => {
+                if (!confirmPayment) return;
+                let money: MoneyFields | undefined;
+                if (confirmPayment.currency !== baseCurrency) {
+                  const rate = parseDecimal(payRate.rate);
+                  if (!Number.isFinite(rate) || rate <= 0) {
+                    e.preventDefault();
+                    toast.error('Ingresá una cotización válida para registrar el pago');
+                    return;
+                  }
+                  money = buildMoneyFields({
+                    originalAmount: confirmPayment.original_amount,
+                    currency: confirmPayment.currency,
+                    base: baseCurrency,
+                    rate,
+                    source: payRate.rateSource,
+                  });
                 }
+                onPayLoanPayment(confirmPayment.id, money);
+                setConfirmPayment(null);
+                setPayRate({ rate: '', rateSource: 'auto' });
               }}
             >
               Confirmar

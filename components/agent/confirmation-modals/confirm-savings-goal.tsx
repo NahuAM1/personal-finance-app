@@ -3,6 +3,7 @@
 import type { CreateSavingsGoalPayload } from '@/types/agent';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface ConfirmSavingsGoalProps {
   payload: CreateSavingsGoalPayload;
@@ -11,6 +12,7 @@ interface ConfirmSavingsGoalProps {
 }
 
 export function ConfirmSavingsGoal({ payload, onConfirm, onCancel }: ConfirmSavingsGoalProps) {
+  const { format: formatCurrency } = useCurrency();
   return (
     <Card className="border-2 border-purple-200 dark:border-purple-800">
       <CardHeader className="pb-2">
@@ -23,7 +25,7 @@ export function ConfirmSavingsGoal({ payload, onConfirm, onCancel }: ConfirmSavi
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Objetivo:</span>
-          <span className="font-semibold">${payload.targetAmount.toLocaleString('es-AR')}</span>
+          <span className="font-semibold">{formatCurrency(payload.targetAmount)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Fecha límite:</span>

@@ -15,6 +15,16 @@ import {
 import { Switch } from '@/components/ui/switch';
 import type { Service } from '@/types/database';
 import type { Database } from '@/types/database';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { useCurrency } from '@/hooks/use-currency';
+import {
+  emptyMoneyInput,
+  formatRateInput,
+  moneyInputToFields,
+  type MoneyInputState,
+} from '@/lib/currency/money-input';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 type ServiceInsert = Database['public']['Tables']['services']['Insert'];
 
@@ -26,17 +36,29 @@ interface ServiceFormProps {
 
 interface FormState {
   name: string;
-  amount: string;
   due_day: string;
   mode: 'automatic' | 'manual' | '';
   notes: string;
   is_active: boolean;
 }
 
+// Money state for an existing service: its original amount, currency and provisional rate.
+function serviceMoney(service: Service | undefined, baseCurrency: string): MoneyInputState {
+  if (!service) return emptyMoneyInput();
+  const foreign = service.currency !== baseCurrency;
+  return {
+    amount: service.original_amount.toString(),
+    currency: foreign ? service.currency : null,
+    rate: foreign ? formatRateInput(service.exchange_rate) : '',
+    rateSource: service.rate_source,
+  };
+}
+
 export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProps): React.JSX.Element {
+  const { baseCurrency } = useCurrency();
+  const [money, setMoney] = useState<MoneyInputState>(() => serviceMoney(initialData, baseCurrency));
   const [form, setForm] = useState<FormState>({
     name: initialData?.name ?? '',
-    amount: initialData?.amount.toString() ?? '',
     due_day: initialData?.due_day.toString() ?? '',
     mode: initialData?.mode ?? '',
     notes: initialData?.notes ?? '',
@@ -46,20 +68,20 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
 
   useEffect(() => {
     if (initialData) {
+      setMoney(serviceMoney(initialData, baseCurrency));
       setForm({
         name: initialData.name,
-        amount: initialData.amount.toString(),
         due_day: initialData.due_day.toString(),
         mode: initialData.mode,
         notes: initialData.notes ?? '',
         is_active: initialData.is_active,
       });
     }
-  }, [initialData]);
+  }, [initialData, baseCurrency]);
 
   const isValid =
     form.name.trim().length > 0 &&
-    Number.parseFloat(form.amount) > 0 &&
+    Number.parseFloat(money.amount) > 0 &&
     Number.parseInt(form.due_day, 10) >= 1 &&
     Number.parseInt(form.due_day, 10) <= 31 &&
     (form.mode === 'automatic' || form.mode === 'manual');
@@ -69,11 +91,18 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
     if (!isValid || submitting) return;
     if (form.mode !== 'automatic' && form.mode !== 'manual') return;
 
+    const moneyFields = moneyInputToFields(money, baseCurrency);
+    if (!moneyFields) {
+      toast.error('Ingresá un monto y una cotización válidos');
+      return;
+    }
+
     setSubmitting(true);
     try {
+      // The rate saved here is provisional: each payment is converted at its own date.
       const payload: Omit<ServiceInsert, 'user_id'> = {
         name: form.name.trim(),
-        amount: Number.parseFloat(form.amount),
+        ...moneyFields,
         due_day: Number.parseInt(form.due_day, 10),
         mode: form.mode,
         notes: form.notes.trim() || null,
@@ -98,23 +127,16 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
         />
       </div>
 
-      <div className='grid grid-cols-2 gap-4'>
-        <div className='space-y-2'>
-          <Label htmlFor='service-amount'>Monto esperado</Label>
-          <Input
-            id='service-amount'
-            type='number'
-            inputMode='decimal'
-            placeholder='0.00'
-            value={form.amount}
-            onChange={(e) => setForm({ ...form, amount: e.target.value })}
-            required
-            min={0.01}
-            step='0.01'
-            autoComplete='off'
-            className='tabular-nums'
-          />
-        </div>
+      <AmountWithCurrencyInput
+        idPrefix='service'
+        label='Monto esperado'
+        value={money}
+        onChange={setMoney}
+        date={format(new Date(), 'yyyy-MM-dd')}
+        autoFetch={!initialData || (money.currency ?? baseCurrency) !== initialData.currency}
+      />
+
+      <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
         <div className='space-y-2'>
           <Label htmlFor='service-due-day'>Día de vencimiento</Label>
           <Input

@@ -16,6 +16,8 @@ import { safeParseJson } from '@/lib/agent/utils/json-utils';
 import { serializeHistory } from '@/lib/agent/utils/serialize-history';
 import { needsWebSearch, hasPendingSearch, userAcceptedSearch } from '@/lib/agent/utils/search-utils';
 import { searchWeb, buildSearchContext } from '@/lib/agent/web-search';
+import { getBaseCurrency } from '@/lib/agent/base-currency';
+import { formatMoney } from '@/lib/currency/format';
 
 const openrouter = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -285,7 +287,8 @@ async function executeAction(
   }
 
   // Generate smart insight for DB actions
-  const message = await generateActionMessage(action, payload, context, conversationHistory);
+  const baseCurrency = AMOUNT_ACTIONS.has(action) ? await getBaseCurrency(supabase, userId) : 'ARS';
+  const message = await generateActionMessage(action, payload, context, baseCurrency, conversationHistory);
 
   return { payload, message };
 }
@@ -317,10 +320,18 @@ const DB_ACTION_FALLBACKS: Record<AgentActionType, string> = {
   [AgentAction.DELETE_TRANSACTION]: '',
 };
 
+// Actions whose confirmation message shows an amount
+const AMOUNT_ACTIONS: Set<AgentActionType> = new Set([
+  AgentAction.ADD_EXPENSE,
+  AgentAction.ADD_INCOME,
+  AgentAction.SAVINGS_DEPOSIT,
+]);
+
 async function generateActionMessage(
   action: AgentActionType,
   payload: AgentPayload,
   financialContext: string | undefined,
+  baseCurrency: string,
   conversationHistory?: ConversationMessage[],
 ): Promise<string> {
   // For actions that already carry their answer in the payload
@@ -333,12 +344,12 @@ async function generateActionMessage(
 
   // Direct amount/description payload messages
   if (action === AgentAction.ADD_EXPENSE || action === AgentAction.ADD_INCOME) {
-    const p = payload as { amount: number; category: string };
-    return `$${p.amount?.toLocaleString('es-AR') ?? '0'} en ${p.category ?? 'Otros'}`;
+    const p = payload as { amount: number; category: string; currency?: string };
+    return `${formatMoney(p.amount ?? 0, p.currency ?? baseCurrency)} en ${p.category ?? 'Otros'}`;
   }
   if (action === AgentAction.SAVINGS_DEPOSIT) {
     const p = payload as { depositAmount: number; goalName: string };
-    return `Depósito de $${p.depositAmount?.toLocaleString('es-AR') ?? '0'} en ${p.goalName ?? 'meta'}`;
+    return `Depósito de ${formatMoney(p.depositAmount ?? 0, baseCurrency)} en ${p.goalName ?? 'meta'}`;
   }
   if (action === AgentAction.DELETE_TRANSACTION) {
     const p = payload as { description: string };

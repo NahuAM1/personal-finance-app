@@ -8,7 +8,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -36,6 +35,12 @@ import type { Service } from '@/types/database';
 import { sortByPaymentPriority, type ServiceWithStatus } from '@/lib/services';
 import type { Database } from '@/types/database';
 import { cn } from '@/lib/utils';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { useCurrency } from '@/hooks/use-currency';
+import { moneyInputToFields, type MoneyInputState } from '@/lib/currency/money-input';
+import type { MoneyFields } from '@/lib/currency/money';
+import { toast } from 'sonner';
+import { OriginalAmount } from '@/components/currency/original-amount';
 
 type ServiceInsert = Database['public']['Tables']['services']['Insert'];
 
@@ -45,19 +50,30 @@ interface PayDialogProps {
   item: ServiceWithStatus;
   open: boolean;
   onClose: () => void;
-  onPay: (service: Service, amount: number) => Promise<void>;
+  onPay: (service: Service, amount: number, money?: MoneyFields) => Promise<void>;
 }
 
 function PayDialog({ item, open, onClose, onPay }: PayDialogProps): React.JSX.Element {
-  const [amount, setAmount] = useState<string>(item.service.amount.toString());
+  const { baseCurrency } = useCurrency();
+  const [money, setMoney] = useState<MoneyInputState>({
+    amount: item.service.original_amount.toString(),
+    currency: item.service.currency === baseCurrency ? null : item.service.currency,
+    rate: '',
+    rateSource: 'auto',
+  });
   const [paying, setPaying] = useState(false);
+  const payDate = format(new Date(), 'yyyy-MM-dd');
 
   const handlePay = async (): Promise<void> => {
-    const parsed = Number.parseFloat(amount);
-    if (Number.isNaN(parsed) || parsed <= 0) return;
+    const fields = moneyInputToFields(money, baseCurrency);
+    if (!fields || fields.original_amount <= 0) {
+      toast.error('Ingresá un monto y una cotización válidos');
+      return;
+    }
     setPaying(true);
     try {
-      await onPay(item.service, parsed);
+      // The payment is converted at the pay-date rate (editable above), not the provisional one.
+      await onPay(item.service, fields.original_amount, fields);
       onClose();
     } finally {
       setPaying(false);
@@ -74,28 +90,18 @@ function PayDialog({ item, open, onClose, onPay }: PayDialogProps): React.JSX.El
           </DialogDescription>
         </DialogHeader>
         <div className='space-y-4 pt-2'>
-          <div className='space-y-2'>
-            <label htmlFor='pay-amount' className='text-sm font-medium'>
-              Monto
-            </label>
-            <Input
-              id='pay-amount'
-              type='number'
-              inputMode='decimal'
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              min={0.01}
-              step='0.01'
-              autoComplete='off'
-              className='tabular-nums'
-              autoFocus
-            />
-          </div>
+          <AmountWithCurrencyInput
+            idPrefix='pay'
+            value={money}
+            onChange={setMoney}
+            date={payDate}
+            lockCurrency
+          />
           <div className='flex gap-3'>
             <Button
               className='flex-1'
               onClick={handlePay}
-              disabled={paying || Number.parseFloat(amount) <= 0}
+              disabled={paying || !(Number.parseFloat(money.amount) > 0)}
             >
               Confirmar pago
             </Button>
@@ -113,12 +119,13 @@ function PayDialog({ item, open, onClose, onPay }: PayDialogProps): React.JSX.El
 
 interface ServiceCardProps {
   item: ServiceWithStatus;
-  onPay: (service: Service, amount: number) => Promise<void>;
+  onPay: (service: Service, amount: number, money?: MoneyFields) => Promise<void>;
   onEdit: (service: Service) => void;
   onDelete: (id: string) => Promise<void>;
 }
 
 function ServiceCard({ item, onPay, onEdit, onDelete }: ServiceCardProps): React.JSX.Element {
+  const { format: formatCurrency } = useCurrency();
   const [payOpen, setPayOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -187,8 +194,9 @@ function ServiceCard({ item, onPay, onEdit, onDelete }: ServiceCardProps): React
         <CardContent className='space-y-3'>
           <div className='flex items-center justify-between'>
             <span className='text-sm text-gray-500 dark:text-gray-400'>Monto</span>
-            <span className='text-lg font-semibold tabular-nums'>
-              ${service.amount.toLocaleString('es-AR')}
+            <span className='text-lg font-semibold tabular-nums text-right'>
+              {formatCurrency(service.amount)}
+              <OriginalAmount originalAmount={service.original_amount} currency={service.currency} className='text-right' />
             </span>
           </div>
 
@@ -256,6 +264,7 @@ function ServiceCard({ item, onPay, onEdit, onDelete }: ServiceCardProps): React
 // ---- Main component ----
 
 export function Services(): React.JSX.Element {
+  const { format: formatCurrency } = useCurrency();
   const {
     servicesWithStatus,
     loading,
@@ -344,7 +353,7 @@ export function Services(): React.JSX.Element {
             <div className='grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4'>
               <div className='col-span-2 md:col-span-1 min-w-0 text-center p-3 md:p-4 bg-white/50 dark:bg-gray-900/50 rounded-xl'>
                 <div className='text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400 tabular-nums break-words'>
-                  ${totalMonthly.toLocaleString('es-AR')}
+                  {formatCurrency(totalMonthly)}
                 </div>
                 <div className='text-sm text-gray-600 dark:text-gray-400'>Total mensual</div>
               </div>
@@ -446,8 +455,9 @@ export function Services(): React.JSX.Element {
                     <span className='text-sm font-medium truncate'>{item.service.name}</span>
                   </div>
                   <div className='flex items-center gap-3 shrink-0'>
-                    <span className='text-sm tabular-nums text-gray-600 dark:text-gray-400'>
-                      ${item.service.amount.toLocaleString('es-AR')}
+                    <span className='text-sm tabular-nums text-gray-600 dark:text-gray-400 text-right'>
+                      {formatCurrency(item.service.amount)}
+                      <OriginalAmount originalAmount={item.service.original_amount} currency={item.service.currency} className='text-right' />
                     </span>
                     <span className='text-xs text-amber-600 dark:text-amber-400 font-medium'>
                       {format(parseISO(item.dueDate), "d MMM", { locale: es })}

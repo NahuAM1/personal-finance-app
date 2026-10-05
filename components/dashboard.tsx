@@ -35,6 +35,9 @@ import {
   Legend,
 } from 'recharts';
 import { useChartPreferences } from '@/contexts/chart-preferences-context';
+import { useCurrency } from '@/hooks/use-currency';
+import { useCurrentRates } from '@/hooks/use-current-rates';
+import { OriginalAmount } from '@/components/currency/original-amount';
 import { getMonthlyTrends, getBudgetDistribution, getBalanceEvolution } from '@/lib/chart-transforms';
 import {
   TrendingUp,
@@ -64,6 +67,7 @@ interface ChartTooltipProps {
 }
 
 function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
+  const { format: formatCurrency } = useCurrency();
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl px-3 py-2 text-sm">
@@ -73,7 +77,7 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
       {payload.map((entry) => (
         <p key={entry.name} className="font-semibold leading-6">
           <span className="text-gray-500 dark:text-gray-400 font-normal">{entry.name}: </span>
-          <span style={{ color: entry.color }}>${entry.value.toLocaleString('es-AR')}</span>
+          <span style={{ color: entry.color }}>{formatCurrency(entry.value)}</span>
         </p>
       ))}
     </div>
@@ -140,9 +144,12 @@ export function Dashboard({
     '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
   ];
 
-  const formatAmount = (amount: number) => {
-    return showAmounts ? `$${amount.toLocaleString()}` : '$****';
+  const { baseCurrency, format: formatCurrency } = useCurrency();
+  const formatAmount = (amount: number, currency: string = baseCurrency) => {
+    return showAmounts ? formatCurrency(amount, currency) : `${currency} ****`;
   };
+  // Savings plans live in their own currency: reserve them in the base currency at today's rate.
+  const planRates = useCurrentRates(expensePlans.map((p) => p.currency));
 
   const months = [
     { value: 0, label: 'Enero' },
@@ -201,7 +208,7 @@ export function Dashboard({
 
   // Calculate money reserved in expense plans
   const totalPlannedSavings = expensePlans.reduce(
-    (sum, plan) => sum + plan.current_amount,
+    (sum, plan) => sum + plan.current_amount * (planRates[plan.currency] ?? 0),
     0
   );
 
@@ -718,7 +725,7 @@ export function Dashboard({
                       <div className='flex justify-between items-center gap-2 flex-wrap'>
                         <span className='font-medium min-w-0 truncate'>{plan.name}</span>
                         <Badge variant='outline' className='shrink-0 tabular-nums text-xs'>
-                          {formatAmount(plan.current_amount)} / {formatAmount(plan.target_amount)}
+                          {formatAmount(plan.current_amount, plan.currency)} / {formatAmount(plan.target_amount, plan.currency)}
                         </Badge>
                       </div>
                       <Progress value={progress} className='h-2' />
@@ -787,6 +794,11 @@ export function Dashboard({
                         <div className='text-right'>
                           <div className='font-medium tabular-nums'>
                             {formatAmount(installment.amount)}
+                            <OriginalAmount
+                              originalAmount={installment.original_amount}
+                              currency={installment.currency}
+                              masked={!showAmounts}
+                            />
                           </div>
                           <div className={`text-sm flex items-center gap-1 tabular-nums ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
                             <Calendar className='h-3 w-3' aria-hidden="true" />
@@ -994,7 +1006,13 @@ export function Dashboard({
                         : 'text-red-600'
                     }`}
                   >
-                    {transaction.type === 'income' ? '+' : '-'}{formatAmount(transaction.amount).replace('$', '')}
+                    {transaction.type === 'income' ? '+' : '-'}{formatAmount(transaction.amount)}
+                    <OriginalAmount
+                      originalAmount={transaction.original_amount}
+                      currency={transaction.currency}
+                      masked={!showAmounts}
+                      className='text-right'
+                    />
                   </div>
                 </div>
               );

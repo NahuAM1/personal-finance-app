@@ -37,6 +37,7 @@ export const addTransactionStrategy: AgentStrategy = {
       category?: string;
       description?: string;
       date?: string;
+      currency?: string | null;
     } = JSON.parse(cleanJson);
 
     if (parsed.needsClarification && parsed.question) {
@@ -53,6 +54,11 @@ export const addTransactionStrategy: AgentStrategy = {
       return clarification;
     }
 
+    const currency =
+      typeof parsed.currency === 'string' && /^[A-Za-z]{3}$/.test(parsed.currency.trim())
+        ? parsed.currency.trim().toUpperCase()
+        : undefined;
+
     const result: AddTransactionPayload = {
       action: parsed.type === 'income' ? 'add_income' : 'add_expense',
       type: parsed.type ?? 'expense',
@@ -60,6 +66,7 @@ export const addTransactionStrategy: AgentStrategy = {
       category: parsed.category ?? 'Otros',
       description: parsed.description ?? '',
       date: parsed.date ?? new Date().toISOString().split('T')[0],
+      ...(currency && { currency }),
     };
     return result;
   },

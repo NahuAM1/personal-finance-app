@@ -20,9 +20,16 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { format, differenceInDays } from 'date-fns';
-import type { Investment } from '@/types/database';
+import type { Investment, OmitNew } from '@/types/database';
 import { TrendingUp, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCurrency } from '@/hooks/use-currency';
+import { AmountWithCurrencyInput } from '@/components/currency/amount-with-currency-input';
+import { RateInput } from '@/components/currency/rate-input';
+import { fetchRate } from '@/lib/exchange-rates/client';
+import { isSupportedCurrency } from '@/lib/currency/currencies';
+import { roundAmount, type RateSource } from '@/lib/currency/money';
+import { emptyMoneyInput, moneyInputToFields, parseDecimal, type MoneyInputState } from '@/lib/currency/money-input';
 
 interface CryptoOption {
   instrumentId: number;
@@ -34,7 +41,7 @@ interface CryptoOption {
 }
 
 interface InvestmentFormProps {
-  onSubmit: (investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
+  onSubmit: (investment: OmitNew<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
 }
 
 const investmentTypes = [
@@ -64,7 +71,12 @@ const currencies = [
 export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
   const [description, setDescription] = useState('');
   const [investmentType, setInvestmentType] = useState('');
+  // `amount` is the cost in the base currency for currency purchases and crypto; other
+  // investments use `money` (amount + currency + rate).
   const [amount, setAmount] = useState('');
+  const [money, setMoney] = useState<MoneyInputState>(emptyMoneyInput());
+  const [rateSource, setRateSource] = useState<RateSource>('auto');
+  const [usdBase, setUsdBase] = useState(0);
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [maturityDate, setMaturityDate] = useState('');
   const [annualRate, setAnnualRate] = useState('');
@@ -76,9 +88,29 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
   const [dolarCCL, setDolarCCL] = useState(0);
   const [loadingCrypto, setLoadingCrypto] = useState(false);
   const { toast } = useToast();
+  const { baseCurrency, format: formatCurrency } = useCurrency();
 
   const isCurrencyPurchase = investmentType === 'compra_divisas';
   const isCrypto = investmentType === 'crypto';
+  const holdsForeign = isCurrencyPurchase || isCrypto;
+  // Crypto prices come in USD: convert them with the CCL dollar (ARS base) or the USD rate.
+  const usdToBase = baseCurrency === 'ARS' ? dolarCCL : usdBase;
+  const previewCurrency = holdsForeign ? baseCurrency : (money.currency ?? baseCurrency);
+
+  useEffect(() => {
+    if (!isCrypto || baseCurrency === 'ARS') return;
+    let cancelled = false;
+    fetchRate('USD', baseCurrency, startDate)
+      .then((result) => {
+        if (!cancelled) setUsdBase(result.rate);
+      })
+      .catch(() => {
+        if (!cancelled) setUsdBase(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isCrypto, baseCurrency, startDate]);
 
   useEffect(() => {
     if (!isCrypto) return;
@@ -141,24 +173,33 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
     fetchCryptoList();
   }, [isCrypto]);
 
+  const handleCurrencySelect = (value: string) => {
+    setCurrency(value);
+    setExchangeRate('');
+    // Currencies without a rate provider (e.g. UYU, CLP) must be typed manually.
+    setRateSource(isSupportedCurrency(value) ? 'auto' : 'manual');
+  };
+
   const handleCryptoSelect = (cryptoName: string) => {
     setSelectedCrypto(cryptoName);
     const crypto = cryptoOptions.find((c) => c.name === cryptoName);
     if (crypto) {
       setCryptoPriceUsd(crypto.price.toString());
       setCurrency(crypto.name);
-      if (dolarCCL > 0) {
-        const priceArs = crypto.price * dolarCCL;
-        setExchangeRate(priceArs.toFixed(2));
+      setRateSource('manual');
+      if (usdToBase > 0) {
+        const priceBase = crypto.price * usdToBase;
+        setExchangeRate(priceBase.toFixed(2));
       }
     }
   };
 
   // Calculate estimated return
   const calculateEstimatedReturn = () => {
-    if (!amount || !annualRate || !startDate || !maturityDate) return 0;
+    const principalInput = holdsForeign ? amount : money.amount;
+    if (!principalInput || !annualRate || !startDate || !maturityDate) return 0;
 
-    const principal = Number.parseFloat(amount);
+    const principal = Number.parseFloat(principalInput);
     const rate = Number.parseFloat(annualRate) / 100;
     const days = differenceInDays(new Date(maturityDate), new Date(startDate));
 
@@ -170,29 +211,71 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
   };
 
   const estimatedReturn = calculateEstimatedReturn();
-  const totalReturn = estimatedReturn + (amount ? Number.parseFloat(amount) : 0);
+  const principalValue = holdsForeign ? amount : money.amount;
+  const totalReturn = estimatedReturn + (principalValue ? Number.parseFloat(principalValue) : 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!description || !investmentType || !amount || !startDate) return;
-    if (isCurrencyPurchase && (!currency || !exchangeRate)) return;
-    if (isCrypto && (!selectedCrypto || !exchangeRate)) return;
+    if (!description || !investmentType || !startDate) return;
+    if (holdsForeign && (!amount || !currency || (!exchangeRate && currency.toUpperCase() !== baseCurrency))) return;
+    if (isCrypto && !selectedCrypto) return;
+    if (!holdsForeign && !money.amount) return;
 
-    const investment: Omit<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
+    let moneyFields: Pick<
+      Investment,
+      'amount' | 'currency' | 'exchange_rate' | 'original_amount' | 'rate_source' | 'base_currency'
+    >;
+    let estimatedBase = estimatedReturn;
+
+    if (holdsForeign) {
+      const baseAmount = roundAmount(Number.parseFloat(amount));
+      const heldCurrency = currency.toUpperCase();
+      const sameAsBase = heldCurrency === baseCurrency;
+      const rate = sameAsBase ? 1 : parseDecimal(exchangeRate);
+      if (!Number.isFinite(rate) || rate <= 0 || !Number.isFinite(baseAmount)) {
+        toast({ title: 'Error', description: 'Ingresá un monto y un tipo de cambio válidos', variant: 'destructive' });
+        return;
+      }
+      moneyFields = {
+        amount: baseAmount,
+        currency: heldCurrency,
+        exchange_rate: rate,
+        // Units held: the base cost divided by the base price per unit.
+        original_amount: Number((baseAmount / rate).toFixed(10)),
+        rate_source: !sameAsBase && !isCrypto && isSupportedCurrency(heldCurrency) ? rateSource : 'manual',
+        base_currency: baseCurrency,
+      };
+    } else {
+      const fields = moneyInputToFields(money, baseCurrency);
+      if (!fields) {
+        toast({ title: 'Error', description: 'Ingresá un monto y una cotización válidos', variant: 'destructive' });
+        return;
+      }
+      moneyFields = {
+        amount: fields.amount,
+        currency: fields.currency,
+        exchange_rate: fields.exchange_rate,
+        original_amount: fields.original_amount,
+        rate_source: fields.rate_source,
+        base_currency: fields.base_currency,
+      };
+      // The estimated return is computed in the investment currency; store its base equivalent.
+      estimatedBase = roundAmount(estimatedReturn * fields.exchange_rate);
+    }
+
+    const investment: OmitNew<Investment, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
       description,
       investment_type: investmentType as Investment['investment_type'],
-      amount: Number.parseFloat(amount),
+      ...moneyFields,
       start_date: startDate,
       maturity_date: maturityDate || null,
       annual_rate: annualRate ? Number.parseFloat(annualRate) : null,
-      estimated_return: estimatedReturn,
+      estimated_return: estimatedBase,
       is_liquidated: false,
       liquidation_date: null,
       actual_return: null,
       transaction_id: null,
-      currency: (isCurrencyPurchase || isCrypto) && currency ? currency : null,
-      exchange_rate: (isCurrencyPurchase || isCrypto) && exchangeRate ? Number.parseFloat(exchangeRate) : null,
     };
 
     onSubmit(investment);
@@ -201,6 +284,8 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
     setDescription('');
     setInvestmentType('');
     setAmount('');
+    setMoney(emptyMoneyInput());
+    setRateSource('auto');
     setStartDate(format(new Date(), 'yyyy-MM-dd'));
     setMaturityDate('');
     setAnnualRate('');
@@ -303,8 +388,8 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
                     value={cryptoPriceUsd}
                     onChange={(e) => {
                       setCryptoPriceUsd(e.target.value);
-                      if (e.target.value && dolarCCL > 0) {
-                        setExchangeRate((Number.parseFloat(e.target.value) * dolarCCL).toFixed(2));
+                      if (e.target.value && usdToBase > 0) {
+                        setExchangeRate((Number.parseFloat(e.target.value) * usdToBase).toFixed(2));
                       }
                     }}
                     min={0}
@@ -315,7 +400,7 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
                 </div>
 
                 <div className='space-y-2'>
-                  <Label htmlFor='crypto-price-ars'>Precio en ARS (editable)</Label>
+                  <Label htmlFor='crypto-price-ars'>Precio en {baseCurrency} (editable)</Label>
                   <Input
                     id='crypto-price-ars'
                     name='crypto-price-ars'
@@ -323,7 +408,10 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
                     inputMode='decimal'
                     step='0.01'
                     value={exchangeRate}
-                    onChange={(e) => setExchangeRate(e.target.value)}
+                    onChange={(e) => {
+                      setExchangeRate(e.target.value);
+                      setRateSource('manual');
+                    }}
                     required
                     min={0}
                     autoComplete='off'
@@ -339,7 +427,7 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
           <div className='grid gap-4 md:grid-cols-2'>
             <div className='space-y-2'>
               <Label htmlFor='currency'>Divisa</Label>
-              <Select value={currency} onValueChange={setCurrency} required>
+              <Select value={currency} onValueChange={handleCurrencySelect} required>
                 <SelectTrigger>
                   <SelectValue placeholder='Selecciona la divisa' />
                 </SelectTrigger>
@@ -353,44 +441,54 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
               </Select>
             </div>
 
-            <div className='space-y-2'>
-              <Label htmlFor='exchange-rate'>Tipo de Cambio (ARS)</Label>
+            {currency && (
+              <div className='min-w-0'>
+                <RateInput
+                  currency={currency}
+                  value={{ rate: exchangeRate, rateSource }}
+                  onChange={(next) => {
+                    setExchangeRate(next.rate);
+                    setRateSource(next.rateSource);
+                  }}
+                  date={startDate}
+                  amount={null}
+                  idPrefix='investment'
+                  autoFetch={isSupportedCurrency(currency)}
+                  hideEquivalent
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className='grid gap-4 md:grid-cols-2'>
+          {holdsForeign ? (
+            <div className='min-w-0 space-y-2'>
+              <Label htmlFor='investment-amount'>Monto a Invertir ({baseCurrency})</Label>
               <Input
-                id='exchange-rate'
-                name='exchange-rate'
+                id='investment-amount'
+                name='investment-amount'
                 type='number'
                 inputMode='decimal'
                 step='0.01'
-                placeholder='1050.00'
-                value={exchangeRate}
-                onChange={(e) => setExchangeRate(e.target.value)}
+                placeholder='0.00'
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
                 required
                 min={0}
                 autoComplete='off'
                 className='tabular-nums'
               />
             </div>
-          </div>
-        )}
-
-        <div className='grid gap-4 md:grid-cols-2'>
-          <div className='space-y-2'>
-            <Label htmlFor='investment-amount'>Monto a Invertir</Label>
-            <Input
-              id='investment-amount'
-              name='investment-amount'
-              type='number'
-              inputMode='decimal'
-              step='0.01'
-              placeholder='0.00'
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-              min={0}
-              autoComplete='off'
-              className='tabular-nums'
+          ) : (
+            <AmountWithCurrencyInput
+              idPrefix='investment'
+              label='Monto a Invertir'
+              value={money}
+              onChange={setMoney}
+              date={startDate}
             />
-          </div>
+          )}
 
           <div className='space-y-2'>
             <Label htmlFor='annual-rate'>TNA % (opcional)</Label>
@@ -438,16 +536,16 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
             <CardContent className='pt-6'>
               <div className='space-y-3'>
                 <div className='flex items-center justify-between text-sm'>
-                  <span className='text-emerald-700 dark:text-emerald-300'>Monto en ARS:</span>
+                  <span className='text-emerald-700 dark:text-emerald-300'>Monto en {baseCurrency}:</span>
                   <span className='font-semibold text-emerald-900 dark:text-emerald-100 tabular-nums'>
-                    ${Number.parseFloat(amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(Number.parseFloat(amount), baseCurrency)}
                   </span>
                 </div>
 
                 <div className='flex items-center justify-between text-sm'>
                   <span className='text-emerald-700 dark:text-emerald-300'>Tipo de cambio:</span>
                   <span className='font-semibold text-emerald-900 dark:text-emerald-100 tabular-nums'>
-                    ${Number.parseFloat(exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(Number.parseFloat(exchangeRate), baseCurrency)}
                   </span>
                 </div>
 
@@ -471,24 +569,24 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
             <CardContent className='pt-6'>
               <div className='space-y-3'>
                 <div className='flex items-center justify-between text-sm'>
-                  <span className='text-orange-700 dark:text-orange-300'>Monto en ARS:</span>
+                  <span className='text-orange-700 dark:text-orange-300'>Monto en {baseCurrency}:</span>
                   <span className='font-semibold text-orange-900 dark:text-orange-100 tabular-nums'>
-                    ${Number.parseFloat(amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(Number.parseFloat(amount), baseCurrency)}
                   </span>
                 </div>
 
                 <div className='flex items-center justify-between text-sm'>
                   <span className='text-orange-700 dark:text-orange-300'>Precio por {selectedCrypto}:</span>
                   <span className='font-semibold text-orange-900 dark:text-orange-100 tabular-nums'>
-                    ${Number.parseFloat(exchangeRate).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ARS
+                    {formatCurrency(Number.parseFloat(exchangeRate), baseCurrency)}
                   </span>
                 </div>
 
-                {dolarCCL > 0 && (
+                {baseCurrency === 'ARS' && dolarCCL > 0 && (
                   <div className='flex items-center justify-between text-sm'>
                     <span className='text-orange-700 dark:text-orange-300'>Dólar CCL usado:</span>
                     <span className='font-semibold text-orange-900 dark:text-orange-100 tabular-nums'>
-                      ${dolarCCL.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatCurrency(dolarCCL, 'ARS')}
                     </span>
                   </div>
                 )}
@@ -515,14 +613,14 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
                 <div className='flex items-center justify-between text-sm'>
                   <span className='text-blue-700 dark:text-blue-300'>Capital invertido:</span>
                   <span className='font-semibold text-blue-900 dark:text-blue-100 tabular-nums'>
-                    ${Number.parseFloat(amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(Number.parseFloat(amount), baseCurrency)}
                   </span>
                 </div>
 
                 <div className='flex items-center justify-between text-sm'>
                   <span className='text-blue-700 dark:text-blue-300'>Ganancia estimada:</span>
                   <span className='font-semibold text-green-600 dark:text-green-400 tabular-nums'>
-                    +${estimatedReturn.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    +{formatCurrency(estimatedReturn, previewCurrency)}
                   </span>
                 </div>
 
@@ -533,7 +631,7 @@ export function InvestmentForm({ onSubmit }: InvestmentFormProps) {
                       Total al vencimiento:
                     </span>
                     <span className='text-xl font-bold text-blue-900 dark:text-blue-100 tabular-nums'>
-                      ${totalReturn.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatCurrency(totalReturn, previewCurrency)}
                     </span>
                   </div>
                 </div>

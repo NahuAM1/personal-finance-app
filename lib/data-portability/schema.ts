@@ -130,6 +130,39 @@ function readNullableBoolean(o: JSONObject, key: string): boolean | null {
   return v;
 }
 
+function readOptionalString(o: JSONObject, key: string, fallback: string): string {
+  const v = o[key];
+  if (v === undefined || v === null) return fallback;
+  if (!isString(v)) throw new Error(`field "${key}" must be a string`);
+  return v;
+}
+
+function readOptionalNumber(o: JSONObject, key: string, fallback: number): number {
+  const v = o[key];
+  if (v === undefined || v === null) return fallback;
+  if (!isNumber(v)) throw new Error(`field "${key}" must be a number`);
+  return v;
+}
+
+/**
+ * Reads the multi-currency money fields. Rows exported by schema v1 do not carry them,
+ * so they default to ARS, original_amount = base amount, rate 1, source auto.
+ */
+function readMoney(o: JSONObject, amountKey: string) {
+  const baseAmount = readNumber(o, amountKey);
+  const source = readOptionalString(o, 'rate_source', 'auto');
+  if (source !== 'auto' && source !== 'manual') {
+    throw new Error('field "rate_source" must be "auto" or "manual"');
+  }
+  return {
+    currency: readOptionalString(o, 'currency', 'ARS'),
+    original_amount: readOptionalNumber(o, 'original_amount', baseAmount),
+    exchange_rate: readOptionalNumber(o, 'exchange_rate', 1),
+    rate_source: source as 'auto' | 'manual',
+    base_currency: readOptionalString(o, 'base_currency', 'ARS'),
+  };
+}
+
 function readEnum<T extends string>(
   o: JSONObject,
   key: string,
@@ -163,6 +196,7 @@ function parseTransaction(o: JSONObject): Transaction {
     due_date: readNullableString(o, 'due_date'),
     balance_total: readNullableNumber(o, 'balance_total'),
     ticket_id: readNullableString(o, 'ticket_id'),
+    ...readMoney(o, 'amount'),
     created_at: readString(o, 'created_at'),
     updated_at: readString(o, 'updated_at'),
   };
@@ -177,6 +211,7 @@ function parseExpensePlan(o: JSONObject): ExpensePlan {
     current_amount: readNumber(o, 'current_amount'),
     deadline: readString(o, 'deadline'),
     category: readString(o, 'category'),
+    currency: readOptionalString(o, 'currency', 'ARS'),
     deleted_at: readNullableString(o, 'deleted_at'),
     created_at: readString(o, 'created_at'),
     updated_at: readString(o, 'updated_at'),
@@ -193,6 +228,7 @@ function parseCreditPurchase(o: JSONObject): CreditPurchase {
     installments: readNumber(o, 'installments'),
     monthly_amount: readNumber(o, 'monthly_amount'),
     start_date: readString(o, 'start_date'),
+    ...readMoney(o, 'total_amount'),
     created_at: readString(o, 'created_at'),
     updated_at: readString(o, 'updated_at'),
   };
@@ -208,6 +244,7 @@ function parseCreditInstallment(o: JSONObject): CreditInstallment {
     paid: readBoolean(o, 'paid'),
     paid_date: readNullableString(o, 'paid_date'),
     transaction_id: readNullableString(o, 'transaction_id'),
+    ...readMoney(o, 'amount'),
     created_at: readString(o, 'created_at'),
     updated_at: readString(o, 'updated_at'),
   };
@@ -228,8 +265,11 @@ function parseInvestment(o: JSONObject): Investment {
     liquidation_date: readNullableString(o, 'liquidation_date'),
     actual_return: readNullableNumber(o, 'actual_return'),
     transaction_id: readNullableString(o, 'transaction_id'),
-    currency: readNullableString(o, 'currency'),
-    exchange_rate: readNullableNumber(o, 'exchange_rate'),
+    currency: readOptionalString(o, 'currency', 'ARS'),
+    exchange_rate: readOptionalNumber(o, 'exchange_rate', 1),
+    original_amount: readOptionalNumber(o, 'original_amount', readNumber(o, 'amount')),
+    rate_source: readOptionalString(o, 'rate_source', 'auto') === 'manual' ? 'manual' : 'auto',
+    base_currency: readOptionalString(o, 'base_currency', 'ARS'),
     created_at: readString(o, 'created_at'),
     updated_at: readString(o, 'updated_at'),
   };
@@ -251,6 +291,7 @@ function parseLoan(o: JSONObject): Loan {
     start_date: readString(o, 'start_date'),
     due_date: readNullableString(o, 'due_date'),
     transaction_id: readNullableString(o, 'transaction_id'),
+    ...readMoney(o, 'total_amount'),
     created_at: readString(o, 'created_at'),
     updated_at: readString(o, 'updated_at'),
   };
@@ -266,6 +307,7 @@ function parseLoanPayment(o: JSONObject): LoanPayment {
     paid: readBoolean(o, 'paid'),
     paid_date: readNullableString(o, 'paid_date'),
     transaction_id: readNullableString(o, 'transaction_id'),
+    ...readMoney(o, 'amount'),
     created_at: readString(o, 'created_at'),
     updated_at: readString(o, 'updated_at'),
   };
@@ -336,10 +378,11 @@ function parseMetadata(v: JSONValue, errors: string[]): CanonicalMetadata | null
   }
   try {
     const versionField = v.schemaVersion;
-    if (!isNumber(versionField) || versionField !== 1) {
-      errors.push('"metadata.schemaVersion" must equal 1');
+    if (!isNumber(versionField) || (versionField !== 1 && versionField !== 2)) {
+      errors.push('"metadata.schemaVersion" must be 1 or 2');
       return null;
     }
+    const schemaVersion: 1 | 2 = versionField === 2 ? 2 : 1;
     const entitiesField = v.entities;
     const entities: CanonicalMetadata['entities'] = [];
     if (isArray(entitiesField)) {
@@ -368,7 +411,8 @@ function parseMetadata(v: JSONValue, errors: string[]): CanonicalMetadata | null
       }
     }
     return {
-      schemaVersion: 1,
+      schemaVersion,
+      baseCurrency: isString(v.baseCurrency) && v.baseCurrency.length > 0 ? v.baseCurrency : undefined,
       exportedAt: isString(v.exportedAt) ? v.exportedAt : '',
       exportedBy: isString(v.exportedBy) ? v.exportedBy : '',
       dateRange,

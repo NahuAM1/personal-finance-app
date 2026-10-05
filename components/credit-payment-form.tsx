@@ -21,6 +21,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Transaction } from '@/types/database';
 import { CheckCircle2, Calendar, CreditCard } from 'lucide-react';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface CreditPaymentFormProps {
   transactions: Transaction[];
@@ -28,6 +29,7 @@ interface CreditPaymentFormProps {
 }
 
 export function CreditPaymentForm({ transactions, onPayInstallment }: CreditPaymentFormProps) {
+  const { format: formatCurrency } = useCurrency();
   const [selectedInstallment, setSelectedInstallment] = useState('');
 
   // Filter only unpaid credit transactions
@@ -115,7 +117,7 @@ export function CreditPaymentForm({ transactions, onPayInstallment }: CreditPaym
                             <span>
                               Cuota {installment.current_installment}/{installment.installments}
                             </span>
-                            <span className='font-semibold'>${installment.amount.toFixed(2)}</span>
+                            <span className='font-semibold'>{formatCurrency(installment.amount)}</span>
                             {installment.due_date && (
                               <span className={`text-xs ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
                                 {format(new Date(installment.due_date), 'dd/MM/yyyy')}
@@ -173,7 +175,7 @@ export function CreditPaymentForm({ transactions, onPayInstallment }: CreditPaym
                       Monto a pagar:
                     </span>
                     <span className='text-2xl font-bold text-blue-900 dark:text-blue-100'>
-                      ${selectedTransaction.amount.toFixed(2)}
+                      {formatCurrency(selectedTransaction.amount)}
                     </span>
                   </div>
                 </div>

@@ -38,6 +38,8 @@ export interface AddTransactionPayload {
   category: string;
   description: string;
   date: string;
+  /** Currency of the amount; defaults to the user base currency. */
+  currency?: string;
 }
 
 export interface CreateSavingsGoalPayload {

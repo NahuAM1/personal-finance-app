@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { TransactionService } from "@/lib/transactions"
 import { useAuth } from "@/contexts/auth-context"
-import type { Transaction } from "@/types/database"
+import type { Transaction, OmitNew } from "@/types/database"
 
 export function useTransactions() {
   const { user } = useAuth()
@@ -30,7 +30,7 @@ export function useTransactions() {
     fetchTransactions()
   }, [user])
 
-  const addTransaction = async (transaction: Omit<Transaction, "id" | "user_id" | "created_at" | "updated_at">) => {
+  const addTransaction = async (transaction: OmitNew<Transaction, "id" | "user_id" | "created_at" | "updated_at">) => {
     if (!user) return
 
     try {
