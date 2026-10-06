@@ -125,6 +125,39 @@ export function computeShares(
   };
 }
 
+export interface NewMemberSharePlan {
+  expenseId: string;
+  /** Full share set for the expense: existing participants (same order) + the new member last. */
+  shares: ShareInput[];
+}
+
+/**
+ * When a member joins a trip, they are added to every existing expense that is
+ * split equally, has no settled share yet and does not already include them.
+ * Shares are recomputed with `computeShares`, so the cent remainder goes to the
+ * last share (the new member) and the total still matches the expense amount.
+ * Custom/percentage expenses are never touched.
+ */
+export function planNewMemberShares(
+  expenses: TripExpenseWithShares[],
+  newMemberId: string
+): NewMemberSharePlan[] {
+  const plans: NewMemberSharePlan[] = [];
+  for (const expense of expenses) {
+    if (expense.split_method !== 'equal') continue;
+    const shares = expense.trip_expense_shares || [];
+    if (shares.length === 0) continue;
+    if (shares.some((s) => s.is_settled)) continue;
+    if (shares.some((s) => s.member_id === newMemberId)) continue;
+
+    const memberIds = [...shares.map((s) => s.member_id), newMemberId];
+    const result = computeShares(Number(expense.amount), 'equal', memberIds);
+    if (!result.ok) continue;
+    plans.push({ expenseId: expense.id, shares: result.shares });
+  }
+  return plans;
+}
+
 // ============================================
 // Summary
 // ============================================
@@ -306,6 +339,33 @@ export function getSharesToSettle(
     }
   }
   return ids;
+}
+
+// ============================================
+// Permissions (mirror the RLS policies in scripts/add-trip-expense-ownership.sql)
+// ============================================
+
+/** Only the trip owner or the user who created the expense can edit or delete it. */
+export function canManageExpense(params: {
+  currentUserId: string;
+  tripOwnerId: string;
+  expenseCreatedBy: string | null;
+}): boolean {
+  const { currentUserId, tripOwnerId, expenseCreatedBy } = params;
+  return currentUserId === tripOwnerId || (expenseCreatedBy !== null && expenseCreatedBy === currentUserId);
+}
+
+/** A debt can be settled by the trip owner or by either member involved in it. */
+export function canSettleDebt(params: {
+  currentUserId: string;
+  tripOwnerId: string;
+  currentMemberId: string | null;
+  settlement: Pick<DebtSettlement, 'fromMemberId' | 'toMemberId'>;
+}): boolean {
+  const { currentUserId, tripOwnerId, currentMemberId, settlement } = params;
+  if (currentUserId === tripOwnerId) return true;
+  if (currentMemberId === null) return false;
+  return currentMemberId === settlement.fromMemberId || currentMemberId === settlement.toMemberId;
 }
 
 // ============================================

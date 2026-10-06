@@ -10,6 +10,7 @@ import { resolveMoney } from '@/lib/currency/resolve-money';
 import type { MoneyFields, RateSource } from '@/lib/currency/money';
 import {
   buildTripTransactionDescription,
+  canManageExpense,
   getSharesToSettle,
   type DebtSettlement,
   type ShareInput,
@@ -249,7 +250,7 @@ export async function createTripExpense(params: {
 
   const { data: expense, error } = await supabase
     .from('trip_expenses')
-    .insert([{ ...input, trip_id: trip.id }])
+    .insert([{ ...input, trip_id: trip.id, created_by: currentUserId }])
     .select()
     .single();
 
@@ -274,7 +275,7 @@ export async function createTripExpense(params: {
  * Expenses with settled shares cannot be edited (their debts were already paid).
  */
 export async function updateTripExpense(params: {
-  trip: Pick<Trip, 'id' | 'name' | 'currency'>;
+  trip: Pick<Trip, 'id' | 'name' | 'currency' | 'created_by'>;
   expense: TripExpenseWithShares;
   input: TripExpenseInput;
   shares: ShareInput[];
@@ -282,6 +283,10 @@ export async function updateTripExpense(params: {
   currentUserId: string;
 }): Promise<void> {
   const { trip, expense, input, shares, members, currentUserId } = params;
+
+  if (!canManageExpense({ currentUserId, tripOwnerId: trip.created_by, expenseCreatedBy: expense.created_by })) {
+    throw new Error('Solo quien creó el gasto o el dueño del viaje pueden editarlo');
+  }
 
   if (hasSettledShares(expense)) {
     throw new Error('Este gasto tiene deudas saldadas y ya no se puede editar');
@@ -338,11 +343,16 @@ export async function updateTripExpense(params: {
 
 /** Deletes an expense and, if it was paid by the current user, its transaction. */
 export async function deleteTripExpense(params: {
+  trip: Pick<Trip, 'created_by'>;
   expense: TripExpenseWithShares;
   members: TripMember[];
   currentUserId: string;
 }): Promise<void> {
-  const { expense, members, currentUserId } = params;
+  const { trip, expense, members, currentUserId } = params;
+
+  if (!canManageExpense({ currentUserId, tripOwnerId: trip.created_by, expenseCreatedBy: expense.created_by })) {
+    throw new Error('Solo quien creó el gasto o el dueño del viaje pueden eliminarlo');
+  }
 
   if (hasSettledShares(expense)) {
     throw new Error('Este gasto tiene deudas saldadas y ya no se puede eliminar');

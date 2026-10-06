@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Trip, TripMember } from '@/types/database';
 import { OriginalAmount } from '@/components/currency/original-amount';
-import { formatTripMoney, type TripExpenseWithShares } from '@/lib/trips';
+import { canManageExpense, formatTripMoney, type TripExpenseWithShares } from '@/lib/trips';
 import * as tripsApi from '@/lib/trips-api';
 import { useToast } from '@/hooks/use-toast';
 import { TripExpenseForm } from './trip-expense-form';
@@ -56,7 +56,7 @@ export function TripExpenses({
     if (!toDelete) return;
     setDeleting(true);
     try {
-      await tripsApi.deleteTripExpense({ expense: toDelete, members, currentUserId });
+      await tripsApi.deleteTripExpense({ trip, expense: toDelete, members, currentUserId });
       toast({ title: 'Gasto eliminado' });
       setToDelete(null);
       onChanged();
@@ -102,6 +102,11 @@ export function TripExpenses({
         <div className='grid grid-cols-1 gap-3'>
           {expenses.map((expense) => {
             const locked = tripsApi.hasSettledShares(expense);
+            const canManage = canManageExpense({
+              currentUserId,
+              tripOwnerId: trip.created_by,
+              expenseCreatedBy: expense.created_by,
+            });
             return (
               <Card key={expense.id} className='min-w-0'>
                 <CardContent className='p-4 flex flex-col sm:flex-row sm:items-center gap-3'>
@@ -139,7 +144,7 @@ export function TripExpenses({
                         >
                           <Lock className='h-4 w-4' aria-label='Gasto con deudas saldadas' />
                         </span>
-                      ) : (
+                      ) : canManage ? (
                         <>
                           <Button
                             variant='ghost'
@@ -159,7 +164,7 @@ export function TripExpenses({
                             <Trash2 className='h-4 w-4' />
                           </Button>
                         </>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>

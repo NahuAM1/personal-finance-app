@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Trip, TripMember } from '@/types/database';
 import {
+  canSettleDebt,
   formatTripMoney,
   type DebtSettlement,
   type TripExpenseWithShares,
@@ -50,6 +51,13 @@ export function TripSettlements({
   const money = (n: number) => formatTripMoney(n, trip.currency);
   const nameOf = (id: string) => members.find((m) => m.id === id)?.display_name || 'Desconocido';
   const currentMember = members.find((m) => m.user_id === currentUserId);
+  const canSettle = (s: DebtSettlement): boolean =>
+    canSettleDebt({
+      currentUserId,
+      tripOwnerId: trip.created_by,
+      currentMemberId: currentMember?.id ?? null,
+      settlement: s,
+    });
 
   const describeEffect = (s: DebtSettlement): string => {
     if (currentMember?.id === s.fromMemberId) {
@@ -135,14 +143,16 @@ export function TripSettlements({
                   </div>
                   <div className='flex items-center justify-between sm:justify-end gap-3'>
                     <span className='font-semibold tabular-nums'>{money(s.amount)}</span>
-                    <Button
-                      size='sm'
-                      onClick={() => setConfirm(s)}
-                      disabled={settling}
-                      className='bg-emerald-600 hover:bg-emerald-700 text-white'
-                    >
-                      Saldar
-                    </Button>
+                    {canSettle(s) && (
+                      <Button
+                        size='sm'
+                        onClick={() => setConfirm(s)}
+                        disabled={settling}
+                        className='bg-emerald-600 hover:bg-emerald-700 text-white'
+                      >
+                        Saldar
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
