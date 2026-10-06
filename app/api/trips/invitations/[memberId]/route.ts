@@ -1,9 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { planNewMemberShares } from '@/lib/trips';
+import type { TripExpenseWithShares } from '@/lib/trips';
 import type { Notification, TripMember } from '@/types/database';
 
 type InvitationAction = 'accept' | 'decline';
+
+type AdminClient = ReturnType<typeof createSupabaseAdminClient>;
+
+/**
+ * Adds a member who just joined to the trip's equally split, unsettled
+ * expenses. Each expense is written with ONE upsert on (expense_id, member_id):
+ * existing participants get their new amount and the new member's row is
+ * inserted in the same statement, so a failure never leaves an expense with
+ * zero or partial shares.
+ */
+async function includeNewMemberInExpenses(admin: AdminClient, tripId: string, memberId: string) {
+  const { data, error } = await admin
+    .from('trip_expenses')
+    .select('*, trip_expense_shares(*)')
+    .eq('trip_id', tripId);
+  if (error) throw error;
+
+  const expenses: TripExpenseWithShares[] = data ?? [];
+  for (const plan of planNewMemberShares(expenses, memberId)) {
+    const { error: upsertError } = await admin
+      .from('trip_expense_shares')
+      .upsert(
+        plan.shares.map((s) => ({ ...s, expense_id: plan.expenseId })),
+        { onConflict: 'expense_id,member_id' }
+      );
+    if (upsertError) {
+      console.error(`Error adding trip member ${memberId} to expense ${plan.expenseId}:`, upsertError);
+    }
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -60,6 +92,15 @@ export async function POST(
       .eq('id', memberId)
       .eq('invite_status', 'pending');
     if (updateError) throw updateError;
+
+    // Re-splitting existing expenses is best effort: the invitation stays accepted.
+    if (action === 'accept') {
+      try {
+        await includeNewMemberInExpenses(admin, member.trip_id, member.id);
+      } catch (splitError) {
+        console.error('Error adding new trip member to existing expenses:', splitError);
+      }
+    }
 
     // Mark the related invitation notifications as read and record the answer.
     const { data: notifications } = await admin

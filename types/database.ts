@@ -634,6 +634,7 @@ export interface Database {
           expense_date: string
           split_method: "equal" | "custom" | "percentage"
           transaction_id: string | null
+          created_by: string | null
           currency: string
           original_amount: number
           exchange_rate: number
@@ -651,6 +652,7 @@ export interface Database {
           expense_date: string
           split_method?: "equal" | "custom" | "percentage"
           transaction_id?: string | null
+          created_by?: string | null
           currency?: string
           original_amount?: number
           exchange_rate?: number
@@ -668,6 +670,7 @@ export interface Database {
           expense_date?: string
           split_method?: "equal" | "custom" | "percentage"
           transaction_id?: string | null
+          created_by?: string | null
           currency?: string
           original_amount?: number
           exchange_rate?: number
