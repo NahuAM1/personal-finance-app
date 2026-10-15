@@ -10,14 +10,14 @@ import type {
   AgentClarificationPayload,
   AddTransactionPayload,
   CreateSavingsGoalPayload,
-  CreditPurchasePayload,
   CreateInvestmentPayload,
   ScanReceiptPayload,
   ConversationMessage,
 } from '@/types/agent';
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, OmitNew } from '@/types/database';
+import type { Transaction, ExpensePlan, Investment, OmitNew } from '@/types/database';
 import type { SavingsDepositPayload, DeleteTransactionPayload } from '@/types/agent';
 import { classifyIntent, executeStrategy, fetchPostConfirmMessage, fetchWelcomeMessage } from '@/lib/agent/agent-service';
+import { buildAgentCreditPurchase } from '@/lib/agent/credit-purchase-builder';
 import { createTTSService } from '@/lib/agent/tts/tts-service';
 import type { TTSService } from '@/lib/agent/tts/tts-service';
 import { useAuth } from '@/contexts/auth-context';
@@ -52,6 +52,7 @@ interface AgentContextType {
   sendTranscription: (text: string) => Promise<void>;
   confirmAction: () => Promise<void>;
   cancelAction: () => void;
+  selectCreditPurchaseCard: (cardId: string | null) => void;
   toggleDrawer: () => void;
   toggleVoice: () => void;
   setOnActionCompleted: (callback: () => void) => void;
@@ -359,36 +360,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
         }
 
         case AgentAction.CREDIT_PURCHASE: {
-          const p = pendingPayload as CreditPurchasePayload;
-          const monthlyAmount = Math.ceil((p.totalAmount / p.installments) * 100) / 100;
-
-          const purchase: OmitNew<CreditPurchase, 'id' | 'created_at' | 'updated_at'> = {
-            user_id: user.id,
-            description: p.description,
-            category: p.category,
-            total_amount: p.totalAmount,
-            installments: p.installments,
-            monthly_amount: monthlyAmount,
-            start_date: p.startDate,
-          };
-
-          const installments: OmitNew<CreditInstallment, 'id' | 'credit_purchase_id' | 'created_at' | 'updated_at'>[] = [];
-          const startDate = new Date(p.startDate);
-
-          for (let i = 0; i < p.installments; i++) {
-            const dueDate = new Date(startDate);
-            dueDate.setMonth(dueDate.getMonth() + i);
-
-            installments.push({
-              installment_number: i + 1,
-              due_date: dueDate.toISOString().split('T')[0],
-              amount: monthlyAmount,
-              paid: false,
-              paid_date: null,
-              transaction_id: null,
-            });
-          }
-
+          const { purchase, installments } = buildAgentCreditPurchase(pendingPayload, user.id);
           await api.createCreditPurchase(purchase, installments);
           updateSessionPreferences(pendingPayload);
           break;
@@ -477,6 +449,12 @@ export function AgentProvider({ children }: AgentProviderProps) {
     setStatus('idle');
   }, [addMessage]);
 
+  const selectCreditPurchaseCard = useCallback((cardId: string | null) => {
+    setPendingPayload((current: AgentPayload | null) =>
+      current && current.action === AgentAction.CREDIT_PURCHASE ? { ...current, cardId } : current,
+    );
+  }, []);
+
   const onScanComplete = useCallback((data: ScanCompleteData) => {
     setScannerActive(false);
 
@@ -545,6 +523,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
     sendTranscription,
     confirmAction,
     cancelAction,
+    selectCreditPurchaseCard,
     toggleDrawer,
     toggleVoice,
     setOnActionCompleted,
@@ -552,7 +531,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
     onScanCancel,
   }), [
     isOpen, status, messages, pendingPayload, pendingImagePreview, voiceEnabled, isSpeaking, scannerActive,
-    sendTranscription, confirmAction, cancelAction, toggleDrawer, toggleVoice,
+    sendTranscription, confirmAction, cancelAction, selectCreditPurchaseCard, toggleDrawer, toggleVoice,
     setOnActionCompleted, onScanComplete, onScanCancel,
   ]);
 

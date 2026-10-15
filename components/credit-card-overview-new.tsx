@@ -38,6 +38,8 @@ import { useCurrency } from '@/hooks/use-currency';
 import { OriginalAmount } from '@/components/currency/original-amount';
 import type { CreditPurchase, CreditInstallment } from '@/types/database';
 import { roundAmount } from '@/lib/currency/money';
+import { CardSelect, useLiveCards } from '@/components/card-form';
+import { formatCardLabel } from '@/lib/cards';
 
 type CreditPurchaseData = CreditPurchase;
 type CreditInstallmentData = CreditInstallment;
@@ -57,6 +59,7 @@ interface CreditCardOverviewNewProps {
 
 export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpdate, onPushForward }: CreditCardOverviewNewProps) {
   const { format: formatCurrency } = useCurrency();
+  const { cards } = useLiveCards();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [pushDialogOpen, setPushDialogOpen] = useState(false);
@@ -76,6 +79,17 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
   // Edit form state
   const [editDescription, setEditDescription] = useState('');
   const [editTotalAmount, setEditTotalAmount] = useState('');
+  const [editCardId, setEditCardId] = useState<string | null>(null);
+
+  const editCardOnly: boolean =
+    purchaseToEdit !== null &&
+    installments.some((inst) => inst.credit_purchase_id === purchaseToEdit.id && inst.paid);
+
+  const cardLabelFor = (cardId: string | null): string | null => {
+    if (cardId === null) return null;
+    const card = cards.find((item) => item.id === cardId);
+    return card ? formatCardLabel(card) : null;
+  };
 
   const handleDeleteClick = (purchase: CreditPurchaseData) => {
     setPurchaseToDelete(purchase.id);
@@ -87,6 +101,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
     setEditDescription(purchase.description);
     // The total is edited in the purchase currency; the stored rate converts it to the base.
     setEditTotalAmount(purchase.original_amount.toString());
+    setEditCardId(purchase.card_id);
     setEditDialogOpen(true);
   };
 
@@ -114,6 +129,14 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
   const confirmEdit = () => {
     if (!purchaseToEdit) return;
 
+    const cardChanged: boolean = editCardId !== purchaseToEdit.card_id;
+
+    if (editCardOnly) {
+      if (cardChanged) onUpdate(purchaseToEdit.id, { card_id: editCardId });
+      setEditDialogOpen(false);
+      return;
+    }
+
     const newOriginalTotal = Number.parseFloat(editTotalAmount);
     const rate = purchaseToEdit.exchange_rate;
     const monthlyOriginal = roundAmount(newOriginalTotal / purchaseToEdit.installments);
@@ -124,10 +147,10 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
       total_amount: roundAmount(newOriginalTotal * rate),
       monthly_amount: roundAmount(monthlyOriginal * rate),
     };
+    if (cardChanged) updates.card_id = editCardId;
 
     onUpdate(purchaseToEdit.id, updates);
     setEditDialogOpen(false);
-    setPurchaseToEdit(null);
   };
 
   // Group installments by purchase
@@ -266,6 +289,7 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
       <div className='grid gap-4 md:grid-cols-2'>
         {enrichedPurchases.map((data) => {
           const progressPercentage = (data.paidCount / data.purchase.installments) * 100;
+          const cardLabel = cardLabelFor(data.purchase.card_id);
 
           return (
             <Card
@@ -284,8 +308,17 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                     <CardTitle className='text-lg mb-1'>
                       {data.purchase.description}
                     </CardTitle>
-                    <CardDescription className='flex items-center gap-1'>
+                    <CardDescription className='flex flex-wrap items-center gap-1'>
                       <span>{data.purchase.category}</span>
+                      {cardLabel && (
+                        <>
+                          <span aria-hidden='true'>·</span>
+                          <span className='flex items-center gap-1'>
+                            <CreditCard className='h-3 w-3' aria-hidden='true' />
+                            {cardLabel}
+                          </span>
+                        </>
+                      )}
                     </CardDescription>
                   </div>
                   <div className='flex items-center gap-2'>
@@ -306,32 +339,31 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
                       </Badge>
                     )}
                     {!data.isCompleted && (
-                      <>
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          onClick={() => handlePushClick(data.purchase.id)}
-                          title='Mover cuotas pendientes al mes siguiente'
-                        >
-                          <ChevronsRight className='h-4 w-4 text-blue-600' />
-                        </Button>
-                        {data.paidCount === 0 && (
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={() => handleEditClick(data.purchase)}
-                          >
-                            <Edit2 className='h-4 w-4' />
-                          </Button>
-                        )}
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          onClick={() => handleDeleteClick(data.purchase)}
-                        >
-                          <Trash2 className='h-4 w-4 text-red-600' />
-                        </Button>
-                      </>
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={() => handlePushClick(data.purchase.id)}
+                        title='Mover cuotas pendientes al mes siguiente'
+                      >
+                        <ChevronsRight className='h-4 w-4 text-blue-600' />
+                      </Button>
+                    )}
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => handleEditClick(data.purchase)}
+                      title={data.paidCount === 0 ? 'Editar compra' : 'Cambiar tarjeta'}
+                    >
+                      <Edit2 className='h-4 w-4' />
+                    </Button>
+                    {!data.isCompleted && (
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={() => handleDeleteClick(data.purchase)}
+                      >
+                        <Trash2 className='h-4 w-4 text-red-600' />
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -506,40 +538,53 @@ export function CreditCardOverviewNew({ purchases, installments, onDelete, onUpd
           <DialogHeader>
             <DialogTitle>Editar Compra</DialogTitle>
             <DialogDescription>
-              Modifica los detalles de la compra. El monto mensual se recalculará automáticamente.
+              {editCardOnly
+                ? 'Esta compra ya tiene cuotas pagadas, así que solo podés cambiar la tarjeta.'
+                : 'Modifica los detalles de la compra. El monto mensual se recalculará automáticamente.'}
             </DialogDescription>
           </DialogHeader>
           <div className='space-y-4 py-4'>
-            <div className='space-y-2'>
-              <Label htmlFor='edit-description'>Descripción</Label>
-              <Input
-                id='edit-description'
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-              />
-            </div>
+            {!editCardOnly && (
+              <>
+                <div className='space-y-2'>
+                  <Label htmlFor='edit-description'>Descripción</Label>
+                  <Input
+                    id='edit-description'
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                  />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='edit-total'>Monto Total{purchaseToEdit ? ` (${purchaseToEdit.currency})` : ''}</Label>
+                  <Input
+                    id='edit-total'
+                    type='number'
+                    step='0.01'
+                    value={editTotalAmount}
+                    onChange={(e) => setEditTotalAmount(e.target.value)}
+                  />
+                  {purchaseToEdit && editTotalAmount && (
+                    <p className='text-xs text-gray-500'>
+                      Cuota mensual: {formatCurrency(Number.parseFloat(editTotalAmount) / purchaseToEdit.installments, purchaseToEdit.currency)}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
 
             <div className='space-y-2'>
-              <Label htmlFor='edit-total'>Monto Total{purchaseToEdit ? ` (${purchaseToEdit.currency})` : ''}</Label>
-              <Input
-                id='edit-total'
-                type='number'
-                step='0.01'
-                value={editTotalAmount}
-                onChange={(e) => setEditTotalAmount(e.target.value)}
-              />
-              {purchaseToEdit && editTotalAmount && (
-                <p className='text-xs text-gray-500'>
-                  Cuota mensual: {formatCurrency(Number.parseFloat(editTotalAmount) / purchaseToEdit.installments, purchaseToEdit.currency)}
+              <Label htmlFor='edit-card'>Tarjeta</Label>
+              <CardSelect id='edit-card' cards={cards} value={editCardId} onChange={setEditCardId} />
+            </div>
+
+            {!editCardOnly && (
+              <div className='p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded'>
+                <p className='text-xs text-amber-800 dark:text-amber-200'>
+                  <strong>Nota:</strong> Solo puedes editar compras que no tengan cuotas pagadas.
                 </p>
-              )}
-            </div>
-
-            <div className='p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded'>
-              <p className='text-xs text-amber-800 dark:text-amber-200'>
-                <strong>Nota:</strong> Solo puedes editar compras que no tengan cuotas pagadas.
-              </p>
-            </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant='outline' onClick={() => setEditDialogOpen(false)}>

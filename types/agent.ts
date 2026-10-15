@@ -57,6 +57,7 @@ export interface CreditPurchasePayload {
   totalAmount: number;
   installments: number;
   startDate: string;
+  cardId: string | null;
 }
 
 export interface CreateInvestmentPayload {

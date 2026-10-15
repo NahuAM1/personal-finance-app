@@ -14,6 +14,7 @@ import type {
 import type {
   Transaction,
   ExpensePlan,
+  Card,
   CreditPurchase,
   CreditInstallment,
   Investment,
@@ -144,6 +145,7 @@ function emptyCounts(): EntityCounts {
   return {
     transactions: 0,
     expense_plans: 0,
+    cards: 0,
     credit_purchases: 0,
     credit_installments: 0,
     investments: 0,
@@ -154,11 +156,12 @@ function emptyCounts(): EntityCounts {
   };
 }
 
-function remapData(
+export function remapData(
   data: CanonicalData,
   userId: string
 ): CanonicalData {
   const txMap = new Map<string, string>();
+  const cardMap = new Map<string, string>();
   const purchaseMap = new Map<string, string>();
   const installmentMap = new Map<string, string>();
   const investmentMap = new Map<string, string>();
@@ -168,6 +171,7 @@ function remapData(
   const expensePlanMap = new Map<string, string>();
 
   for (const t of data.transactions) txMap.set(t.id, crypto.randomUUID());
+  for (const c of data.cards) cardMap.set(c.id, crypto.randomUUID());
   for (const p of data.credit_purchases)
     purchaseMap.set(p.id, crypto.randomUUID());
   for (const i of data.credit_installments)
@@ -207,10 +211,17 @@ function remapData(
     user_id: userId,
   }));
 
+  const cards: Card[] = data.cards.map((c) => ({
+    ...c,
+    id: cardMap.get(c.id) ?? crypto.randomUUID(),
+    user_id: userId,
+  }));
+
   const credit_purchases: CreditPurchase[] = data.credit_purchases.map((p) => ({
     ...p,
     id: purchaseMap.get(p.id) ?? crypto.randomUUID(),
     user_id: userId,
+    card_id: remapNullable(cardMap, p.card_id),
   }));
 
   const credit_installments: CreditInstallment[] = data.credit_installments
@@ -262,6 +273,7 @@ function remapData(
   return {
     transactions,
     expense_plans,
+    cards,
     credit_purchases,
     credit_installments,
     investments,
@@ -292,6 +304,26 @@ async function insertExpensePlans(rows: ExpensePlan[], errors: string[]): Promis
     inserted += data ? data.length : 0;
   }
   return inserted;
+}
+
+async function insertCards(rows: Card[], errors: string[]): Promise<Set<string>> {
+  const insertedIds = new Set<string>();
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const slice = rows.slice(i, i + BATCH_SIZE);
+    const { data, error } = await supabase.from('cards').insert(slice).select('id');
+    if (error) { errors.push(`cards: ${error.message}`); continue; }
+    for (const row of data ?? []) insertedIds.add(row.id);
+  }
+  return insertedIds;
+}
+
+export function clearMissingCardIds(
+  purchases: CreditPurchase[],
+  insertedCardIds: ReadonlySet<string>
+): CreditPurchase[] {
+  return purchases.map((p) =>
+    p.card_id !== null && insertedCardIds.has(p.card_id) ? p : { ...p, card_id: null }
+  );
 }
 
 async function insertCreditPurchases(rows: CreditPurchase[], errors: string[]): Promise<number> {
@@ -392,7 +424,12 @@ export async function importMerge(
   inserted.tickets = await insertTickets(remapped.tickets, errors);
   inserted.ticket_items = await insertTicketItems(remapped.ticket_items, errors);
   inserted.transactions = await insertTransactions(remapped.transactions, errors);
-  inserted.credit_purchases = await insertCreditPurchases(remapped.credit_purchases, errors);
+  const insertedCardIds = await insertCards(remapped.cards, errors);
+  inserted.cards = insertedCardIds.size;
+  inserted.credit_purchases = await insertCreditPurchases(
+    clearMissingCardIds(remapped.credit_purchases, insertedCardIds),
+    errors
+  );
   inserted.credit_installments = await insertCreditInstallments(remapped.credit_installments, errors);
   inserted.investments = await insertInvestments(remapped.investments, errors);
   inserted.loans = await insertLoans(remapped.loans, errors);
@@ -434,6 +471,7 @@ export function totalInserted(counts: EntityCounts): number {
   return (
     counts.transactions +
     counts.expense_plans +
+    counts.cards +
     counts.credit_purchases +
     counts.credit_installments +
     counts.investments +

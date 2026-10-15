@@ -35,6 +35,7 @@ export function AgentDrawer() {
     sendTranscription,
     confirmAction,
     cancelAction,
+    selectCreditPurchaseCard,
     toggleDrawer,
     onScanComplete,
     onScanCancel,
@@ -127,6 +128,7 @@ export function AgentDrawer() {
                     {pendingPayload.action === 'credit_purchase' && (
                       <ConfirmCreditPurchase
                         payload={pendingPayload as CreditPurchasePayload}
+                        onCardChange={selectCreditPurchaseCard}
                         onConfirm={confirmAction}
                         onCancel={cancelAction}
                       />

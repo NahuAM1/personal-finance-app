@@ -1,6 +1,8 @@
 import type {
   Transaction,
   ExpensePlan,
+  Card,
+  CardNetwork,
   CreditPurchase,
   CreditInstallment,
   Investment,
@@ -9,6 +11,7 @@ import type {
   Ticket,
   TicketItem,
 } from '@/types/database';
+import { CARD_NETWORKS, isCardNetwork } from '@/lib/cards';
 import type {
   CanonicalExport,
   CanonicalMetadata,
@@ -87,6 +90,10 @@ const LOAN_PAYMENT_MODES: ReadonlyArray<Loan['payment_mode']> = [
 ];
 
 const LOAN_STATUSES: ReadonlyArray<Loan['status']> = ['active', 'completed'];
+
+const CARD_NAME_MAX_LENGTH = 100;
+
+const CARD_LAST_FOUR_PATTERN = /^\d{4}$/;
 
 function readString(o: JSONObject, key: string): string {
   const v = o[key];
@@ -218,10 +225,57 @@ function parseExpensePlan(o: JSONObject): ExpensePlan {
   };
 }
 
+function readCardName(o: JSONObject): string {
+  const name = readString(o, 'name');
+  if (name.trim().length === 0) throw new Error('field "name" must not be empty');
+  if (name.length > CARD_NAME_MAX_LENGTH) {
+    throw new Error(`field "name" must be at most ${CARD_NAME_MAX_LENGTH} characters`);
+  }
+  return name;
+}
+
+function readCardNetwork(o: JSONObject): CardNetwork {
+  const network = readString(o, 'network');
+  if (!isCardNetwork(network)) {
+    throw new Error(
+      `field "network" must be one of: ${CARD_NETWORKS.join(', ')} (got "${network}")`
+    );
+  }
+  return network;
+}
+
+function readCardLastFour(o: JSONObject): string | null {
+  const v = o['last_four'];
+  if (v === undefined || v === null) return null;
+  if (!isString(v) || !CARD_LAST_FOUR_PATTERN.test(v)) {
+    throw new Error('field "last_four" must be 4 digits or null');
+  }
+  return v;
+}
+
+function readCardId(o: JSONObject): string | null {
+  const v = o['card_id'];
+  if (!isString(v) || v.trim().length === 0) return null;
+  return v.trim();
+}
+
+function parseCard(o: JSONObject): Card {
+  return {
+    id: readString(o, 'id'),
+    user_id: readString(o, 'user_id'),
+    name: readCardName(o),
+    network: readCardNetwork(o),
+    last_four: readCardLastFour(o),
+    created_at: readString(o, 'created_at'),
+    updated_at: readString(o, 'updated_at'),
+  };
+}
+
 function parseCreditPurchase(o: JSONObject): CreditPurchase {
   return {
     id: readString(o, 'id'),
     user_id: readString(o, 'user_id'),
+    card_id: readCardId(o),
     description: readString(o, 'description'),
     category: readString(o, 'category'),
     total_amount: readNumber(o, 'total_amount'),
@@ -391,6 +445,7 @@ function parseMetadata(v: JSONValue, errors: string[]): CanonicalMetadata | null
           if (
             e === 'transactions' ||
             e === 'expense_plans' ||
+            e === 'cards' ||
             e === 'credit_purchases' ||
             e === 'investments' ||
             e === 'loans' ||
@@ -433,6 +488,7 @@ export function validateAndParse(v: JSONValue): ValidationResult & {
   const emptyCounts: EntityCounts = {
     transactions: 0,
     expense_plans: 0,
+    cards: 0,
     credit_purchases: 0,
     credit_installments: 0,
     investments: 0,
@@ -479,6 +535,7 @@ export function validateAndParse(v: JSONValue): ValidationResult & {
       'data.expense_plans',
       errors
     ),
+    cards: parseArray(dataField.cards ?? [], parseCard, 'data.cards', errors),
     credit_purchases: parseArray(
       dataField.credit_purchases ?? [],
       parseCreditPurchase,
@@ -521,6 +578,7 @@ export function validateAndParse(v: JSONValue): ValidationResult & {
   const counts: EntityCounts = {
     transactions: data.transactions.length,
     expense_plans: data.expense_plans.length,
+    cards: data.cards.length,
     credit_purchases: data.credit_purchases.length,
     credit_installments: data.credit_installments.length,
     investments: data.investments.length,
