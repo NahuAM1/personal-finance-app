@@ -26,6 +26,8 @@ import { useCurrency } from '@/hooks/use-currency';
 import { buildMoneyFields, type MoneyFields } from '@/lib/currency/money';
 import { parseDecimal } from '@/lib/currency/money-input';
 import { toast } from 'sonner';
+import { useLiveCards } from '@/components/card-form';
+import { subtotalsByCard, type CardSubtotal } from '@/lib/cards';
 
 type CreditInstallmentWithPurchase = CreditInstallment & {
   credit_purchase: CreditPurchase;
@@ -66,6 +68,12 @@ export function CreditPaymentFormNew({ installments, onPayInstallment, onPayInst
   const activeMonth = months.includes(selectedMonth) ? selectedMonth : (months[0] ?? '');
   const monthInstallments = installmentsByMonth[activeMonth] ?? [];
   const monthTotal = monthInstallments.reduce((sum, inst) => sum + inst.amount, 0);
+  const { cards } = useLiveCards();
+  const monthSubtotals: CardSubtotal[] = subtotalsByCard(
+    monthInstallments.map((inst) => ({ cardId: inst.credit_purchase.card_id, amount: inst.amount })),
+    cards,
+  );
+  const showCardSubtotals: boolean = monthSubtotals.some((subtotal: CardSubtotal) => subtotal.cardId !== null);
 
   const formatMonth = (month: string): string =>
     format(parseISO(`${month}-01`), 'MMMM yyyy', { locale: es });
@@ -191,6 +199,19 @@ export function CreditPaymentFormNew({ installments, onPayInstallment, onPayInst
                   <span className='shrink-0 tabular-nums'>{formatInstallment(inst)}</span>
                 </li>
               ))}
+              {showCardSubtotals &&
+                monthSubtotals.map((subtotal: CardSubtotal) => (
+                  <li
+                    key={subtotal.cardId ?? 'no-card'}
+                    className='flex items-center justify-between gap-3 py-2 text-gray-600 dark:text-gray-400'
+                  >
+                    <span className='flex min-w-0 items-center gap-2'>
+                      <CreditCard className='h-3.5 w-3.5 shrink-0' aria-hidden='true' />
+                      <span className='break-words'>{subtotal.label}</span>
+                    </span>
+                    <span className='shrink-0 tabular-nums'>{formatCurrency(subtotal.amount)}</span>
+                  </li>
+                ))}
               <li className='flex items-center justify-between gap-3 pt-3 font-semibold'>
                 <span>Total</span>
                 <span className='tabular-nums'>{formatCurrency(monthTotal)}</span>

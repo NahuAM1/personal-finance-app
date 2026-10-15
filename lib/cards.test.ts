@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_NETWORKS, CARD_NETWORK_LABELS, formatCardLabel, parseCardForm } from '@/lib/cards';
+import { CARD_NETWORKS, CARD_NETWORK_LABELS, formatCardLabel, parseCardForm, subtotalsByCard } from '@/lib/cards';
+import type { Card, CardNetwork } from '@/types/database';
+
+function buildCard(id: string, name: string, network: CardNetwork, lastFour: string | null): Card {
+  return {
+    id,
+    user_id: 'user-1',
+    name,
+    network,
+    last_four: lastFour,
+    created_at: '2026-10-15T00:00:00Z',
+    updated_at: '2026-10-15T00:00:00Z',
+  };
+}
+
+const GALICIA: Card = buildCard('card-galicia', 'Galicia', 'visa', '1234');
+const SANTANDER: Card = buildCard('card-santander', 'Santander', 'amex', null);
 
 describe('parseCardForm', () => {
   it('accepts a card with a trimmed name, a network and the last four digits', () => {
@@ -69,5 +85,43 @@ describe('CARD_NETWORKS', () => {
       'Naranja',
       'Otra',
     ]);
+  });
+});
+
+describe('subtotalsByCard', () => {
+  it('adds up the installments of each card, sorted by card label', () => {
+    const subtotals = subtotalsByCard(
+      [
+        { cardId: 'card-santander', amount: 50 },
+        { cardId: 'card-galicia', amount: 100 },
+        { cardId: 'card-galicia', amount: 25.5 },
+      ],
+      [SANTANDER, GALICIA],
+    );
+
+    expect(subtotals).toEqual([
+      { cardId: 'card-galicia', label: 'Galicia · Visa •••• 1234', amount: 125.5 },
+      { cardId: 'card-santander', label: 'Santander · American Express', amount: 50 },
+    ]);
+  });
+
+  it('groups installments without a card, or whose card no longer exists, under Sin tarjeta at the end', () => {
+    const subtotals = subtotalsByCard(
+      [
+        { cardId: null, amount: 10 },
+        { cardId: 'card-deleted', amount: 5 },
+        { cardId: 'card-galicia', amount: 20 },
+      ],
+      [GALICIA],
+    );
+
+    expect(subtotals).toEqual([
+      { cardId: 'card-galicia', label: 'Galicia · Visa •••• 1234', amount: 20 },
+      { cardId: null, label: 'Sin tarjeta', amount: 15 },
+    ]);
+  });
+
+  it('returns no subtotals for a month without installments', () => {
+    expect(subtotalsByCard([], [GALICIA])).toEqual([]);
   });
 });
