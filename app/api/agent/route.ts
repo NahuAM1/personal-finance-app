@@ -4,30 +4,20 @@ import { USER_ROLES } from '@/types/database';
 import type { UserRole } from '@/types/database';
 import { AgentAction } from '@/types/agent';
 import type { AgentActionType, AgentExecuteResponse, AgentPayload, AgentClarificationPayload, ConversationMessage, DataQueryParams } from '@/types/agent';
-import OpenAI from 'openai';
-import { HuggingFaceModels, OpenRouterModels } from '@/public/enums';
-import { buildClassifierPrompt } from '@/public/promts/classifier-prompt';
+import { classifyTranscription, generateAgentReply } from '@/lib/agent/llm';
+import { aiErrorResponse } from '@/lib/ai/http';
 import { getStrategy } from '@/lib/agent/strategies';
 import { fetchDataForQuery } from '@/lib/agent/data-fetcher';
 import { buildDataAnswerPrompt } from '@/lib/agent/strategies/data-query';
 import { buildUserFinancialContext } from '@/lib/agent/financial-context';
 import { buildMarketContext, transcriptionNeedsMarketData } from '@/lib/agent/market-context';
 import { safeParseJson } from '@/lib/agent/utils/json-utils';
-import { serializeHistory } from '@/lib/agent/utils/serialize-history';
 import { needsWebSearch, hasPendingSearch, userAcceptedSearch } from '@/lib/agent/utils/search-utils';
 import { searchWeb, buildSearchContext } from '@/lib/agent/web-search';
 import { getBaseCurrency } from '@/lib/agent/base-currency';
 import { formatMoney } from '@/lib/currency/format';
 
-const openrouter = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_API_BASE_URL,
-});
-
-const huggingface = new OpenAI({
-  apiKey: process.env.HUGGING_FACE_KEY,
-  baseURL: process.env.HUGGING_FACE_BASE_URL,
-});
+export const maxDuration = 60;
 
 // --- Pre-classification: detect period-specific queries before LLM ---
 // Acts as a safety net for patterns the LLM classifier might miss.
@@ -46,53 +36,6 @@ function detectPeriodQuery(transcription: string): AgentActionType | null {
     if (p.test(transcription)) return AgentAction.DATA_QUERY;
   }
   return null;
-}
-
-// --- Classify using NVIDIA free model ---
-async function classifyWithNvidia(
-  transcription: string,
-  conversationHistory?: ConversationMessage[],
-): Promise<{ action: AgentActionType; confidence: number }> {
-  const prompt = buildClassifierPrompt(transcription, conversationHistory);
-
-  const response = await openrouter.chat.completions.create({
-    model: OpenRouterModels.NVIDIA,
-    messages: [{ role: 'user', content: prompt }],
-    temperature: 0.1,
-    max_tokens: 256,
-  });
-
-  const rawContent = response.choices[0]?.message?.content ?? '';
-  const defaultClassification = { action: AgentAction.GENERAL_QUESTION as AgentActionType, confidence: 0 };
-  const parsed = safeParseJson<{ action: AgentActionType; confidence: number }>(rawContent, defaultClassification);
-  if (!parsed.action) return defaultClassification;
-  return parsed;
-}
-
-// --- Execute using NVIDIA free LLM ---
-async function executeWithNvidia(
-  prompt: string,
-  conversationHistory?: ConversationMessage[],
-): Promise<string> {
-  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-
-  if (conversationHistory && conversationHistory.length > 0) {
-    messages.push({
-      role: 'system',
-      content: `<conversation_history>\n${serializeHistory(conversationHistory)}\n</conversation_history>`,
-    });
-  }
-
-  messages.push({ role: 'user', content: prompt });
-
-  const response = await huggingface.chat.completions.create({
-    model: HuggingFaceModels.LLAMA_3_1_8B,
-    messages,
-    temperature: 0.2,
-    max_tokens: 1024,
-  });
-
-  return response.choices[0]?.message?.content ?? '';
 }
 
 // --- Build insight message for DB action confirmations ---
@@ -227,7 +170,7 @@ async function executeAction(
   if (action === AgentAction.DATA_QUERY) {
     const paramStrategy = getStrategy(action);
     const paramPrompt = paramStrategy.buildPrompt(transcription, undefined, conversationHistory);
-    const rawParams = await executeWithNvidia(paramPrompt, conversationHistory);
+    const rawParams = await generateAgentReply(paramPrompt, conversationHistory);
     const now = new Date();
     const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const todayStr = now.toISOString().split('T')[0];
@@ -244,7 +187,7 @@ async function executeAction(
     const financialContext = await buildUserFinancialContext(supabase, userId);
 
     const answerPrompt = buildDataAnswerPrompt(transcription, queryResults, conversationHistory, financialContext);
-    const rawAnswer = await executeWithNvidia(answerPrompt, conversationHistory);
+    const rawAnswer = await generateAgentReply(answerPrompt, conversationHistory);
     const parsed = safeParseJson<{ answer: string }>(rawAnswer, { answer: 'No pude procesar la consulta. Intentá de nuevo.' });
     return {
       payload: { action: 'data_query', answer: parsed.answer } as AgentPayload,
@@ -274,7 +217,7 @@ async function executeAction(
   }
 
   const prompt = strategy.buildPrompt(transcription, context, conversationHistory);
-  const rawContent = await executeWithNvidia(prompt, conversationHistory);
+  const rawContent = await generateAgentReply(prompt, conversationHistory);
   const payload = strategy.parseResponse(rawContent);
 
   // Handle clarification responses
@@ -363,7 +306,7 @@ async function generateActionMessage(
 
   try {
     const insightPrompt = buildInsightPrompt(action, payload, financialContext);
-    const rawInsight = await executeWithNvidia(insightPrompt, conversationHistory);
+    const rawInsight = await generateAgentReply(insightPrompt, conversationHistory);
     const parsed = safeParseJson<{ message: string }>(rawInsight, { message: '' });
     return parsed.message || (DB_ACTION_FALLBACKS[action] ?? 'Acción detectada');
   } catch {
@@ -411,7 +354,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const financialContext = await buildUserFinancialContext(supabase, user.id);
       const postConfirmPrompt = buildPostConfirmPrompt(action, payload, financialContext);
       try {
-        const raw = await executeWithNvidia(postConfirmPrompt);
+        const raw = await generateAgentReply(postConfirmPrompt);
         const parsed = safeParseJson<{ message: string }>(raw, { message: '' });
         return NextResponse.json({ message: parsed.message || 'Listo, se registró correctamente.' });
       } catch {
@@ -426,7 +369,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const welcomePrompt = buildWelcomePrompt(firstName, financialContext);
       const fallback = `Hola${firstName ? ` ${firstName}` : ''}. ¿En qué te puedo ayudar?`;
       try {
-        const raw = await executeWithNvidia(welcomePrompt);
+        const raw = await generateAgentReply(welcomePrompt);
         const parsed = safeParseJson<{ message: string }>(raw, { message: '' });
         return NextResponse.json({ message: parsed.message || fallback });
       } catch {
@@ -444,7 +387,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const periodAction = detectPeriodQuery(transcription);
       const classification = periodAction
         ? { action: periodAction as AgentActionType, confidence: 0.95 }
-        : await classifyWithNvidia(transcription, conversationHistory);
+        : await classifyTranscription(transcription, conversationHistory);
       const action = classification.action;
 
       // Low confidence: ask for reformulation
@@ -497,7 +440,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // --- Legacy two-step mode (kept for compatibility) ---
     if (step === 'classify') {
-      const classification = await classifyWithNvidia(transcription, conversationHistory);
+      const classification = await classifyTranscription(transcription, conversationHistory);
       return NextResponse.json(classification);
     }
 
@@ -542,12 +485,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error('Agent API error:', error);
 
-    const errorMessage = error instanceof Error ? error.message : '';
-    if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
-      return NextResponse.json(
-        { error: 'Se alcanzó el límite de consultas. Intentá de nuevo en unos segundos.' },
-        { status: 429 },
-      );
+    const aiResponse: NextResponse | null = error instanceof Error ? aiErrorResponse(error) : null;
+    if (aiResponse !== null) {
+      return aiResponse;
     }
 
     return NextResponse.json(

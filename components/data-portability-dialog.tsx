@@ -58,6 +58,7 @@ interface ParsedImportState {
 const SUMMARY_ENTITIES: ReadonlyArray<{ key: keyof EntityCounts; label: string }> = [
   { key: 'transactions', label: 'movimientos' },
   { key: 'expense_plans', label: 'planes de gasto' },
+  { key: 'cards', label: 'tarjetas' },
   { key: 'credit_purchases', label: 'compras con tarjeta' },
   { key: 'credit_installments', label: 'cuotas de tarjeta' },
   { key: 'investments', label: 'inversiones' },

@@ -28,6 +28,7 @@ import { useCurrency } from '@/hooks/use-currency';
 import { buildMoneyFields, roundAmount } from '@/lib/currency/money';
 import { parseDecimal } from '@/lib/currency/money-input';
 import { toast } from 'sonner';
+import { CardSelect, useLiveCards } from '@/components/card-form';
 
 interface CreditCardFormProps {
   onSubmit: (data: {
@@ -44,6 +45,7 @@ const creditCategories = [
   'Viajes',
   'Educación',
   'Salud',
+  'Auto',
   'Otros',
 ];
 
@@ -53,6 +55,8 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
   const [installments, setInstallments] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
+  const [cardId, setCardId] = useState<string | null>(null);
+  const { cards, loading: cardsLoading } = useLiveCards();
 
   const purchaseDate = format(new Date(), 'yyyy-MM-dd');
   const currency = money.currency ?? baseCurrency;
@@ -98,6 +102,7 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
       installments: numInstallments,
       monthly_amount: monthlyMoney.amount,
       start_date: format(today, 'yyyy-MM-dd'),
+      card_id: cardId,
     };
 
     // Create array of installments
@@ -126,6 +131,7 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
     setInstallments('');
     setCategory('');
     setDescription('');
+    setCardId(null);
   };
 
   return (
@@ -187,6 +193,16 @@ export function CreditCardForm({ onSubmit }: CreditCardFormProps) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className='space-y-2'>
+          <Label htmlFor='credit-card'>Tarjeta (opcional)</Label>
+          <CardSelect id='credit-card' cards={cards} value={cardId} onChange={setCardId} />
+          {!cardsLoading && cards.length === 0 && (
+            <p className='text-xs text-gray-500 dark:text-gray-400'>
+              Todavía no cargaste tarjetas. Podés cargarlas en tu perfil, en “Mis tarjetas”.
+            </p>
+          )}
         </div>
 
         <div className='space-y-2'>

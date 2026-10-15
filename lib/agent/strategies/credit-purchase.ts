@@ -67,6 +67,7 @@ Respondé ÚNICAMENTE con un JSON válido (sin markdown, sin texto extra):
       totalAmount: parsed.totalAmount ?? 0,
       installments: parsed.installments ?? 2,
       startDate: parsed.startDate ?? new Date().toISOString().split('T')[0],
+      cardId: null,
     };
     return result;
   },

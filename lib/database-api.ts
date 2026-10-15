@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { addMonths, format } from "date-fns"
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem, Service, Database, OmitNew } from "@/types/database"
+import type { Transaction, ExpensePlan, Card, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Ticket, TicketItem, Service, Database, OmitNew } from "@/types/database"
 import { buildServiceTransactionPayload, currentPeriodDueDate, pendingAutomaticServices } from "@/lib/services"
 import { computeLoanTotal, redistributeUnpaidInstallments } from "@/lib/loans"
 import { fetchAllTransactionsOrdered, recalculateAllBalances as recalculateAllBalancesWith } from "@/lib/balances"
@@ -12,6 +12,8 @@ import { roundAmount, type MoneyFields, type RateSource } from "@/lib/currency/m
 
 type ServiceInsert = Database["public"]["Tables"]["services"]["Insert"]
 type ServiceUpdate = Database["public"]["Tables"]["services"]["Update"]
+type CardInsert = Database["public"]["Tables"]["cards"]["Insert"]
+type CardUpdate = Pick<Database["public"]["Tables"]["cards"]["Update"], "name" | "network" | "last_four">
 
 type ChildMoneyParent = {
   currency?: string
@@ -1381,6 +1383,51 @@ export async function deleteService(serviceId: string, userId: string): Promise<
     .from("services")
     .delete()
     .eq("id", serviceId)
+    .eq("user_id", userId)
+
+  if (error) throw error
+}
+
+export async function getCards(userId: string): Promise<Card[]> {
+  const { data, error } = await supabase
+    .from("cards")
+    .select("id, user_id, name, network, last_four, created_at, updated_at")
+    .eq("user_id", userId)
+    .order("name", { ascending: true })
+
+  if (error) throw error
+  return data
+}
+
+export async function createCard(card: Omit<CardInsert, "user_id">, userId: string): Promise<Card> {
+  const { data, error } = await supabase
+    .from("cards")
+    .insert({ ...card, user_id: userId })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateCard(cardId: string, updates: CardUpdate, userId: string): Promise<Card> {
+  const { data, error } = await supabase
+    .from("cards")
+    .update(updates)
+    .eq("id", cardId)
+    .eq("user_id", userId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteCard(cardId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("cards")
+    .delete()
+    .eq("id", cardId)
     .eq("user_id", userId)
 
   if (error) throw error

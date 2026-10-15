@@ -1,19 +1,32 @@
 'use client';
 
 import type { CreditPurchasePayload } from '@/types/agent';
+import type { Card as CreditCard } from '@/types/database';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCurrency } from '@/hooks/use-currency';
+import { useCards } from '@/hooks/use-cards';
+import { formatCardLabel } from '@/lib/cards';
+
+const NO_CARD_VALUE = 'none';
 
 interface ConfirmCreditPurchaseProps {
   payload: CreditPurchasePayload;
+  onCardChange: (cardId: string | null) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function ConfirmCreditPurchase({ payload, onConfirm, onCancel }: ConfirmCreditPurchaseProps) {
+export function ConfirmCreditPurchase({ payload, onCardChange, onConfirm, onCancel }: ConfirmCreditPurchaseProps) {
   const { format: formatCurrency } = useCurrency();
+  const { cards, loading: cardsLoading } = useCards();
   const monthlyAmount = Math.ceil((payload.totalAmount / payload.installments) * 100) / 100;
+
+  const handleCardChange = (value: string): void => {
+    onCardChange(value === NO_CARD_VALUE ? null : value);
+  };
 
   return (
     <Card className="border-2 border-purple-200 dark:border-purple-800">
@@ -40,6 +53,24 @@ export function ConfirmCreditPurchase({ payload, onConfirm, onCancel }: ConfirmC
         <div className="flex justify-between">
           <span className="text-gray-500">Inicio:</span>
           <span>{payload.startDate}</span>
+        </div>
+        <div className="space-y-1 pt-1">
+          <Label htmlFor="agent-credit-card" className="text-gray-500 font-normal">
+            Tarjeta:
+          </Label>
+          <Select value={payload.cardId ?? NO_CARD_VALUE} onValueChange={handleCardChange} disabled={cardsLoading}>
+            <SelectTrigger id="agent-credit-card" className="h-8">
+              <SelectValue placeholder="Sin tarjeta" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_CARD_VALUE}>Sin tarjeta</SelectItem>
+              {cards.map((card: CreditCard) => (
+                <SelectItem key={card.id} value={card.id}>
+                  {formatCardLabel(card)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </CardContent>
       <CardFooter className="gap-2">
