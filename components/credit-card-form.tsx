@@ -44,6 +44,7 @@ const creditCategories = [
   'Viajes',
   'Educación',
   'Salud',
+  'Auto',
   'Otros',
 ];
 
