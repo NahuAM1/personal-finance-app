@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GeminiModels } from "@/public/enums";
-import { generateContentWithRetry } from "@/lib/gemini";
+import { AiTask, runAiTask } from "@/lib/ai/gateway";
+import { aiErrorResponse } from "@/lib/ai/http";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { USER_ROLES, UserRole } from "@/types/database";
+
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   // Verify authentication and role
@@ -26,22 +28,18 @@ export async function POST(request: NextRequest) {
 
   const { message } = await request.json();
   try {
-    const response = await generateContentWithRetry({
-      model: GeminiModels.GEMINI_3_5_FLASH,
+    const content: string = await runAiTask(AiTask.TRANSCRIBE_TRANSACTION, {
       contents: message,
-      config: {
-        temperature: 0.1,
-        responseMimeType: "application/json",
-      },
-    }, {
-      // Voice input is interactive: fail over fast instead of retrying a saturated model
-      maxRetries: 2,
-      fallbackModels: [GeminiModels.GEMINI_2_5_FLASH],
     });
 
-    return NextResponse.json({ content: response.text ?? "" });
+    return NextResponse.json({ content });
   } catch (error) {
     console.error("Error generating response:", error);
+    const aiResponse: NextResponse | null =
+      error instanceof Error ? aiErrorResponse(error) : null;
+    if (aiResponse !== null) {
+      return aiResponse;
+    }
     return new Response("Error generating response", { status: 500 });
   }
 }

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { USER_ROLES, type UserRole } from "@/types/database";
-import { GeminiModels } from "@/public/enums";
 import { scanReceiptPrompt } from "@/public/promts/scan-receipt";
-import { generateContentWithRetry } from "@/lib/gemini";
+import { AiTask, runAiTask } from "@/lib/ai/gateway";
+import { aiErrorResponse } from "@/lib/ai/http";
+
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const supabase = createSupabaseServerClient();
@@ -58,8 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call Gemini for OCR
-    const response = await generateContentWithRetry({
-      model: GeminiModels.GEMINI_3_5_FLASH,
+    const rawContent: string = await runAiTask(AiTask.SCAN_RECEIPT, {
       contents: [
         {
           inlineData: {
@@ -69,12 +70,7 @@ export async function POST(request: NextRequest) {
         },
         scanReceiptPrompt,
       ],
-      config: {
-        temperature: 0.1,
-      },
     });
-
-    const rawContent = response.text ?? "";
 
     // Parse the JSON response
     const jsonMatch =
@@ -159,6 +155,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error scanning receipt:", error);
+    const aiResponse: NextResponse | null =
+      error instanceof Error ? aiErrorResponse(error) : null;
+    if (aiResponse !== null) {
+      return aiResponse;
+    }
     return NextResponse.json(
       { error: "Error processing receipt" },
       { status: 500 },
