@@ -9,6 +9,7 @@ import {
   getAllLoanPayments,
   getTickets,
   getTicketItems,
+  getCards,
 } from '@/lib/database-api';
 import { getUserSettings } from '@/lib/user-settings-api';
 import type {
@@ -37,6 +38,7 @@ async function gatherData(
   const data: CanonicalData = {
     transactions: [],
     expense_plans: [],
+    cards: [],
     credit_purchases: [],
     credit_installments: [],
     investments: [],
@@ -56,6 +58,10 @@ async function gatherData(
     data.expense_plans = rows.filter((r) =>
       inDateRange(r.deadline, opts.dateRange)
     );
+  }
+
+  if (opts.entities.has('cards')) {
+    data.cards = await getCards(userId);
   }
 
   if (opts.entities.has('credit_purchases')) {
@@ -144,6 +150,7 @@ export function serializeJSON(payload: CanonicalExport): Blob {
 const SHEET_ORDER: ReadonlyArray<keyof CanonicalData> = [
   'transactions',
   'expense_plans',
+  'cards',
   'credit_purchases',
   'credit_installments',
   'investments',

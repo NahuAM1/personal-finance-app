@@ -1,6 +1,7 @@
 import type {
   Transaction,
   ExpensePlan,
+  Card,
   CreditPurchase,
   CreditInstallment,
   Investment,
@@ -13,6 +14,7 @@ import type {
 export type EntityKey =
   | 'transactions'
   | 'expense_plans'
+  | 'cards'
   | 'credit_purchases'
   | 'investments'
   | 'loans'
@@ -21,6 +23,7 @@ export type EntityKey =
 export const ALL_ENTITIES: readonly EntityKey[] = [
   'transactions',
   'expense_plans',
+  'cards',
   'credit_purchases',
   'investments',
   'loans',
@@ -30,6 +33,7 @@ export const ALL_ENTITIES: readonly EntityKey[] = [
 export const ENTITY_LABELS: Record<EntityKey, string> = {
   transactions: 'Movimientos',
   expense_plans: 'Planes de gasto',
+  cards: 'Tarjetas',
   credit_purchases: 'Compras con tarjeta',
   investments: 'Inversiones',
   loans: 'Préstamos y planes de pago',
@@ -68,6 +72,7 @@ export interface CanonicalSettings {
 export interface CanonicalData {
   transactions: Transaction[];
   expense_plans: ExpensePlan[];
+  cards: Card[];
   credit_purchases: CreditPurchase[];
   credit_installments: CreditInstallment[];
   investments: Investment[];
@@ -87,6 +92,7 @@ export interface CanonicalExport {
 export interface EntityCounts {
   transactions: number;
   expense_plans: number;
+  cards: number;
   credit_purchases: number;
   credit_installments: number;
   investments: number;
