@@ -179,10 +179,40 @@ export interface Database {
           updated_at?: string
         }
       }
+      cards: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          network: CardNetwork
+          last_four: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          network: CardNetwork
+          last_four?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          network?: CardNetwork
+          last_four?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       credit_purchases: {
         Row: {
           id: string
           user_id: string
+          card_id: string | null
           description: string
           category: string
           total_amount: number
@@ -200,6 +230,7 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
+          card_id?: string | null
           description: string
           category: string
           total_amount: number
@@ -217,6 +248,7 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
+          card_id?: string | null
           description?: string
           category?: string
           total_amount?: number
@@ -757,6 +789,8 @@ export interface Database {
   }
 }
 
+export type CardNetwork = "visa" | "mastercard" | "amex" | "cabal" | "naranja" | "other"
+
 type MoneyKeys = "currency" | "original_amount" | "exchange_rate" | "rate_source" | "base_currency"
 
 /**
@@ -800,6 +834,7 @@ export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
 
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"]
 export type ExpensePlan = Database["public"]["Tables"]["expense_plans"]["Row"]
+export type Card = Database["public"]["Tables"]["cards"]["Row"]
 export type CreditPurchase = Database["public"]["Tables"]["credit_purchases"]["Row"]
 export type CreditInstallment = Database["public"]["Tables"]["credit_installments"]["Row"]
 export type Investment = Database["public"]["Tables"]["investments"]["Row"]
