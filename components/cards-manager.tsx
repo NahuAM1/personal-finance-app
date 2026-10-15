@@ -43,7 +43,7 @@ function CardRow({ card, onEdit, onDelete }: CardRowProps): React.JSX.Element {
         <div className='p-2 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 rounded-xl shrink-0'>
           <CreditCard className='h-4 w-4 text-blue-600 dark:text-blue-400' aria-hidden='true' />
         </div>
-        <span className='text-sm font-medium truncate'>{label}</span>
+        <span className='text-sm font-medium break-words'>{label}</span>
       </div>
       <div className='flex items-center gap-1 shrink-0'>
         <Button
@@ -149,7 +149,7 @@ export function CardsManager(): React.JSX.Element {
           </Button>
         </div>
       ) : (
-        <div className='space-y-4'>
+        <div className='min-w-0 space-y-4'>
           <ul className='divide-y divide-gray-100 dark:divide-gray-800 max-h-80 overflow-y-auto'>
             {cards.map((card: UserCard) => (
               <CardRow
@@ -199,7 +199,7 @@ interface CardsManagerDialogProps {
 export function CardsManagerDialog({ open, onOpenChange }: CardsManagerDialogProps): React.JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-md'>
+      <DialogContent className='sm:max-w-lg'>
         <CardsManager />
       </DialogContent>
     </Dialog>
