@@ -76,7 +76,7 @@ export function CardForm({ initialData, onSubmit, onCancel }: CardFormProps): Re
   };
 
   return (
-    <form onSubmit={handleSubmit} className='space-y-4' noValidate>
+    <form onSubmit={handleSubmit} className='min-w-0 space-y-4' noValidate>
       <div className='space-y-2'>
         <Label htmlFor='card-name'>Nombre de la tarjeta</Label>
         <Input

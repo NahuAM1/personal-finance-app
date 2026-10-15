@@ -66,3 +66,41 @@ export function formatCardLabel(card: Pick<Card, "name" | "network" | "last_four
   const base: string = `${card.name} · ${CARD_NETWORK_LABELS[card.network]}`
   return card.last_four === null ? base : `${base} •••• ${card.last_four}`
 }
+
+const NO_CARD_LABEL: string = "Sin tarjeta"
+
+export interface CardAmount {
+  cardId: string | null
+  amount: number
+}
+
+export interface CardSubtotal {
+  cardId: string | null
+  label: string
+  amount: number
+}
+
+function sumAmounts(items: readonly CardAmount[]): number {
+  return items.reduce((sum: number, item: CardAmount) => sum + item.amount, 0)
+}
+
+export function subtotalsByCard(items: readonly CardAmount[], cards: readonly Card[]): CardSubtotal[] {
+  const knownIds: ReadonlySet<string> = new Set(cards.map((card: Card) => card.id))
+
+  const cardSubtotals: CardSubtotal[] = cards
+    .map((card: Card) => ({
+      card,
+      items: items.filter((item: CardAmount) => item.cardId === card.id),
+    }))
+    .filter((group) => group.items.length > 0)
+    .map((group) => ({ cardId: group.card.id, label: formatCardLabel(group.card), amount: sumAmounts(group.items) }))
+    .sort((a: CardSubtotal, b: CardSubtotal) => a.label.localeCompare(b.label))
+
+  const withoutCard: CardAmount[] = items.filter(
+    (item: CardAmount) => item.cardId === null || !knownIds.has(item.cardId),
+  )
+
+  return withoutCard.length > 0
+    ? [...cardSubtotals, { cardId: null, label: NO_CARD_LABEL, amount: sumAmounts(withoutCard) }]
+    : cardSubtotals
+}
