@@ -9,6 +9,7 @@ import type { ServiceWithStatus } from '@/lib/services';
 import type { Database } from '@/types/database';
 import * as servicesApi from '@/lib/services-api';
 import type { MoneyFields } from '@/lib/currency/money';
+import { emitDataChanged } from '@/lib/app-events';
 
 type ServiceInsert = Database['public']['Tables']['services']['Insert'];
 type ServiceUpdate = Database['public']['Tables']['services']['Update'];
@@ -58,6 +59,8 @@ export function useServices(enabled = true): {
       setServices(svcs);
       setServiceTransactions(created.length > 0 ? [...created, ...txs] : txs);
       hasFetchedRef.current = true;
+      // The main page keeps its own copy of transactions and services (dashboard totals).
+      if (created.length > 0) emitDataChanged();
     } catch (error) {
       toast({
         title: 'Error',
@@ -88,6 +91,7 @@ export function useServices(enabled = true): {
       try {
         const created = await servicesApi.createService(input, user.id);
         setServices((prev) => [created, ...prev]);
+        emitDataChanged();
         toast({
           title: 'Servicio creado',
           description: `${created.name} fue agregado correctamente`,
@@ -111,6 +115,7 @@ export function useServices(enabled = true): {
       try {
         const updated = await servicesApi.updateService(id, updates, user.id);
         setServices((prev) => prev.map((s) => (s.id === id ? updated : s)));
+        emitDataChanged();
         toast({
           title: 'Servicio actualizado',
           description: `${updated.name} fue actualizado correctamente`,
@@ -134,6 +139,7 @@ export function useServices(enabled = true): {
       try {
         await servicesApi.deleteService(id, user.id);
         setServices((prev) => prev.filter((s) => s.id !== id));
+        emitDataChanged();
         toast({
           title: 'Servicio eliminado',
           description: 'El servicio fue eliminado correctamente',
@@ -159,6 +165,7 @@ export function useServices(enabled = true): {
         // Push the new transaction so servicesWithStatus immediately flips to "paid"
         // without a full refetch.
         setServiceTransactions((prev) => [tx, ...prev]);
+        emitDataChanged();
         toast({
           title: 'Pago registrado',
           description: `${service.name} marcado como pagado`,
