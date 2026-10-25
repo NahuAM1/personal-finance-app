@@ -49,10 +49,12 @@ import {
   Calendar,
   Eye,
   EyeOff,
+  Receipt,
 } from 'lucide-react';
 import { getMonth, getYear, format, parseISO, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan } from '@/types/database';
+import { computeExpectedMonthSpend, type SpendBucket } from '@/lib/expected-spend';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Service } from '@/types/database';
 
 interface ChartTooltipEntry {
   name: string;
@@ -91,6 +93,8 @@ interface DashboardProps {
   creditInstallments: CreditInstallment[];
   investments: Investment[];
   loans: Loan[];
+  loanPayments: LoanPayment[];
+  services: Service[];
 }
 
 export function Dashboard({
@@ -100,6 +104,8 @@ export function Dashboard({
   creditInstallments,
   investments,
   loans,
+  loanPayments,
+  services,
 }: DashboardProps) {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(getMonth(currentDate));
@@ -281,6 +287,17 @@ export function Dashboard({
     })
     .reduce((sum, inst) => sum + inst.amount, 0);
 
+  // Expected spend of the real current month (not affected by month filter)
+  const expectedSpend = computeExpectedMonthSpend(
+    { creditInstallments, services, transactions, loans, loanPayments },
+    realToday
+  );
+  const expectedSpendBreakdown: { label: string; bucket: SpendBucket }[] = [
+    { label: 'Tarjetas', bucket: expectedSpend.cards },
+    { label: 'Servicios', bucket: expectedSpend.services },
+    { label: 'Préstamos', bucket: expectedSpend.loans },
+  ];
+
   return (
     <div className='space-y-8 w-full min-w-0'>
       {/* Period Filter Card */}
@@ -457,6 +474,61 @@ export function Dashboard({
           </CardContent>
         </Card>
       </div>
+
+      {/* Expected Month Spend Card */}
+      <Card className='relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0 shadow-lg shadow-amber-500/20 min-w-0'>
+        <div className='absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16' />
+        <div className='absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12' />
+        <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2 relative'>
+          <CardTitle className='text-sm font-medium text-amber-100'>
+            Gasto esperado de {months[realCurrentMonth].label}
+          </CardTitle>
+          <div className='p-2 bg-white/20 rounded-xl backdrop-blur-sm'>
+            <Receipt className='h-4 w-4' aria-hidden="true" />
+          </div>
+        </CardHeader>
+        <CardContent className='relative'>
+          <div className='flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between'>
+            <div className='min-w-0'>
+              <div className='text-3xl font-bold tabular-nums tracking-tight'>
+                {formatAmount(expectedSpend.total)}
+              </div>
+              <p className='text-xs text-amber-100 mt-1 tabular-nums'>
+                {expectedSpend.total === 0
+                  ? 'Sin pagos previstos este mes'
+                  : expectedSpend.pending > 0
+                    ? `${formatAmount(expectedSpend.pending)} por pagar`
+                    : 'Todo pagado'}
+              </p>
+              {expectedSpend.overdue > 0 && (
+                <p className='text-xs text-amber-100/80 mt-1 tabular-nums'>
+                  Incluye {formatAmount(expectedSpend.overdue)} vencido de meses anteriores
+                </p>
+              )}
+            </div>
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-0 lg:min-w-[28rem]'>
+              {expectedSpendBreakdown.map((item) => (
+                <div key={item.label} className='rounded-xl bg-white/15 px-3 py-2 min-w-0'>
+                  <p className='text-xs text-amber-100'>{item.label}</p>
+                  <p className='text-base font-semibold tabular-nums truncate'>
+                    {formatAmount(item.bucket.total)}
+                  </p>
+                  {item.bucket.pending > 0 && (
+                    <p className='text-xs text-amber-100/80 tabular-nums truncate'>
+                      {formatAmount(item.bucket.pending)} pendiente
+                    </p>
+                  )}
+                  {item.bucket.overdue > 0 && (
+                    <p className='text-xs text-amber-100/80 tabular-nums truncate'>
+                      {formatAmount(item.bucket.overdue)} vencido
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts Section — single grid, charts auto-flow */}
       <div className='grid gap-6 md:grid-cols-2 min-w-0'>

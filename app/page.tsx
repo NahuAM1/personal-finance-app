@@ -42,7 +42,7 @@ import { AuthGuard } from '@/components/auth-guard';
 import * as api from '@/lib/database-api';
 import { useToast } from '@/hooks/use-toast';
 
-import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, OmitNew } from '@/types/database';
+import type { Transaction, ExpensePlan, CreditPurchase, CreditInstallment, Investment, Loan, LoanPayment, Service, OmitNew } from '@/types/database';
 import { USER_ROLES } from '@/types/database';
 import { UserProfile } from '@/components/user-profile';
 import { NotificationBell } from '@/components/notification-bell';
@@ -78,6 +78,7 @@ function FinanceAppContent() {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loanPayments, setLoanPayments] = useState<LoanPayment[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
 
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -127,7 +128,7 @@ function FinanceAppContent() {
 
     try {
       if (showLoader) setLoading(true);
-      const [transactionsData, plansData, purchasesData, installmentsData, investmentsData, loansData, loanPaymentsData] = await Promise.all([
+      const [transactionsData, plansData, purchasesData, installmentsData, investmentsData, loansData, loanPaymentsData, servicesData] = await Promise.all([
         api.getTransactions(user.id),
         api.getExpensePlans(user.id),
         api.getCreditPurchases(user.id),
@@ -135,6 +136,7 @@ function FinanceAppContent() {
         api.getInvestments(user.id),
         api.getLoans(user.id),
         api.getAllLoanPayments(user.id),
+        api.getServices(user.id),
       ]);
 
       setTransactions(transactionsData || []);
@@ -144,6 +146,7 @@ function FinanceAppContent() {
       setInvestments(investmentsData || []);
       setLoans(loansData || []);
       setLoanPayments(loanPaymentsData || []);
+      setServices(servicesData || []);
     } catch (error) {
       toast({
         title: 'Error',
@@ -862,6 +865,8 @@ function FinanceAppContent() {
               creditInstallments={creditInstallments}
               investments={investments}
               loans={loans}
+              loanPayments={loanPayments}
+              services={services}
             />
           </TabsContent>
 
