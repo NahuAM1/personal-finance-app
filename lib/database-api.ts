@@ -61,15 +61,11 @@ function parentMoneyFields(parent: {
   }
 }
 
-export async function getTransactions(userId: string) {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("date", { ascending: false })
-
-  if (error) throw error
-  return data
+// Newest first. Paginated: a single response stops at 1000 rows, which left the dashboard
+// totals (summed in memory) short of the oldest transactions.
+export async function getTransactions(userId: string): Promise<Transaction[]> {
+  const transactions: Transaction[] = await fetchAllTransactionsOrdered(supabase, userId)
+  return transactions.reverse()
 }
 
 export async function addTransaction(transaction: OmitNew<Transaction, "id" | "created_at" | "updated_at">) {
