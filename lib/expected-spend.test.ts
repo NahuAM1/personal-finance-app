@@ -121,14 +121,14 @@ const NO_DATA = {
 };
 
 describe('computeExpectedMonthSpend', () => {
-  it('adds up the card installments due this month, split into total and still pending', () => {
+  it('adds up the card installments of last month, which the card statement bills this month, split into total and still pending', () => {
     const spend = computeExpectedMonthSpend(
       {
         ...NO_DATA,
         creditInstallments: [
-          buildInstallment('paid', '2026-10-05', 100, true),
-          buildInstallment('pending', '2026-10-20', 50, false),
-          buildInstallment('next-month', '2026-11-05', 999, false),
+          buildInstallment('paid', '2026-09-05', 100, true),
+          buildInstallment('pending', '2026-09-29', 50, false),
+          buildInstallment('billed-next-month', '2026-10-29', 999, false),
         ],
       },
       REF,
@@ -137,14 +137,14 @@ describe('computeExpectedMonthSpend', () => {
     expect(spend.cards).toEqual({ total: 150, pending: 50, overdue: 0 });
   });
 
-  it('adds unpaid card installments from earlier months as overdue, to both the total and the pending amount', () => {
+  it('adds unpaid card installments from before last month as overdue, to both the total and the pending amount', () => {
     const spend = computeExpectedMonthSpend(
       {
         ...NO_DATA,
         creditInstallments: [
-          buildInstallment('this-month', '2026-10-05', 100, false),
-          buildInstallment('overdue', '2026-09-05', 40, false),
-          buildInstallment('paid-last-month', '2026-09-05', 999, true),
+          buildInstallment('this-statement', '2026-09-29', 100, false),
+          buildInstallment('overdue', '2026-08-29', 40, false),
+          buildInstallment('paid-earlier', '2026-08-29', 999, true),
         ],
       },
       REF,
@@ -173,7 +173,7 @@ describe('computeExpectedMonthSpend', () => {
     expect(spend.services).toEqual({ total: 560, pending: 300, overdue: 0 });
   });
 
-  it('adds up the payments due this month of loans the user has to pay back', () => {
+  it('adds up the payments due last month, paid this month, of loans the user has to pay back', () => {
     const spend = computeExpectedMonthSpend(
       {
         ...NO_DATA,
@@ -183,10 +183,10 @@ describe('computeExpectedMonthSpend', () => {
           buildLoan('lent-to-friend', 'given'),
         ],
         loanPayments: [
-          buildLoanPayment('bank-1', 'bank-loan', '2026-10-15', 400, true),
-          buildLoanPayment('fridge-1', 'fridge-plan', '2026-10-30', 120, false),
-          buildLoanPayment('friend-1', 'lent-to-friend', '2026-10-15', 999, false),
-          buildLoanPayment('bank-2', 'bank-loan', '2026-11-15', 999, false),
+          buildLoanPayment('bank-1', 'bank-loan', '2026-09-15', 400, true),
+          buildLoanPayment('fridge-1', 'fridge-plan', '2026-09-30', 120, false),
+          buildLoanPayment('friend-1', 'lent-to-friend', '2026-09-15', 999, false),
+          buildLoanPayment('bank-2', 'bank-loan', '2026-10-15', 999, false),
         ],
       },
       REF,
@@ -195,15 +195,15 @@ describe('computeExpectedMonthSpend', () => {
     expect(spend.loans).toEqual({ total: 520, pending: 120, overdue: 0 });
   });
 
-  it('adds unpaid payments from earlier months of loans the user pays back as overdue', () => {
+  it('adds unpaid payments from before last month of loans the user pays back as overdue', () => {
     const spend = computeExpectedMonthSpend(
       {
         ...NO_DATA,
         loans: [buildLoan('bank-loan', 'received'), buildLoan('lent-to-friend', 'given')],
         loanPayments: [
-          buildLoanPayment('bank-1', 'bank-loan', '2026-08-15', 400, false),
-          buildLoanPayment('bank-2', 'bank-loan', '2026-09-15', 999, true),
-          buildLoanPayment('friend-1', 'lent-to-friend', '2026-09-15', 999, false),
+          buildLoanPayment('bank-1', 'bank-loan', '2026-07-15', 400, false),
+          buildLoanPayment('bank-2', 'bank-loan', '2026-08-15', 999, true),
+          buildLoanPayment('friend-1', 'lent-to-friend', '2026-08-15', 999, false),
         ],
       },
       REF,
@@ -216,13 +216,13 @@ describe('computeExpectedMonthSpend', () => {
     const spend = computeExpectedMonthSpend(
       {
         creditInstallments: [
-          buildInstallment('card', '2026-10-05', 100, false),
-          buildInstallment('late-card', '2026-09-05', 30, false),
+          buildInstallment('card', '2026-09-29', 100, false),
+          buildInstallment('late-card', '2026-08-29', 30, false),
         ],
         services: [buildService('internet', 300, true)],
         transactions: [buildServicePayment('internet', '2026-10-10', 300)],
         loans: [buildLoan('bank-loan', 'received')],
-        loanPayments: [buildLoanPayment('bank-1', 'bank-loan', '2026-10-15', 400, false)],
+        loanPayments: [buildLoanPayment('bank-1', 'bank-loan', '2026-09-15', 400, false)],
       },
       REF,
     );
