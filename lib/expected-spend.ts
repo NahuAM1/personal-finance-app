@@ -1,3 +1,4 @@
+import { subMonths } from "date-fns"
 import type { CreditInstallment, Loan, LoanPayment, Service, Transaction } from "@/types/database"
 import { findLinkedTransactionForPeriod, getPeriodKey } from "@/lib/services"
 
@@ -46,14 +47,16 @@ function toBucket(items: readonly SpendItem[]): SpendBucket {
   )
 }
 
-// Expected spend of the month of `ref`: card installments and loan payments due that month,
-// plus every active service. Card installments and loan payments still unpaid from earlier
-// months count as overdue; services have no per-month record, so they can't be overdue.
+// Expected spend of the month of `ref`: every active service, plus the card installments and
+// loan payments due the month before, because both are paid a month late (what falls due in
+// November is paid early December). Card installments and loan payments still unpaid from
+// before that month count as overdue; services have no per-month record, so they can't be overdue.
 export function computeExpectedMonthSpend(input: ExpectedMonthSpendInput, ref: Date = new Date()): ExpectedMonthSpend {
   const periodKey: string = getPeriodKey(ref)
-  const isOverdue = (dueDate: string): boolean => dueDate.slice(0, 7) < periodKey
+  const billedPeriodKey: string = getPeriodKey(subMonths(ref, 1))
+  const isOverdue = (dueDate: string): boolean => dueDate.slice(0, 7) < billedPeriodKey
   const isOwedThisMonth = (dueDate: string, paid: boolean): boolean =>
-    dueDate.slice(0, 7) === periodKey || (!paid && isOverdue(dueDate))
+    dueDate.slice(0, 7) === billedPeriodKey || (!paid && isOverdue(dueDate))
 
   const cards: SpendBucket = toBucket(
     input.creditInstallments
