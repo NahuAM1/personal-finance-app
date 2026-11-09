@@ -481,7 +481,7 @@ export function Dashboard({
         <div className='absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12' />
         <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2 relative'>
           <CardTitle className='text-sm font-medium text-amber-100'>
-            Gasto esperado de {months[realCurrentMonth].label}
+            Falta pagar en {months[realCurrentMonth].label}
           </CardTitle>
           <div className='p-2 bg-white/20 rounded-xl backdrop-blur-sm'>
             <Receipt className='h-4 w-4' aria-hidden="true" />
@@ -491,14 +491,14 @@ export function Dashboard({
           <div className='flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between'>
             <div className='min-w-0'>
               <div className='text-3xl font-bold tabular-nums tracking-tight'>
-                {formatAmount(expectedSpend.total)}
+                {formatAmount(expectedSpend.pending)}
               </div>
               <p className='text-xs text-amber-100 mt-1 tabular-nums'>
                 {expectedSpend.total === 0
                   ? 'Sin pagos previstos este mes'
                   : expectedSpend.pending > 0
-                    ? `${formatAmount(expectedSpend.pending)} por pagar`
-                    : 'Todo pagado'}
+                    ? `de ${formatAmount(expectedSpend.total)} de gasto esperado`
+                    : `Todo pagado · ${formatAmount(expectedSpend.total)} de gasto esperado`}
               </p>
               {expectedSpend.overdue > 0 && (
                 <p className='text-xs text-amber-100/80 mt-1 tabular-nums'>
@@ -511,11 +511,11 @@ export function Dashboard({
                 <div key={item.label} className='rounded-xl bg-white/15 px-3 py-2 min-w-0'>
                   <p className='text-xs text-amber-100'>{item.label}</p>
                   <p className='text-base font-semibold tabular-nums truncate'>
-                    {formatAmount(item.bucket.total)}
+                    {formatAmount(item.bucket.pending)}
                   </p>
-                  {item.bucket.pending > 0 && (
+                  {item.bucket.total > 0 && (
                     <p className='text-xs text-amber-100/80 tabular-nums truncate'>
-                      {formatAmount(item.bucket.pending)} pendiente
+                      de {formatAmount(item.bucket.total)} esperado
                     </p>
                   )}
                   {item.bucket.overdue > 0 && (
